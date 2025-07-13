@@ -1,0 +1,85 @@
+
+
+<!-- ローカルホストでのテスト -->
+npm run dev
+<!-- キャッシュ強制クリア -->
+npm cache clean --force
+<!-- →キャッシュを無視して強制再構築 -->
+npm run dev -- --force
+
+<!-- npmライブラリのインストール -->
+npm install
+
+
+<!-- # Gitリポジトリを初期化 -->
+git init
+
+<!-- # 選択ファイルの全てステージング -->
+git add .
+
+<!-- # コミット -->
+git commit -m "Initial commit"
+
+<!-- # GitHubにプッシュ -->
+git push -u origin main
+
+<!-- # ローカルリポジトリ内で現在のブランチ名を main に強制的に変更するコマンド -->
+git branch -M main
+<!--
+git branch -M main と git branch -m main の主な違いは、-M は 強制的 にブランチ名を変更するのに対し、
+-m は エラーを回避しつつ 安全にブランチ名を変更する点です。
+一般的には、-m を使用して誤って上書きするリスクを避けることが推奨されますが、状況に応じて -M を使用することが有効です。 -->
+
+<!-- 現在のブランチ一覧 -->
+git branch
+<!-- 今のブランチがメインの場合 -->
+* main
+
+<!-- ブランチ作成→作業を現在のブランチに切り替え -->
+git checkout -b fail
+<!-- 作業を現在のブランチに切り替え -->
+git checkout fail
+
+<!-- # Gitのリポジトリ作成 -->
+git remote add origin https://github.com/あなたのユーザー名/あなたのリポジトリ名.git
+
+
+<!-- 現在のディレクトリにアクセス -->
+cd '/Users/hiroto.mukai/Desktop/coding/ztodo'
+
+
+<!-- ; Supabaseクライアントライブラリのインストール -->
+npm install @supabase/supabase-js
+
+<!-- Tailwindインストール -->
+npm install -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
+<!-- →見つからない場合 -->
+npm exec tailwindcss init -p
+
+<!-- ツールアンインストール -->
+npm uninstall tailwindcss postcss autoprefixer
+<!-- 再インストール -->
+npm install -D tailwindcss postcss autoprefixer
+
+
+<!-- 現在のフォルダから新しいファイルを作成 -->
+touch .ファイル名
+
+<!-- リモートリポジトリの接続を削除 -->
+git remote remove origin
+<!-- リモートリポジトリを追加 -->
+git remote add origin
+
+<!-- リポジトリのローカルへのクローン -->
+git clone https://github.com/YOUR-USERNAME/YOUR-REPOSITORY
+
+<!-- supabaseのUIコンポーネント（ログイン画面など）使う -->
+npm install @supabase/auth-ui-react @supabase/auth-ui-shared
+
+<!-- Reactインストール -->
+npm install react@^18 react-dom@^18
+<!-- Reactアンインストール -->
+npm uninstall react react-dom
+<!-- React型定義ファイルインストール(typescript) -->
+npm install -D @types/react@^18 @types/react-dom@^18
