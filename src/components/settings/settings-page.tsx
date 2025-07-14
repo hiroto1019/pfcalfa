@@ -28,6 +28,7 @@ interface Profile {
 
 export function SettingsPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [currentWeight, setCurrentWeight] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -55,8 +56,17 @@ export function SettingsPage() {
         .eq('id', user.id)
         .single();
 
+      const { data: latestWeightLog } = await supabase
+        .from('daily_weight_logs')
+        .select('weight_kg')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false })
+        .limit(1)
+        .single();
+
       if (profileData) {
         setProfile(profileData);
+        setCurrentWeight(latestWeightLog?.weight_kg ?? profileData.initial_weight_kg);
       } else if (user) {
         // プロフィールが存在しない場合、空のフォームを表示するためにデフォルト値を設定
         setProfile({
@@ -84,7 +94,16 @@ export function SettingsPage() {
 
     setIsSaving(true);
     try {
-      const { error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+          setIsSaving(false);
+          return;
+      }
+      
+      const today = new Date().toISOString().split('T')[0];
+
+      // 1. プロフィール情報を更新 (現在の体重を除く)
+      const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
           id: profile.id,
@@ -92,16 +111,23 @@ export function SettingsPage() {
           gender: profile.gender,
           birth_date: profile.birth_date,
           height_cm: profile.height_cm,
-          initial_weight_kg: profile.initial_weight_kg,
           target_weight_kg: profile.target_weight_kg,
           activity_level: profile.activity_level,
           goal_type: profile.goal_type,
           food_preferences: profile.food_preferences,
           goal_target_date: profile.goal_target_date,
-          onboarding_completed: true, // 保存時にオンボーディング完了とする
+          onboarding_completed: true,
         });
 
-      if (error) throw error;
+      // 2. 今日の体重を更新
+      const { error: weightError } = await supabase
+        .from('daily_weight_logs')
+        .upsert({ user_id: user.id, date: today, weight_kg: currentWeight }, { onConflict: 'user_id, date' });
+
+
+      if (profileError) throw profileError;
+      if (weightError) throw weightError;
+
       alert('プロフィールを更新しました');
     } catch (error) {
       console.error('プロフィール更新エラー:', error);
@@ -295,8 +321,8 @@ export function SettingsPage() {
               <Input
                 id="initial_weight_kg"
                 type="number"
-                value={profile.initial_weight_kg}
-                onChange={(e) => setProfile({ ...profile, initial_weight_kg: Number(e.target.value) })}
+                value={currentWeight ?? ''}
+                onChange={(e) => setCurrentWeight(parseFloat(e.target.value) || null)}
                 step="0.1"
               />
             </div>

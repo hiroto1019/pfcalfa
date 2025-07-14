@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createClient } from "@/lib/supabase/client";
 import { getIdealCalories } from "@/lib/utils";
+import { startOfWeek, startOfMonth, subDays } from 'date-fns';
 
 interface ChartData {
   name: string;
@@ -49,82 +50,81 @@ export function PFCChart({ compact = false, idealCalories }: PFCChartProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       
-      // 親から渡されたidealCaloriesを目標カロリーとして直接使用
       const targetCalories = idealCalories;
-
-      // 目標PFCの計算ロジックは残す
       const targetProtein = (targetCalories * 0.25) / 4;
       const targetFat = (targetCalories * 0.25) / 9;
       const targetCarbs = (targetCalories * 0.5) / 4;
 
-      // 実績データ取得
-      let chartData: any[] = [];
-      if (period === "daily") {
-        const today = new Date().toISOString().split('T')[0];
-        const { data: dailySummary } = await supabase
-          .from('daily_summaries')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('date', today)
-          .single();
-        // PFC比率で分配（摂取）
-        let protein = 0, fat = 0, carbs = 0;
-        if (dailySummary) {
-          const totalCalories = dailySummary.total_calories;
-          const pKcal = dailySummary.total_protein * 4;
-          const fKcal = dailySummary.total_fat * 9;
-          const cKcal = dailySummary.total_carbs * 4;
-          const sum = pKcal + fKcal + cKcal;
-          if (sum > 0) {
-            protein = totalCalories * (pKcal / sum);
-            fat = totalCalories * (fKcal / sum);
-            carbs = totalCalories * (cKcal / sum);
-          }
-        }
-        // PFC比率で分配（目標）
-        // ここでidealCaloriesをPFCグラフの目標棒合計値として使い、カロリーサマリーと完全一致させる
-        const idealCalories = Math.round(targetCalories);
-        // PFC比率
-        const idealPKcal = targetProtein * 4;
-        const idealFKcal = targetFat * 9;
-        const idealCKcal = targetCarbs * 4;
-        const idealSum = idealPKcal + idealFKcal + idealCKcal;
-        let idealProtein = 0, idealFat = 0, idealCarbs = 0;
-        if (idealSum > 0) {
-          // PFC比率で分配（合計値はidealCaloriesに必ず一致）
-          const pRatio = idealPKcal / idealSum;
-          const fRatio = idealFKcal / idealSum;
-          const cRatio = idealCKcal / idealSum;
-          const rawProtein = idealCalories * pRatio;
-          const rawFat = idealCalories * fRatio;
-          // 端数調整：P・Fを四捨五入、Cで合計を合わせる
-          const roundedProtein = Math.round(rawProtein);
-          const roundedFat = Math.round(rawFat);
-          let roundedCarbs = idealCalories - roundedProtein - roundedFat;
-          if (roundedCarbs < 0) roundedCarbs = 0;
-          if (roundedCarbs > idealCalories) roundedCarbs = idealCalories;
-          idealProtein = roundedProtein;
-          idealFat = roundedFat;
-          idealCarbs = roundedCarbs;
-        }
-        chartData = [
-          {
-            name: "摂取",
-            protein,
-            fat,
-            carbs,
-  },
-          {
-            name: "目標",
-            protein: idealProtein,
-            fat: idealFat,
-            carbs: idealCarbs,
-          }
-        ];
-      } else {
-        // 週・月は合計または平均で同様に作成（省略可）
-        chartData = [];
+      const endDate = new Date();
+      let startDate: Date;
+
+      if (period === "weekly") {
+        startDate = startOfWeek(endDate);
+      } else if (period === "monthly") {
+        startDate = startOfMonth(endDate);
+      } else { // daily
+        startDate = endDate;
       }
+
+      const { data: summaries, error } = await supabase
+        .from('daily_summaries')
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('date', startDate.toISOString().split('T')[0])
+        .lte('date', endDate.toISOString().split('T')[0]);
+
+      if (error) throw error;
+
+      let actualProtein = 0;
+      let actualFat = 0;
+      let actualCarbs = 0;
+      let actualCalories = 0;
+
+      if (summaries && summaries.length > 0) {
+        const totalDays = summaries.length;
+        const totalP = summaries.reduce((sum, s) => sum + s.total_protein, 0);
+        const totalF = summaries.reduce((sum, s) => sum + s.total_fat, 0);
+        const totalC = summaries.reduce((sum, s) => sum + s.total_carbs, 0);
+        
+        const avgP = totalP / totalDays;
+        const avgF = totalF / totalDays;
+        const avgC = totalC / totalDays;
+        
+        actualProtein = avgP * 4;
+        actualFat = avgF * 9;
+        actualCarbs = avgC * 4;
+      }
+      
+      // 目標PFCカロリーの計算
+      const idealPKcal = targetProtein * 4;
+      const idealFKcal = targetFat * 9;
+      const idealCKcal = targetCarbs * 4;
+      const idealSum = idealPKcal + idealFKcal + idealCKcal;
+      let idealProteinCal = 0, idealFatCal = 0, idealCarbsCal = 0;
+      if (idealSum > 0) {
+        const pRatio = idealPKcal / idealSum;
+        const fRatio = idealFKcal / idealSum;
+        const roundedProtein = Math.round(targetCalories * pRatio);
+        const roundedFat = Math.round(targetCalories * fRatio);
+        idealProteinCal = roundedProtein;
+        idealFatCal = roundedFat;
+        idealCarbsCal = targetCalories - roundedProtein - roundedFat;
+      }
+
+      const chartData = [
+        {
+          name: "摂取",
+          protein: actualProtein,
+          fat: actualFat,
+          carbs: actualCarbs,
+        },
+        {
+          name: "目標",
+          protein: idealProteinCal,
+          fat: idealFatCal,
+          carbs: idealCarbsCal,
+        }
+      ];
       setData(chartData);
     } catch (error) {
       console.error('チャートデータ読み込みエラー:', error);
