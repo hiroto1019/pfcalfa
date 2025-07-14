@@ -23,7 +23,7 @@ export function OverviewCard({ initialData, onUpdate }: OverviewCardProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     weight: initialData.current_weight ?? 0,
-    activityLevel: initialData.activity_level ?? 1.5,
+    activityLevel: initialData.activity_level ?? 2,
     targetWeight: initialData.target_weight ?? 0,
     goalDate: initialData.goal_date ? new Date(initialData.goal_date).toISOString().split('T')[0] : "",
   });
@@ -32,7 +32,7 @@ export function OverviewCard({ initialData, onUpdate }: OverviewCardProps) {
   useEffect(() => {
     setFormData({
       weight: initialData.current_weight ?? 0,
-      activityLevel: initialData.activity_level ?? 1.5,
+      activityLevel: initialData.activity_level ?? 2,
       targetWeight: initialData.target_weight ?? 0,
       goalDate: initialData.goal_date ? new Date(initialData.goal_date).toISOString().split('T')[0] : "",
     });
@@ -46,36 +46,57 @@ export function OverviewCard({ initialData, onUpdate }: OverviewCardProps) {
         return;
     }
 
-    const { error: profileError } = await supabase.from('profiles').update({
-      activity_level: formData.activityLevel,
-      target_weight_kg: formData.targetWeight > 0 ? formData.targetWeight : null,
-      goal_target_date: formData.goalDate === "" ? null : formData.goalDate,
-    }).eq('id', user.id);
-
-    // 今日の体重記録も更新
     const today = new Date().toISOString().split('T')[0];
-    const { error: weightError } = await supabase.from('daily_weight_logs').upsert({ 
-      user_id: user.id, 
-      date: today, 
-      weight_kg: formData.weight > 0 ? formData.weight : null 
-    }, { onConflict: 'user_id, date' });
+    
+    // 入力値が0や空の場合はnullに変換する
+    const safeCurrentWeight = formData.weight > 0 ? formData.weight : null;
+    const safeTargetWeight = formData.targetWeight > 0 ? formData.targetWeight : null;
+    const safeGoalDate = formData.goalDate === "" ? null : formData.goalDate;
 
-    if (profileError) console.error("Error saving profile:", profileError);
-    if (weightError) console.error("Error saving weight log:", weightError);
+    const { error: weightError } = await supabase.from('daily_weight_logs').upsert({ user_id: user.id, date: today, weight_kg: safeCurrentWeight }, { onConflict: 'user_id, date' });
+    const { error: activityError } = await supabase.from('daily_activity_logs').upsert({ user_id: user.id, date: today, activity_level: formData.activityLevel }, { onConflict: 'user_id, date' });
+
+    const { data: existingGoal, error: selectError } = await supabase.from('goals').select('id').eq('user_id', user.id).single();
+
+    let goalError;
+    if (selectError && selectError.code !== 'PGRST116') {
+        console.error("Error selecting goal:", selectError);
+        goalError = selectError;
+    } else if (existingGoal) {
+        const { error } = await supabase.from('goals').update({ 
+            target_weight_kg: safeTargetWeight, 
+            target_date: safeGoalDate,
+            current_weight_kg: safeCurrentWeight // 今日の体重も更新
+        }).eq('id', existingGoal.id);
+        goalError = error;
+    } else {
+        const { error } = await supabase.from('goals').insert({ 
+            user_id: user.id, 
+            target_weight_kg: safeTargetWeight, 
+            target_date: safeGoalDate, 
+            current_weight_kg: safeCurrentWeight, 
+            goal_type: 'diet' 
+        });
+        goalError = error;
+    }
+
+    if (weightError) console.error("Error saving weight:", weightError);
+    if (activityError) console.error("Error saving activity:", activityError);
+    if (goalError) console.error("Error saving goal:", goalError);
     
     setIsSaving(false);
     setIsEditing(false);
-    if (!profileError && !weightError) {
+    if (!weightError && !activityError && !goalError) {
       onUpdate();
     }
   };
 
   const activityLevelMap: { [key: number]: string } = {
-    1.2: '座り仕事中心（運動なし）',
-    1.375: '軽い運動（週1-2回）',
-    1.55: '中程度の運動（週3-5回）',
-    1.725: '激しい運動（週6-7回）',
-    1.9: '非常に激しい運動',
+    1: '座り仕事中心（運動なし）',
+    2: '軽い運動（週1-2回）',
+    3: '中程度の運動（週3-5回）',
+    4: '激しい運動（週6-7回）',
+    5: '非常に激しい運動',
   };
 
   return (
@@ -96,9 +117,11 @@ export function OverviewCard({ initialData, onUpdate }: OverviewCardProps) {
               <Select value={String(formData.activityLevel)} onValueChange={value => setFormData({...formData, activityLevel: Number(value)})}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {Object.entries(activityLevelMap).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>{label}</SelectItem>
-                  ))}
+                  <SelectItem value="1">{activityLevelMap[1]}</SelectItem>
+                  <SelectItem value="2">{activityLevelMap[2]}</SelectItem>
+                  <SelectItem value="3">{activityLevelMap[3]}</SelectItem>
+                  <SelectItem value="4">{activityLevelMap[4]}</SelectItem>
+                  <SelectItem value="5">{activityLevelMap[5]}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

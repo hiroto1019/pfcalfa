@@ -3,9 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
 import Link from "next/link";
 import { DashboardGrid } from "./dashboard-grid";
-import { type DashboardData } from "@/app/page";
 
-export function Dashboard({ dashboardData }: { dashboardData: DashboardData }) {
+export function Dashboard({ profile }: { profile: any }) {
   return (
     <div className="flex justify-center items-center min-h-screen bg-gray-50">
       <div className="w-full max-w-screen-xl aspect-[16/9] bg-white rounded-xl shadow-lg flex flex-col p-4">
@@ -18,9 +17,9 @@ export function Dashboard({ dashboardData }: { dashboardData: DashboardData }) {
             </Button>
           </Link>
       </header>
-        <DashboardGrid dashboardData={dashboardData} />
-        <MealRecordModal onMealRegistered={dashboardData.onDataRefresh} />
-      </div>
+        <DashboardGrid profile={profile} />
+        <MealRecordModal />
+        </div>
     </div>
   );
 }

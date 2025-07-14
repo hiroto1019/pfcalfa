@@ -8,11 +8,7 @@ import { useState, useRef, useEffect } from "react";
 import { analyzeImageNutrition, analyzeTextNutrition, GrokNutritionResponse } from "@/lib/grok";
 import { createClient } from "@/lib/supabase/client";
 
-interface MealRecordModalProps {
-  onMealRegistered: () => void;
-}
-
-export function MealRecordModal({ onMealRegistered }: MealRecordModalProps) {
+export function MealRecordModal() {
   const [mode, setMode] = useState<"camera" | "text" | null>(null);
   const [open, setOpen] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -130,13 +126,14 @@ export function MealRecordModal({ onMealRegistered }: MealRecordModalProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('ユーザーが見つかりません');
 
-      const { error } = await supabase.from('meal_logs').insert({
+      const { error } = await supabase.from('meals').insert({
         user_id: user.id,
         food_name: formData.food_name,
         calories: parseFloat(formData.calories),
         protein: parseFloat(formData.protein),
         fat: parseFloat(formData.fat),
         carbs: parseFloat(formData.carbs),
+        is_corrected_by_user: isCorrectedByUser
       });
 
       if (error) throw error;
@@ -157,7 +154,6 @@ export function MealRecordModal({ onMealRegistered }: MealRecordModalProps) {
       
       // ページをリフレッシュしてデータを更新
       window.location.reload();
-      onMealRegistered(); // データ更新をトリガー
     } catch (error) {
       console.error('食事記録エラー:', error);
       alert('食事記録の保存に失敗しました。');

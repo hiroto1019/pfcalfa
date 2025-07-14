@@ -1,23 +1,107 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { createClient } from "@/lib/supabase/client";
+
+interface CalorieSummaryData {
+  actualCalories: number;
+  proteinRatio: number;
+  fatRatio: number;
+  carbsRatio: number;
+}
 
 interface CalorieSummaryProps {
   idealCalories: number;
-  consumedCalories: number;
-  protein: number;
-  fat: number;
-  carbs: number;
 }
 
-export function CalorieSummary({ idealCalories, consumedCalories, protein, fat, carbs }: CalorieSummaryProps) {
-  const calorieProgress = idealCalories > 0 ? (consumedCalories / idealCalories) * 100 : 0;
+export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
+  const [data, setData] = useState<Omit<CalorieSummaryData, 'idealCalories'> | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const supabase = createClient();
+
+  useEffect(() => {
+    loadCalorieData();
+  }, [idealCalories]); // idealCaloriesが変更されたら再読み込み
+
+  // フォーカス時に再読み込み
+  useEffect(() => {
+    window.addEventListener('focus', loadCalorieData);
+    return () => {
+      window.removeEventListener('focus', loadCalorieData);
+    };
+  }, []);
+
+  const loadCalorieData = async () => {
+    setIsLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const todayDate = new Date().toISOString().split('T')[0];
+      const { data: dailySummary } = await supabase
+        .from('daily_summaries')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('date', todayDate)
+        .single();
+
+      const actualCalories = dailySummary?.total_calories ?? 0;
+      const actualProtein = dailySummary?.total_protein ?? 0;
+      const actualFat = dailySummary?.total_fat ?? 0;
+      const actualCarbs = dailySummary?.total_carbs ?? 0;
+
+      // PFC比率を計算
+      const totalCaloriesFromPFC = actualProtein * 4 + actualFat * 9 + actualCarbs * 4;
+      const proteinRatio = totalCaloriesFromPFC > 0 ? (actualProtein * 4 / totalCaloriesFromPFC) * 100 : 0;
+      const fatRatio = totalCaloriesFromPFC > 0 ? (actualFat * 9 / totalCaloriesFromPFC) * 100 : 0;
+      const carbsRatio = totalCaloriesFromPFC > 0 ? (actualCarbs * 4 / totalCaloriesFromPFC) * 100 : 0;
+
+      setData({
+        actualCalories,
+        proteinRatio: Math.round(proteinRatio),
+        fatRatio: Math.round(fatRatio),
+        carbsRatio: Math.round(carbsRatio),
+      });
+    } catch (error) {
+      console.error('カロリーデータ読み込みエラー:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle  className="text-base font-semibold">カロリーサマリー</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-48">
+            <p className="text-sm">データを読み込み中...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle  className="text-base font-semibold">カロリーサマリー</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-48">
+            <p className="text-gray-500 text-sm">データがありません</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const calorieProgress = idealCalories > 0 ? (data.actualCalories / idealCalories) * 100 : 0;
   const progressColor = calorieProgress > 100 ? 'bg-red-500' : 'bg-green-500';
-  
-  const totalCaloriesFromPFC = protein * 4 + fat * 9 + carbs * 4;
-  const proteinRatio = totalCaloriesFromPFC > 0 ? (protein * 4 / totalCaloriesFromPFC) * 100 : 0;
-  const fatRatio = totalCaloriesFromPFC > 0 ? (fat * 9 / totalCaloriesFromPFC) * 100 : 0;
-  const carbsRatio = totalCaloriesFromPFC > 0 ? (carbs * 4 / totalCaloriesFromPFC) * 100 : 0;
 
   return (
     <Card>
@@ -29,12 +113,12 @@ export function CalorieSummary({ idealCalories, consumedCalories, protein, fat, 
         <div className="grid grid-cols-2 gap-4">
           <div className="text-center p-3 bg-blue-50 rounded-lg">
             <p className="text-sm text-gray-600">今日の摂取</p>
-            <p className="text-2xl font-bold text-blue-600">{Math.round(consumedCalories)}</p>
+            <p className="text-2xl font-bold text-blue-600">{data.actualCalories}</p>
             <p className="text-xs text-gray-500">kcal</p>
           </div>
           <div className="text-center p-3 bg-green-50 rounded-lg">
             <p className="text-sm text-gray-600">理想カロリー</p>
-            <p className="text-2xl font-bold text-green-600">{Math.round(idealCalories)}</p>
+            <p className="text-2xl font-bold text-green-600">{idealCalories}</p>
             <p className="text-xs text-gray-400">kcal</p>
           </div>
         </div>
@@ -59,15 +143,15 @@ export function CalorieSummary({ idealCalories, consumedCalories, protein, fat, 
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="p-2 bg-purple-50 rounded">
               <p className="text-xs text-gray-600">P</p>
-              <p className="font-semibold text-purple-600">{Math.round(proteinRatio)}%</p>
+              <p className="font-semibold text-purple-600">{data.proteinRatio}%</p>
             </div>
             <div className="p-2 bg-yellow-50 rounded">
               <p className="text-xs text-gray-600">F</p>
-              <p className="font-semibold text-yellow-600">{Math.round(fatRatio)}%</p>
+              <p className="font-semibold text-yellow-600">{data.fatRatio}%</p>
             </div>
             <div className="p-2 bg-blue-50 rounded">
               <p className="text-xs text-gray-600">C</p>
-              <p className="font-semibold text-blue-600">{Math.round(carbsRatio)}%</p>
+              <p className="font-semibold text-blue-600">{data.carbsRatio}%</p>
             </div>
           </div>
         </div>
