@@ -6,13 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { createClient } from "@/lib/supabase/client";
-import { type Profile } from "@/lib/types"; // 共通の型定義ファイルからインポート
-import { toast } from "sonner";
-
+import { updateProfileGoals } from "./actions"; // 新しいアクションをインポート
+import { toast } from "sonner"; // トースト通知用
 
 interface OverviewCardProps {
-  profile: Profile;
+  profile: {
+    target_weight_kg: number | null;
+    activity_level: number | null;
+    goal_type: string | null;
+    // 他に必要なプロパティがあれば追加
+  };
   onUpdate: () => void;
 }
 
@@ -20,65 +23,49 @@ export function OverviewCard({ profile, onUpdate }: OverviewCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
-    current_weight_kg: profile.current_weight_kg ?? 0,
-    activity_level: profile.activity_level ?? 'sedentary',
-    target_weight_kg: profile.target_weight_kg ?? 0,
-    goal_type: profile.goal_type ?? 'lose_weight',
+    targetWeight: profile.target_weight_kg ?? 0,
+    activityLevel: profile.activity_level ?? 2,
+    goalType: profile.goal_type ?? 'diet',
   });
-  const supabase = createClient();
 
   useEffect(() => {
     setFormData({
-      current_weight_kg: profile.current_weight_kg ?? 0,
-      activity_level: profile.activity_level ?? 'sedentary',
-      target_weight_kg: profile.target_weight_kg ?? 0,
-      goal_type: profile.goal_type ?? 'lose_weight',
+      targetWeight: profile.target_weight_kg ?? 0,
+      activityLevel: profile.activity_level ?? 2,
+      goalType: profile.goal_type ?? 'diet',
     });
   }, [profile]);
 
   const handleSave = async () => {
     setIsSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-        toast.error("ユーザー情報が見つかりません。");
-        setIsSaving(false);
-        return;
-    }
-
-    // profilesテーブルを更新
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        current_weight_kg: formData.current_weight_kg > 0 ? formData.current_weight_kg : null,
-        activity_level: formData.activity_level,
-        target_weight_kg: formData.target_weight_kg > 0 ? formData.target_weight_kg : null,
-        goal_type: formData.goal_type,
-      })
-      .eq('id', user.id);
-
-    if (error) {
-      toast.error("プロフィールの更新に失敗しました。");
-      console.error("Error updating profile:", error);
-    } else {
-      toast.success("プロフィールを更新しました。");
-      onUpdate(); // 親コンポーネントに更新を通知
-    }
-    
+    const result = await updateProfileGoals({
+      target_weight_kg: formData.targetWeight > 0 ? formData.targetWeight : null,
+      activity_level: formData.activityLevel,
+      goal_type: formData.goalType,
+    });
     setIsSaving(false);
-    setIsEditing(false);
+
+    if (result.success) {
+      toast.success("目標を更新しました！");
+      setIsEditing(false);
+      onUpdate(); // ダッシュボード全体を再更新
+    } else {
+      toast.error(result.error);
+    }
   };
   
-  const activityLevelMap: { [key: string]: string } = {
-    sedentary: '座り仕事中心（運動なし）',
-    lightly_active: '軽い運動（週1-2回）',
-    moderately_active: '中程度の運動（週3-5回）',
-    very_active: '激しい運動（週6-7回）',
-    extra_active: '非常に激しい運動',
+  const activityLevelMap: { [key: number]: string } = {
+    1: '座り仕事中心（運動なし）',
+    2: '軽い運動（週1-2回）',
+    3: '中程度の運動（週3-5回）',
+    4: '激しい運動（週6-7回）',
+    5: '非常に激しい運動',
   };
 
   const goalTypeMap: { [key: string]: string } = {
-    lose_weight: '減量',
-    gain_weight: '増量',
+    'lose_weight': '減量',
+    'maintain': '維持',
+    'gain_muscle': '増量',
   };
 
   return (
@@ -91,32 +78,30 @@ export function OverviewCard({ profile, onUpdate }: OverviewCardProps) {
         {isEditing ? (
           <div className="space-y-4">
             <div>
-              <Label htmlFor="current_weight_kg">今日の体重 (kg)</Label>
-              <Input id="current_weight_kg" type="number" value={formData.current_weight_kg} onChange={e => setFormData({...formData, current_weight_kg: parseFloat(e.target.value) || 0})} />
+              <Label htmlFor="target_weight">目標体重 (kg)</Label>
+              <Input id="target_weight" type="number" value={formData.targetWeight} onChange={e => setFormData({...formData, targetWeight: parseFloat(e.target.value) || 0})} />
             </div>
             <div>
-              <Label>活動レベル</Label>
-              <Select value={String(formData.activity_level)} onValueChange={value => setFormData({...formData, activity_level: value})}>
+              <Label>目的</Label>
+              <Select value={formData.goalType} onValueChange={value => setFormData({...formData, goalType: value})}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {Object.entries(activityLevelMap).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>{label}</SelectItem>
-                  ))}
+                  <SelectItem value="lose_weight">{goalTypeMap['lose_weight']}</SelectItem>
+                  <SelectItem value="maintain">{goalTypeMap['maintain']}</SelectItem>
+                  <SelectItem value="gain_muscle">{goalTypeMap['gain_muscle']}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label htmlFor="target_weight_kg">目標体重 (kg)</Label>
-              <Input id="target_weight_kg" type="number" value={formData.target_weight_kg} onChange={e => setFormData({...formData, target_weight_kg: parseFloat(e.target.value) || 0})} />
-            </div>
-            <div>
-              <Label>目標</Label>
-               <Select value={formData.goal_type} onValueChange={value => setFormData({...formData, goal_type: value })}>
+              <Label>活動レベル</Label>
+              <Select value={String(formData.activityLevel)} onValueChange={value => setFormData({...formData, activityLevel: Number(value)})}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                   {Object.entries(goalTypeMap).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>{label}</SelectItem>
-                  ))}
+                  <SelectItem value="1">{activityLevelMap[1]}</SelectItem>
+                  <SelectItem value="2">{activityLevelMap[2]}</SelectItem>
+                  <SelectItem value="3">{activityLevelMap[3]}</SelectItem>
+                  <SelectItem value="4">{activityLevelMap[4]}</SelectItem>
+                  <SelectItem value="5">{activityLevelMap[5]}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -127,20 +112,16 @@ export function OverviewCard({ profile, onUpdate }: OverviewCardProps) {
         ) : (
           <div className="grid grid-cols-2 grid-rows-2 gap-4">
             <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
-                <p className="text-sm text-gray-500">今日の体重</p>
-                <p className="text-2xl font-bold">{formData.current_weight_kg}kg</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
                 <p className="text-sm text-gray-500">目標体重</p>
-                <p className="text-2xl font-bold text-green-600">{formData.target_weight_kg}kg</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
-                <p className="text-sm text-gray-500">活動レベル</p>
-                <p className="font-semibold truncate text-sm" title={activityLevelMap[formData.activity_level]}>{activityLevelMap[formData.activity_level]}</p>
+                <p className="text-2xl font-bold text-green-600">{formData.targetWeight}kg</p>
             </div>
              <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
-                <p className="text-sm text-gray-500">目標</p>
-                <p className="text-lg font-semibold">{goalTypeMap[formData.goal_type] ?? '未設定'}</p>
+                <p className="text-sm text-gray-500">目的</p>
+                <p className="text-lg font-semibold">{goalTypeMap[formData.goalType] ?? '未設定'}</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 col-span-2 text-center flex flex-col justify-center">
+                <p className="text-sm text-gray-500">活動レベル</p>
+                <p className="font-semibold truncate text-sm" title={activityLevelMap[formData.activityLevel]}>{activityLevelMap[formData.activityLevel]}</p>
             </div>
           </div>
         )}

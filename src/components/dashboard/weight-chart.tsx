@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,46 +14,14 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { format, startOfWeek, startOfMonth, parseISO } from 'date-fns';
-import { createClient } from '@/lib/supabase/client';
 
 type WeightLog = {
   date: string;
   weight_kg: number;
 };
 
-export function WeightChart({ targetWeight }: { targetWeight: number | null }) {
+export function WeightChart({ profile, weightLogs, isLoading }: { profile: any; weightLogs: WeightLog[]; isLoading: boolean }) {
   const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly'>('daily');
-  const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const supabase = createClient();
-
-  useEffect(() => {
-    const fetchWeightLogs = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setIsLoading(false);
-        return;
-      }
-
-      setIsLoading(true);
-      const { data, error } = await supabase
-        .from('daily_weight_logs')
-        .select('date, weight_kg')
-        .eq('user_id', user.id)
-        .order('date', { ascending: true });
-
-      if (error) {
-        console.error('体重記録の読み込みエラー:', error);
-        setWeightLogs([]);
-      } else {
-        setWeightLogs(data.map(log => ({ ...log, weight_kg: log.weight_kg ?? 0 })));
-      }
-      setIsLoading(false);
-    };
-
-    fetchWeightLogs();
-  }, [supabase]);
-
 
   const getFormattedData = () => {
     if (timeRange === 'daily') {
@@ -82,8 +50,8 @@ export function WeightChart({ targetWeight }: { targetWeight: number | null }) {
 
   const formattedData = getFormattedData();
   const yDomain = [
-    Math.min(...(formattedData.map(d => d.weight_kg).concat(targetWeight ?? 0))) - 2,
-    Math.max(...(formattedData.map(d => d.weight_kg).concat(targetWeight ?? 0))) + 2,
+    Math.min(...(formattedData.map(d => d.weight_kg).concat(profile?.target_weight_kg ?? 0))) - 2,
+    Math.max(...(formattedData.map(d => d.weight_kg).concat(profile?.target_weight_kg ?? 0))) + 2,
   ];
 
   return (
@@ -107,9 +75,9 @@ export function WeightChart({ targetWeight }: { targetWeight: number | null }) {
               <YAxis domain={yDomain} width={30} />
               <Tooltip />
               <Line type="monotone" dataKey="weight_kg" name="体重 (kg)" stroke="#8884d8" />
-              {targetWeight && (
+              {profile?.target_weight_kg && (
                 <ReferenceLine
-                  y={targetWeight}
+                  y={profile.target_weight_kg}
                   label={{ value: '目標', position: 'insideTopLeft' }}
                   stroke="red"
                   strokeDasharray="3 3"

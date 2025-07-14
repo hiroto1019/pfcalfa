@@ -177,7 +177,6 @@ export type Database = {
         Row: {
           activity_level: number | null
           birth_date: string | null
-          current_weight_kg: number | null
           food_preferences: Json | null
           gender: string | null
           goal_notes: string | null
@@ -193,7 +192,6 @@ export type Database = {
         Insert: {
           activity_level?: number | null
           birth_date?: string | null
-          current_weight_kg?: number | null
           food_preferences?: Json | null
           gender?: string | null
           goal_notes?: string | null
@@ -209,7 +207,6 @@ export type Database = {
         Update: {
           activity_level?: number | null
           birth_date?: string | null
-          current_weight_kg?: number | null
           food_preferences?: Json | null
           gender?: string | null
           goal_notes?: string | null
