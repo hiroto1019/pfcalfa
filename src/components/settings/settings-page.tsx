@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { deleteUser } from "@/app/settings/actions";
+import { getIdealCalories } from "@/lib/utils";
 
 interface Profile {
   id: string;
@@ -242,6 +243,8 @@ export function SettingsPage() {
       </div>
     );
   }
+
+  const idealCalories = profile ? getIdealCalories(profile, profile.initial_weight_kg) : 2000;
 
   return (
     <div className="container mx-auto p-4 space-y-6">

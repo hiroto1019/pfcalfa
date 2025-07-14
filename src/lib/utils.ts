@@ -6,12 +6,12 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // BMR (基礎代謝量) の計算 (ハリス・ベネディクト方程式)
-function calculateBMR(profile: any) {
+function calculateBMR(profile: any, currentWeight: number) {
   const age = new Date().getFullYear() - new Date(profile.birth_date).getFullYear();
   if (profile.gender === 'male') {
-    return 88.362 + (13.397 * profile.initial_weight_kg) + (4.799 * profile.height_cm) - (5.677 * age);
+    return 88.362 + (13.397 * currentWeight) + (4.799 * profile.height_cm) - (5.677 * age);
   } else {
-    return 447.593 + (9.247 * profile.initial_weight_kg) + (3.098 * profile.height_cm) - (4.330 * age);
+    return 447.593 + (9.247 * currentWeight) + (3.098 * profile.height_cm) - (4.330 * age);
   }
 }
 
@@ -29,19 +29,19 @@ function calculateTDEE(bmr: number, activityLevel: number) {
 }
 
 // 理想のカロリーを計算する
-export function getIdealCalories(profile: any): number {
-  if (!profile || !profile.birth_date || !profile.initial_weight_kg || !profile.height_cm) {
-    return 2000; // デフォルト値
+export function getIdealCalories(profile: any, currentWeight: number | null): number {
+  if (!profile || !currentWeight || !profile.birth_date || !profile.height_cm || !profile.activity_level || !profile.goal_type) {
+    return 2000; // 必要な情報がなければデフォルト値
   }
 
-  const bmr = calculateBMR(profile);
+  const bmr = calculateBMR(profile, currentWeight);
   const tdee = calculateTDEE(bmr, profile.activity_level);
 
-  if (profile.goal_type === 'diet') {
+  if (profile.goal_type === 'lose_weight') {
     return Math.round(tdee - 500);
-  } else if (profile.goal_type === 'bulk-up') {
+  } else if (profile.goal_type === 'gain_muscle') {
     return Math.round(tdee + 500);
-  } else {
+  } else { // maintain
     return Math.round(tdee);
   }
 }
