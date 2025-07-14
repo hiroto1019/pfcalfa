@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PFCChart } from "./pfc-chart";
 import { WeightChart } from "./weight-chart";
 import { getIdealCalories } from "@/lib/utils";
+import { MealHistoryCard } from "./meal-history-card"; 
 
 export function DashboardGrid({ profile }: { profile: any }) {
   const [weightLogs, setWeightLogs] = useState<any[]>([]);
@@ -52,9 +53,13 @@ export function DashboardGrid({ profile }: { profile: any }) {
   };
 
   return (
-    <main className="grid flex-1 grid-cols-1 md:grid-cols-3 gap-4 md:grid-rows-2">
+    <main className="grid flex-1 grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Top Row */}
       <OverviewCard initialData={overviewData} onUpdate={() => {}} />
+      <AiAdvice />
       <CalorieSummary idealCalories={idealCalories ?? 0} />
+      
+      {/* Bottom Row */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base font-semibold">PFCバランス</CardTitle>
@@ -63,8 +68,8 @@ export function DashboardGrid({ profile }: { profile: any }) {
           <PFCChart idealCalories={idealCalories ?? 0} />
         </CardContent>
       </Card>
-      <AiAdvice />
       <WeightChart profile={profile} weightLogs={weightLogs} isLoading={isLoading} />
+      <MealHistoryCard />
     </main>
   );
 } 
