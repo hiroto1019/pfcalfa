@@ -13,6 +13,7 @@ interface OverviewCardProps {
     current_weight: number | null;
     activity_level: number | null;
     target_weight: number | null;
+    goal_date: string | null;
   };
   onUpdate: () => void;
 }
@@ -24,6 +25,7 @@ export function OverviewCard({ initialData, onUpdate }: OverviewCardProps) {
     weight: initialData.current_weight ?? 0,
     activityLevel: initialData.activity_level ?? 1.5,
     targetWeight: initialData.target_weight ?? 0,
+    goalDate: initialData.goal_date ? new Date(initialData.goal_date).toISOString().split('T')[0] : "",
   });
   const supabase = createClient();
 
@@ -32,6 +34,7 @@ export function OverviewCard({ initialData, onUpdate }: OverviewCardProps) {
       weight: initialData.current_weight ?? 0,
       activityLevel: initialData.activity_level ?? 1.5,
       targetWeight: initialData.target_weight ?? 0,
+      goalDate: initialData.goal_date ? new Date(initialData.goal_date).toISOString().split('T')[0] : "",
     });
   }, [initialData]);
 
@@ -46,7 +49,7 @@ export function OverviewCard({ initialData, onUpdate }: OverviewCardProps) {
     const { error: profileError } = await supabase.from('profiles').update({
       activity_level: formData.activityLevel,
       target_weight_kg: formData.targetWeight > 0 ? formData.targetWeight : null,
-      initial_weight_kg: formData.weight > 0 ? formData.weight : null, // initial_weightを現在の体重で更新
+      goal_target_date: formData.goalDate === "" ? null : formData.goalDate,
     }).eq('id', user.id);
 
     // 今日の体重記録も更新
@@ -103,6 +106,10 @@ export function OverviewCard({ initialData, onUpdate }: OverviewCardProps) {
               <Label htmlFor="target_weight">目標体重 (kg)</Label>
               <Input id="target_weight" type="number" value={formData.targetWeight} onChange={e => setFormData({...formData, targetWeight: parseFloat(e.target.value) || 0})} />
             </div>
+            <div>
+              <Label htmlFor="target_date">目標達成日</Label>
+              <Input id="target_date" type="date" value={formData.goalDate} onChange={e => setFormData({...formData, goalDate: e.target.value})} />
+            </div>
             <div className="flex justify-end">
               <Button onClick={handleSave} disabled={isSaving}>{isSaving ? "保存中..." : "保存"}</Button>
             </div>
@@ -117,9 +124,13 @@ export function OverviewCard({ initialData, onUpdate }: OverviewCardProps) {
                 <p className="text-sm text-gray-500">目標体重</p>
                 <p className="text-2xl font-bold text-green-600">{formData.targetWeight}kg</p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center col-span-2">
+            <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
                 <p className="text-sm text-gray-500">活動レベル</p>
                 <p className="font-semibold truncate text-sm" title={activityLevelMap[formData.activityLevel]}>{activityLevelMap[formData.activityLevel]}</p>
+            </div>
+             <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
+                <p className="text-sm text-gray-500">目標達成日</p>
+                <p className="text-lg font-semibold">{formData.goalDate ? new Date(formData.goalDate).toLocaleDateString() : '未設定'}</p>
             </div>
           </div>
         )}

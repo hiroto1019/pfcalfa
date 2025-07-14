@@ -20,6 +20,7 @@ export function DashboardGrid({ dashboardData }: { dashboardData: DashboardData 
     totalCarbs, 
     idealCalories, 
     currentWeight,
+    goalTargetDate,
     onDataRefresh
   } = dashboardData;
 
@@ -27,7 +28,7 @@ export function DashboardGrid({ dashboardData }: { dashboardData: DashboardData 
     current_weight: currentWeight,
     target_weight: profile.target_weight_kg,
     activity_level: profile.activity_level,
-    goal_date: profile.goal_target_date,
+    goal_date: goalTargetDate,
   };
 
   return (

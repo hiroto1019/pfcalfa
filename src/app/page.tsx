@@ -26,6 +26,7 @@ export interface DashboardData {
   totalCarbs: number;
   idealCalories: number;
   currentWeight: number;
+  goalTargetDate: string | null;
   onDataRefresh: () => void;
 }
 
@@ -93,7 +94,8 @@ export default function DashboardPage() {
       totalFat,
       totalCarbs,
       idealCalories,
-      currentWeight
+      currentWeight,
+      goalTargetDate: profileData.goal_target_date
     });
     setLoading(false);
   }, [supabase, router]);
