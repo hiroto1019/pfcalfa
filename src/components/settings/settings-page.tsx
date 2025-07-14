@@ -97,8 +97,7 @@ export function SettingsPage() {
           goal_type: profile.goal_type,
           food_preferences: profile.food_preferences,
           onboarding_completed: true, // 保存時にオンボーディング完了とする
-        })
-        .eq('id', profile.id);
+        });
 
       if (error) throw error;
       alert('プロフィールを更新しました');
