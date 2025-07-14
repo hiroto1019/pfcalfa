@@ -67,7 +67,7 @@ export function DashboardGrid({ profile }: { profile: any }) {
       
       {/* Bottom Row */}
       <MealHistoryCard />
-      <OverviewCard profile={profile} onUpdate={handleUpdate} />
+      <OverviewCard profile={profile} currentWeight={currentWeight} onUpdate={handleUpdate} />
       <WeightChart profile={profile} weightLogs={weightLogs} isLoading={isLoading} />
     </main>
   );

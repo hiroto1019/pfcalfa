@@ -6,49 +6,56 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { updateProfileGoals } from "./actions"; // 新しいアクションをインポート
-import { toast } from "sonner"; // トースト通知用
+import { updateDashboardData } from "./actions"; // 新しいアクション
+import { toast } from "sonner";
 
 interface OverviewCardProps {
   profile: {
     target_weight_kg: number | null;
     activity_level: number | null;
     goal_type: string | null;
-    // 他に必要なプロパティがあれば追加
+    goal_target_date: string | null;
   };
+  currentWeight: number | null;
   onUpdate: () => void;
 }
 
-export function OverviewCard({ profile, onUpdate }: OverviewCardProps) {
+export function OverviewCard({ profile, currentWeight, onUpdate }: OverviewCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
+    currentWeight: currentWeight ?? 0,
     targetWeight: profile.target_weight_kg ?? 0,
     activityLevel: profile.activity_level ?? 2,
-    goalType: profile.goal_type ?? 'diet',
+    goalType: profile.goal_type ?? 'lose_weight',
+    goalDate: profile.goal_target_date ? new Date(profile.goal_target_date).toISOString().split('T')[0] : "",
   });
 
   useEffect(() => {
     setFormData({
+      currentWeight: currentWeight ?? 0,
       targetWeight: profile.target_weight_kg ?? 0,
       activityLevel: profile.activity_level ?? 2,
-      goalType: profile.goal_type ?? 'diet',
+      goalType: profile.goal_type ?? 'lose_weight',
+      goalDate: profile.goal_target_date ? new Date(profile.goal_target_date).toISOString().split('T')[0] : "",
     });
-  }, [profile]);
+  }, [profile, currentWeight]);
 
   const handleSave = async () => {
     setIsSaving(true);
-    const result = await updateProfileGoals({
+    const result = await updateDashboardData({
+      current_weight_kg: formData.currentWeight > 0 ? formData.currentWeight : null,
       target_weight_kg: formData.targetWeight > 0 ? formData.targetWeight : null,
       activity_level: formData.activityLevel,
       goal_type: formData.goalType,
+      goal_target_date: formData.goalDate === "" ? null : formData.goalDate,
     });
     setIsSaving(false);
 
     if (result.success) {
-      toast.success("目標を更新しました！");
+      toast.success("情報を更新しました！");
       setIsEditing(false);
-      onUpdate(); // ダッシュボード全体を再更新
+      onUpdate();
     } else {
       toast.error(result.error);
     }
@@ -78,6 +85,10 @@ export function OverviewCard({ profile, onUpdate }: OverviewCardProps) {
         {isEditing ? (
           <div className="space-y-4">
             <div>
+              <Label htmlFor="weight">今日の体重 (kg)</Label>
+              <Input id="weight" type="number" value={formData.currentWeight} onChange={e => setFormData({...formData, currentWeight: parseFloat(e.target.value) || 0})} />
+            </div>
+            <div>
               <Label htmlFor="target_weight">目標体重 (kg)</Label>
               <Input id="target_weight" type="number" value={formData.targetWeight} onChange={e => setFormData({...formData, targetWeight: parseFloat(e.target.value) || 0})} />
             </div>
@@ -105,6 +116,10 @@ export function OverviewCard({ profile, onUpdate }: OverviewCardProps) {
                 </SelectContent>
               </Select>
             </div>
+             <div>
+              <Label htmlFor="target_date">目標達成日</Label>
+              <Input id="target_date" type="date" value={formData.goalDate} onChange={e => setFormData({...formData, goalDate: e.target.value})} />
+            </div>
             <div className="flex justify-end">
               <Button onClick={handleSave} disabled={isSaving}>{isSaving ? "保存中..." : "保存"}</Button>
             </div>
@@ -112,16 +127,20 @@ export function OverviewCard({ profile, onUpdate }: OverviewCardProps) {
         ) : (
           <div className="grid grid-cols-2 grid-rows-2 gap-4">
             <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
+                <p className="text-sm text-gray-500">今日の体重</p>
+                <p className="text-2xl font-bold">{formData.currentWeight}kg</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
                 <p className="text-sm text-gray-500">目標体重</p>
                 <p className="text-2xl font-bold text-green-600">{formData.targetWeight}kg</p>
             </div>
-             <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
+            <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
                 <p className="text-sm text-gray-500">目的</p>
-                <p className="text-lg font-semibold">{goalTypeMap[formData.goalType] ?? '未設定'}</p>
+                <p className="font-semibold truncate text-sm" title={goalTypeMap[formData.goalType]}>{goalTypeMap[formData.goalType]}</p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-3 col-span-2 text-center flex flex-col justify-center">
-                <p className="text-sm text-gray-500">活動レベル</p>
-                <p className="font-semibold truncate text-sm" title={activityLevelMap[formData.activityLevel]}>{activityLevelMap[formData.activityLevel]}</p>
+             <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
+                <p className="text-sm text-gray-500">目標達成日</p>
+                <p className="text-lg font-semibold">{formData.goalDate ? new Date(formData.goalDate).toLocaleDateString() : '未設定'}</p>
             </div>
           </div>
         )}
