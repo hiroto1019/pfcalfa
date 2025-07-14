@@ -3,41 +3,31 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
-import { getIdealCalories } from "@/lib/utils";
 
 interface CalorieSummaryData {
   actualCalories: number;
-  idealCalories: number;
   proteinRatio: number;
   fatRatio: number;
   carbsRatio: number;
 }
 
 interface CalorieSummaryProps {
-  compact?: boolean;
   idealCalories: number;
 }
 
-export function CalorieSummary({ compact = false, idealCalories }: CalorieSummaryProps) {
+export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
   const [data, setData] = useState<Omit<CalorieSummaryData, 'idealCalories'> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const supabase = createClient();
 
   useEffect(() => {
     loadCalorieData();
-  }, []);
+  }, [idealCalories]); // idealCaloriesが変更されたら再読み込み
 
-  // ページのリフレッシュを監視してデータを再読み込み
+  // フォーカス時に再読み込み
   useEffect(() => {
-    const handleStorageChange = () => {
-      loadCalorieData();
-    };
-
-    window.addEventListener('storage', handleStorageChange);
     window.addEventListener('focus', loadCalorieData);
-
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('focus', loadCalorieData);
     };
   }, []);
@@ -48,41 +38,6 @@ export function CalorieSummary({ compact = false, idealCalories }: CalorieSummar
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // ユーザープロファイルを取得
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile) return;
-
-      // 今日の活動レベルを取得
-      const today = new Date().toISOString().split('T')[0];
-      const { data: todayActivity } = await supabase
-        .from('daily_activity_logs')
-        .select('activity_level')
-        .eq('user_id', user.id)
-        .eq('date', today)
-        .single();
-
-      // 今日の体重を取得
-      const { data: todayWeight } = await supabase
-        .from('daily_weight_logs')
-        .select('weight_kg')
-        .eq('user_id', user.id)
-        .eq('date', today)
-        .single();
-
-      // 現在の体重を使用（今日の記録がない場合は初期体重）
-      const currentWeight = todayWeight?.weight_kg || profile.initial_weight_kg;
-      // 今日の活動レベルを使用（記録がない場合はプロファイルの活動レベル）
-      const todayActivityLevel = todayActivity?.activity_level || profile.activity_level;
-
-      // 理想カロリーを計算
-      const idealCalories = getIdealCalories(profile, currentWeight, todayActivityLevel);
-
-      // 今日のデータを取得
       const todayDate = new Date().toISOString().split('T')[0];
       const { data: dailySummary } = await supabase
         .from('daily_summaries')
@@ -91,16 +46,16 @@ export function CalorieSummary({ compact = false, idealCalories }: CalorieSummar
         .eq('date', todayDate)
         .single();
 
-      const actualCalories = dailySummary ? dailySummary.total_calories : 0;
-      const actualProtein = dailySummary ? dailySummary.total_protein : 0;
-      const actualFat = dailySummary ? dailySummary.total_fat : 0;
-      const actualCarbs = dailySummary ? dailySummary.total_carbs : 0;
+      const actualCalories = dailySummary?.total_calories ?? 0;
+      const actualProtein = dailySummary?.total_protein ?? 0;
+      const actualFat = dailySummary?.total_fat ?? 0;
+      const actualCarbs = dailySummary?.total_carbs ?? 0;
 
       // PFC比率を計算
-      const totalCalories = actualProtein * 4 + actualFat * 9 + actualCarbs * 4;
-      const proteinRatio = totalCalories > 0 ? (actualProtein * 4 / totalCalories) * 100 : 0;
-      const fatRatio = totalCalories > 0 ? (actualFat * 9 / totalCalories) * 100 : 0;
-      const carbsRatio = totalCalories > 0 ? (actualCarbs * 4 / totalCalories) * 100 : 0;
+      const totalCaloriesFromPFC = actualProtein * 4 + actualFat * 9 + actualCarbs * 4;
+      const proteinRatio = totalCaloriesFromPFC > 0 ? (actualProtein * 4 / totalCaloriesFromPFC) * 100 : 0;
+      const fatRatio = totalCaloriesFromPFC > 0 ? (actualFat * 9 / totalCaloriesFromPFC) * 100 : 0;
+      const carbsRatio = totalCaloriesFromPFC > 0 ? (actualCarbs * 4 / totalCaloriesFromPFC) * 100 : 0;
 
       setData({
         actualCalories,
@@ -116,17 +71,13 @@ export function CalorieSummary({ compact = false, idealCalories }: CalorieSummar
   };
 
   if (isLoading) {
-    return compact ? (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-xs text-gray-500">読み込み中...</p>
-      </div>
-    ) : (
+    return (
       <Card>
         <CardHeader>
-          <CardTitle>カロリーサマリー</CardTitle>
+          <CardTitle  className="text-base font-semibold">カロリーサマリー</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-32">
+          <div className="flex items-center justify-center h-48">
             <p className="text-sm">データを読み込み中...</p>
           </div>
         </CardContent>
@@ -135,17 +86,13 @@ export function CalorieSummary({ compact = false, idealCalories }: CalorieSummar
   }
 
   if (!data) {
-    return compact ? (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-xs text-gray-500">データなし</p>
-      </div>
-    ) : (
+    return (
       <Card>
         <CardHeader>
-          <CardTitle>カロリーサマリー</CardTitle>
+          <CardTitle  className="text-base font-semibold">カロリーサマリー</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-32">
+          <div className="flex items-center justify-center h-48">
             <p className="text-gray-500 text-sm">データがありません</p>
           </div>
         </CardContent>
@@ -154,27 +101,7 @@ export function CalorieSummary({ compact = false, idealCalories }: CalorieSummar
   }
 
   const calorieProgress = idealCalories > 0 ? (data.actualCalories / idealCalories) * 100 : 0;
-  const progressColor = calorieProgress > 100 ? 'bg-red-500' : 
-                       calorieProgress > 80 ? 'bg-yellow-500' : 'bg-green-500';
-
-  if (compact) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full space-y-1">
-        <div className="text-center">
-          <p className="text-xs text-gray-500">摂取/目標</p>
-          <p className="text-lg font-bold text-blue-600">{data.actualCalories}</p>
-          <p className="text-xs text-gray-500">/ {idealCalories} kcal</p>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-1">
-          <div 
-            className={`h-1 rounded-full ${progressColor} transition-all duration-300`}
-            style={{ width: `${Math.min(calorieProgress, 100)}%` }}
-          ></div>
-        </div>
-        <div className="text-xs text-gray-500">{Math.round(calorieProgress)}%</div>
-      </div>
-    );
-  }
+  const progressColor = calorieProgress > 100 ? 'bg-red-500' : 'bg-green-500';
 
   return (
     <Card>
