@@ -23,9 +23,6 @@ interface Profile {
     dislikes: string[];
     allergies: string[];
   };
-  // goalsテーブルから
-  target_date?: string; 
-  current_weight_kg?: number;
 }
 
 export function SettingsPage() {
@@ -51,18 +48,14 @@ export function SettingsPage() {
         return;
       }
 
-      // profilesとgoalsを並行して取得
-      const [profileRes, goalRes] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', user.id).single(),
-        supabase.from('goals').select('*').eq('user_id', user.id).single()
-      ]);
-
-      const { data: profileData } = profileRes;
-      const { data: goalData } = goalRes;
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
 
       if (profileData) {
-        // profileとgoalをマージ
-        setProfile({ ...profileData, ...goalData, id: user.id, user_id: undefined });
+        setProfile(profileData);
       } else if (user) {
         // プロフィールが存在しない場合、空のフォームを表示するためにデフォルト値を設定
         setProfile({
@@ -76,8 +69,6 @@ export function SettingsPage() {
           activity_level: 2,
           goal_type: 'diet',
           food_preferences: { dislikes: [], allergies: [] },
-          target_date: new Date().toISOString().split('T')[0], // 今日の日付
-          current_weight_kg: 0,
         });
       }
     } catch (error) {
@@ -92,38 +83,23 @@ export function SettingsPage() {
 
     setIsSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("User not found");
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: profile.id,
+          username: profile.username,
+          gender: profile.gender,
+          birth_date: profile.birth_date,
+          height_cm: profile.height_cm,
+          initial_weight_kg: profile.initial_weight_kg,
+          target_weight_kg: profile.target_weight_kg,
+          activity_level: profile.activity_level,
+          goal_type: profile.goal_type,
+          food_preferences: profile.food_preferences,
+          onboarding_completed: true, // 保存時にオンボーディング完了とする
+        });
 
-      const profileData = {
-        id: user.id,
-        username: profile.username,
-        gender: profile.gender,
-        birth_date: profile.birth_date,
-        height_cm: profile.height_cm,
-        initial_weight_kg: profile.initial_weight_kg,
-        activity_level: profile.activity_level,
-        food_preferences: profile.food_preferences,
-        onboarding_completed: true,
-      };
-
-      const goalData = {
-        user_id: user.id,
-        target_weight_kg: profile.target_weight_kg,
-        goal_type: profile.goal_type,
-        // `goals`テーブルの必須項目を埋める
-        current_weight_kg: profile.initial_weight_kg, // 現在の体重はinitial_weight_kgを使う
-        target_date: profile.target_date || new Date().toISOString().split('T')[0],
-      };
-
-      const [profileResult, goalResult] = await Promise.all([
-        supabase.from('profiles').upsert(profileData),
-        supabase.from('goals').upsert(goalData, { onConflict: 'user_id' })
-      ]);
-
-      if (profileResult.error) throw profileResult.error;
-      if (goalResult.error) throw goalResult.error;
-
+      if (error) throw error;
       alert('プロフィールを更新しました');
     } catch (error) {
       console.error('プロフィール更新エラー:', error);
@@ -307,7 +283,7 @@ export function SettingsPage() {
                 id="target_weight_kg"
                 type="number"
                 value={profile.target_weight_kg}
-                onChange={(e) => setProfile({ ...profile, target_weight_kg: parseFloat(e.target.value) })}
+                onChange={(e) => setProfile({ ...profile, target_weight_kg: Number(e.target.value) })}
               />
             </div>
           </div>
@@ -317,7 +293,7 @@ export function SettingsPage() {
               <select
                 id="activity_level"
                 value={profile.activity_level}
-                onChange={(e) => setProfile({ ...profile, activity_level: parseInt(e.target.value) })}
+                onChange={(e) => setProfile({ ...profile, activity_level: Number(e.target.value) })}
                 className="w-full p-2 border rounded"
               >
                 <option value={1}>座り仕事中心（運動なし）</option>
@@ -341,16 +317,9 @@ export function SettingsPage() {
               </select>
             </div>
           </div>
-           {/* 目標日の入力フィールドを追加 */}
-          <div>
-            <Label htmlFor="target_date">目標日</Label>
-            <Input
-              id="target_date"
-              type="date"
-              value={profile.target_date}
-              onChange={(e) => setProfile({ ...profile, target_date: e.target.value })}
-            />
-          </div>
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving ? '保存中...' : '保存'}
+          </Button>
         </CardContent>
       </Card>
 
