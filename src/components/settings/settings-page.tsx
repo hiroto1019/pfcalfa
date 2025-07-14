@@ -39,22 +39,20 @@ export function SettingsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         router.push('/login');
         return;
       }
 
-      // ダッシュボードと同様に複数テーブルからデータを取得
       const { data: profileData } = await supabase
         .from('profiles')
-        .select(`
-          *,
-          goals(*),
-          daily_activity_logs(*)
-        `)
+        .select('*')
         .eq('id', user.id)
         .single();
 
@@ -67,14 +65,7 @@ export function SettingsPage() {
         .single();
 
       if (profileData) {
-        // 取得したデータを統合してstateにセット
-        const combinedData = {
-          ...profileData,
-          target_weight_kg: profileData.goals[0]?.target_weight_kg ?? 0,
-          goal_target_date: profileData.goals[0]?.target_date,
-          activity_level: profileData.daily_activity_logs[0]?.activity_level ?? profileData.activity_level ?? 2,
-        };
-        setProfile(combinedData);
+        setProfile(profileData);
         setCurrentWeight(latestWeightLog?.weight_kg ?? profileData.initial_weight_kg);
       } else if (user) {
         // プロフィールが存在しない場合、空のフォームを表示するためにデフォルト値を設定
@@ -91,78 +82,59 @@ export function SettingsPage() {
           food_preferences: { dislikes: [], allergies: [] },
         });
       }
+    } catch (error) {
+      console.error('プロフィール読み込みエラー:', error);
+    } finally {
       setIsLoading(false);
-    };
-    loadData();
-  }, [supabase, router]);
-
+    }
+  };
 
   const handleSave = async () => {
     if (!profile) return;
 
     setIsSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-        setIsSaving(false);
-        return;
-    }
-    
-    const today = new Date().toISOString().split('T')[0];
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+          setIsSaving(false);
+          return;
+      }
+      
+      const today = new Date().toISOString().split('T')[0];
 
-    // 1. プロフィール本体の更新（目標関連以外）
-    const { error: profileError } = await supabase.from('profiles').upsert({
-      id: profile.id,
-      username: profile.username,
-      gender: profile.gender,
-      birth_date: profile.birth_date,
-      height_cm: profile.height_cm,
-      initial_weight_kg: profile.initial_weight_kg,
-      food_preferences: profile.food_preferences,
-      // `onboarding_completed`はここで更新し続ける
-      onboarding_completed: true, 
-    });
+      // 1. プロフィール情報を更新 (現在の体重を除く)
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: profile.id,
+          username: profile.username,
+          gender: profile.gender,
+          birth_date: profile.birth_date,
+          height_cm: profile.height_cm,
+          target_weight_kg: profile.target_weight_kg,
+          activity_level: profile.activity_level,
+          goal_type: profile.goal_type,
+          food_preferences: profile.food_preferences,
+          goal_target_date: profile.goal_target_date,
+          onboarding_completed: true,
+        });
 
-    // 2. 今日の体重を更新
-    const { error: weightError } = await supabase.from('daily_weight_logs').upsert(
-      { user_id: user.id, date: today, weight_kg: currentWeight },
-      { onConflict: 'user_id, date' }
-    );
+      // 2. 今日の体重を更新
+      const { error: weightError } = await supabase
+        .from('daily_weight_logs')
+        .upsert({ user_id: user.id, date: today, weight_kg: currentWeight }, { onConflict: 'user_id, date' });
 
-    // 3. 今日の活動レベルを更新
-    const { error: activityError } = await supabase.from('daily_activity_logs').upsert(
-      { user_id: user.id, date: today, activity_level: profile.activity_level },
-      { onConflict: 'user_id, date' }
-    );
 
-    // 4. 目標を更新 (存在確認してから追加 or 更新)
-    const { data: existingGoal, error: selectError } = await supabase.from('goals').select('id').eq('user_id', user.id).single();
+      if (profileError) throw profileError;
+      if (weightError) throw weightError;
 
-    let goalError;
-    const goalData = {
-        target_weight_kg: profile.target_weight_kg > 0 ? profile.target_weight_kg : null,
-        target_date: profile.goal_target_date || null,
-        current_weight_kg: currentWeight,
-        goal_type: profile.goal_type,
-    };
-
-    if (selectError && selectError.code !== 'PGRST116') { // PGRST116はデータなしエラー
-        goalError = selectError;
-    } else if (existingGoal) {
-        const { error } = await supabase.from('goals').update(goalData).eq('id', existingGoal.id);
-        goalError = error;
-    } else {
-        const { error } = await supabase.from('goals').insert({ user_id: user.id, ...goalData });
-        goalError = error;
-    }
-
-    if (profileError || weightError || activityError || goalError) {
-      console.error({ profileError, weightError, activityError, goalError });
-      alert('プロフィールの更新に失敗しました');
-    } else {
       alert('プロフィールを更新しました');
+    } catch (error) {
+      console.error('プロフィール更新エラー:', error);
+      alert('プロフィールの更新に失敗しました');
+    } finally {
+      setIsSaving(false);
     }
-
-    setIsSaving(false);
   };
 
   const handleLogout = async () => {

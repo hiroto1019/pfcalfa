@@ -8,68 +8,59 @@ export function cn(...inputs: ClassValue[]) {
 // BMR (基礎代謝量) の計算 (ハリス・ベネディクト方程式)
 function calculateBMR(profile: any, currentWeight: number) {
   const age = new Date().getFullYear() - new Date(profile.birth_date).getFullYear();
-  // 最新の体重記録がない場合は初期体重を使う
-  const weight = currentWeight > 0 ? currentWeight : profile.initial_weight_kg;
   if (profile.gender === 'male') {
-    // 男性: 88.362 + (13.397 × 体重kg) + (4.799 × 身長cm) - (5.677 × 年齢)
-    return 88.362 + (13.397 * weight) + (4.799 * profile.height_cm) - (5.677 * age);
+    return 88.362 + (13.397 * currentWeight) + (4.799 * profile.height_cm) - (5.677 * age);
   } else {
-    // 女性: 447.593 + (9.247 × 体重kg) + (3.098 × 身長cm) - (4.330 × 年齢)
-    return 447.593 + (9.247 * weight) + (3.098 * profile.height_cm) - (4.330 * age);
+    return 447.593 + (9.247 * currentWeight) + (3.098 * profile.height_cm) - (4.330 * age);
   }
 }
 
 // TDEE (総消費カロリー) の計算
 function calculateTDEE(bmr: number, activityLevel: number) {
   const activityMultipliers: { [key: number]: number } = {
-    1: 1.2,    // ほとんど運動しない
-    2: 1.375,  // 週に1-3日の軽い運動
-    3: 1.55,   // 週に3-5日の中程度の運動
-    4: 1.725,  // 週に6-7日の激しい運動
-    5: 1.9     // 非常に激しい運動や肉体労働
+    1: 1.2,
+    2: 1.375,
+    3: 1.55,
+    4: 1.725,
+    5: 1.9
   };
-  const multiplier = activityMultipliers[activityLevel] || 1.2;
-  return bmr * multiplier;
+  const multiplier = activityMultipliers[activityLevel];
+  return bmr * (multiplier || 1.2);
 }
 
 // 理想のカロリーを計算する
-export function getIdealCalories(profile: any, currentWeight: number): number {
-  if (!profile || !profile.birth_date || !profile.height_cm || !profile.activity_level) {
-    return 2000; // 必須情報がなければデフォルト値を返す
+export function getIdealCalories(profile: any): number {
+  if (!profile || !profile.birth_date || !profile.initial_weight_kg || !profile.height_cm || !profile.current_weight_kg) {
+    return 2000; // デフォルト値
   }
 
-  // 最新の体重記録がない場合は初期体重を使う
-  const weight = currentWeight > 0 ? currentWeight : profile.initial_weight_kg;
-  if (!weight) return 2000;
-
-  const bmr = calculateBMR(profile, weight);
+  const bmr = calculateBMR(profile, profile.current_weight_kg);
   const tdee = calculateTDEE(bmr, profile.activity_level);
 
-  // 目標が設定されていない、または目標体重がない場合はTDEEを維持カロリーとする
-  if (!profile.goal_type || !profile.target_weight_kg || !profile.goal_target_date || profile.goal_type === 'maintain') {
-    return Math.round(tdee);
+  // 目標体重と目標日から1日の調整カロリーを計算
+  if (profile.target_weight_kg && profile.goal_target_date) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // 時間をリセットして日付のみで比較
+    const goalDate = new Date(profile.goal_target_date);
+    
+    const timeDiff = goalDate.getTime() - today.getTime();
+    const daysToGoal = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+    if (daysToGoal > 0) {
+      const weightDiffKg = profile.current_weight_kg - profile.target_weight_kg;
+      const totalCalorieDiff = weightDiffKg * 7700;
+      const dailyCalorieAdjustment = totalCalorieDiff / daysToGoal;
+      
+      return Math.round(tdee - dailyCalorieAdjustment);
+    }
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0); // 今日の日付の始まり
-  const goalDate = new Date(profile.goal_target_date);
-  
-  // 目標日が過去または今日の場合は計算しない
-  if (goalDate <= today) {
+  // フォールバック: 従来の計算方法
+  if (profile.goal_type === 'diet') {
+    return Math.round(tdee - 500);
+  } else if (profile.goal_type === 'bulk-up') {
+    return Math.round(tdee + 500);
+  } else {
     return Math.round(tdee);
   }
-
-  const daysToGoal = (goalDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
-
-  if (daysToGoal <= 0) {
-    return Math.round(tdee);
-  }
-
-  // 1kgの増減に必要なカロリーは約7200kcal
-  const totalCalorieDiff = (weight - profile.target_weight_kg) * 7200;
-  const dailyCalorieAdjustment = totalCalorieDiff / daysToGoal;
-  
-  const idealCalories = tdee - dailyCalorieAdjustment;
-
-  return Math.round(idealCalories);
 }
