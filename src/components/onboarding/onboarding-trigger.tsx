@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { OnboardingForm } from "./onboarding-form";
 
 export function OnboardingTrigger() {
-  const [open, setOpen] = useState(true); // Default to open
+  const [open, setOpen] = useState(false); // Default to closed
 
   return (
     <div className="flex items-center justify-center min-h-screen">

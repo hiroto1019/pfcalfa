@@ -41,9 +41,12 @@ function Button({
   size,
   asChild = false,
   ...props
-}: React.ComponentProps<"button"> &
+}: React.ComponentPropsWithoutRef<"button"> &
   VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
+    asChild?: boolean;
+  } &
+  {
+    ref?: React.Ref<HTMLButtonElement>;
   }) {
   const Comp = asChild ? Slot : "button"
 

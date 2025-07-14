@@ -118,5 +118,44 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* モバイルでのタッチ操作を改善 */
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  
+  /* モバイルでのフォントサイズ調整 */
+  html {
+    font-size: 16px;
+  }
+  
+  /* モバイルでのスクロール改善 */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* モバイルでの入力要素のズーム防止 */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+/* レスポンシブユーティリティ */
+@layer utilities {
+  .mobile-only {
+    @apply block md:hidden;
+  }
+  
+  .desktop-only {
+    @apply hidden md:block;
+  }
+  
+  .tablet-up {
+    @apply hidden sm:block;
+  }
+  
+  .mobile-up {
+    @apply block;
   }
 }

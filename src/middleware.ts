@@ -35,8 +35,8 @@ export async function middleware(request: NextRequest) {
         },
         remove(name: string, options: CookieOptions) {
           try {
-            cookieStore.set({ name, value: '', ...options })
-          } catch (error) {
+            request.cookies.set({ name, value: '', ...options })
+          } catch {
             // The `delete` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
             // user sessions.
@@ -46,7 +46,8 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  await supabase.auth.getUser()
+  const { data: { user }, error } = await supabase.auth.getUser();
+  console.log('middleware user:', user, 'error:', error);
 
   return response
 }

@@ -1,236 +1,201 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { createProfile } from "@/app/onboarding/actions";
-
-const formSchema = z.object({
-  username: z.string().min(2, "2文字以上で入力してください。"),
-  gender: z.enum(["male", "female", "other"]),
-  birth_date: z.date(),
-  height_cm: z.coerce.number().positive("身長は正の数で入力してください。"),
-  initial_weight_kg: z.coerce.number().positive("体重は正の数で入力してください。"),
-  target_weight_kg: z.coerce.number().positive("目標体重は正の数で入力してください。"),
-  activity_level: z.enum(["1", "2", "3", "4", "5"]),
-  goal_type: z.enum(["diet", "bulk-up", "maintain"]),
-});
+import { useRouter } from "next/navigation";
 
 export function OnboardingForm({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void; }) {
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      username: "",
-    },
+  const [formData, setFormData] = useState({
+    username: "",
+    gender: "male" as "male" | "female" | "other",
+    birth_date: "",
+    height_cm: "",
+    initial_weight_kg: "",
+    target_weight_kg: "",
+    activity_level: "3" as "1" | "2" | "3" | "4" | "5",
+    goal_type: "maintain" as "diet" | "bulk-up" | "maintain"
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    await createProfile(values);
-    onOpenChange(false);
-  }
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      const profileData = {
+        ...formData,
+        birth_date: new Date(formData.birth_date),
+        height_cm: Number(formData.height_cm),
+        initial_weight_kg: Number(formData.initial_weight_kg),
+        target_weight_kg: Number(formData.target_weight_kg),
+      };
+      
+      await createProfile(profileData);
+      onOpenChange(false);
+      router.refresh();
+    } catch (error) {
+      console.error("プロフィール作成エラー:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!open) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>ようこそ PFCα へ！</DialogTitle>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            {/* Form Fields will be added here */}
-            <FormField
-              control={form.control}
-              name="username"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>ハンドルネーム</FormLabel>
-                  <FormControl>
-                    <Input placeholder="例: PFCマスター" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="gender"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>性別</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="性別を選択" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="male">男性</SelectItem>
-                      <SelectItem value="female">女性</SelectItem>
-                      <SelectItem value="other">その他</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="birth_date"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>生年月日</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-[240px] pl-3 text-left font-normal",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, "PPP")
-                          ) : (
-                            <span>日付を選択</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        disabled={(date) =>
-                          date > new Date() || date < new Date("1900-01-01")
-                        }
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="height_cm"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>身長 (cm)</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="170" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="initial_weight_kg"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>現在の体重 (kg)</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="65" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="target_weight_kg"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>目標体重 (kg)</Label>
-                  <FormControl>
-                    <Input type="number" placeholder="60" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="activity_level"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>活動レベル</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="活動レベルを選択" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="1">1: 座り仕事が中心</SelectItem>
-                      <SelectItem value="2">2: 軽い運動を週に1-2回</SelectItem>
-                      <SelectItem value="3">3: 中程度の運動を週に3-5回</SelectItem>
-                      <SelectItem value="4">4: 激しい運動を週に6-7回</SelectItem>
-                      <SelectItem value="5">5: 非常に激しい運動と肉体労働</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="goal_type"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>目標</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="目標を選択" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="diet">ダイエット</SelectItem>
-                      <SelectItem value="bulk-up">筋肉増量</SelectItem>
-                      <SelectItem value="maintain">健康維持</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button type="submit">登録する</Button>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <Card className="w-full max-w-md mx-4">
+        <CardHeader>
+          <CardTitle>プロフィール登録</CardTitle>
+          <CardDescription>
+            あなたの基本情報を教えてください。PFCバランスの計算に使用されます。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">お名前</Label>
+              <Input
+                id="username"
+                name="username"
+                value={formData.username}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="gender">性別</Label>
+              <select
+                id="gender"
+                name="gender"
+                value={formData.gender}
+                onChange={handleInputChange}
+                required
+                className="w-full p-2 border border-gray-300 rounded-md"
+              >
+                <option value="male">男性</option>
+                <option value="female">女性</option>
+                <option value="other">その他</option>
+              </select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="birth_date">生年月日</Label>
+              <Input
+                id="birth_date"
+                name="birth_date"
+                type="date"
+                value={formData.birth_date}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="height_cm">身長 (cm)</Label>
+              <Input
+                id="height_cm"
+                name="height_cm"
+                type="number"
+                value={formData.height_cm}
+                onChange={handleInputChange}
+                required
+                min="100"
+                max="250"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="initial_weight_kg">現在の体重 (kg)</Label>
+              <Input
+                id="initial_weight_kg"
+                name="initial_weight_kg"
+                type="number"
+                value={formData.initial_weight_kg}
+                onChange={handleInputChange}
+                required
+                min="30"
+                max="200"
+                step="0.1"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="target_weight_kg">目標体重 (kg)</Label>
+              <Input
+                id="target_weight_kg"
+                name="target_weight_kg"
+                type="number"
+                value={formData.target_weight_kg}
+                onChange={handleInputChange}
+                required
+                min="30"
+                max="200"
+                step="0.1"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="activity_level">活動レベル</Label>
+              <select
+                id="activity_level"
+                name="activity_level"
+                value={formData.activity_level}
+                onChange={handleInputChange}
+                required
+                className="w-full p-2 border border-gray-300 rounded-md"
+              >
+                <option value="1">座り仕事中心（運動なし）</option>
+                <option value="2">軽い運動（週1-3回）</option>
+                <option value="3">適度な運動（週3-5回）</option>
+                <option value="4">活発な運動（週6-7回）</option>
+                <option value="5">非常に活発な運動（毎日激しい運動）</option>
+              </select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="goal_type">目標</Label>
+              <select
+                id="goal_type"
+                name="goal_type"
+                value={formData.goal_type}
+                onChange={handleInputChange}
+                required
+                className="w-full p-2 border border-gray-300 rounded-md"
+              >
+                <option value="diet">ダイエット</option>
+                <option value="bulk-up">筋肉増強</option>
+                <option value="maintain">体重維持</option>
+              </select>
+            </div>
+            
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isSubmitting}
+              >
+                キャンセル
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "登録中..." : "登録する"}
+              </Button>
+            </div>
           </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
