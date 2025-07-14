@@ -4,10 +4,12 @@ import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
 export const metadata: Metadata = {
   title: "PFCα - PFCバランス管理アプリ",
   description: "PFC（タンパク質・脂質・炭水化物）のバランスを管理し、健康的な食事をサポートするアプリ",
-  metadataBase: new URL('https://pfcalfa.vercel.app'), // ベースURLを設定
+  metadataBase: new URL(siteUrl), // 環境変数からURLを読み込む
   openGraph: {
     title: "PFCα - PFCバランス管理アプリ",
     description: "PFC（タンパク質・脂質・炭水化物）のバランスを管理し、健康的な食事をサポートするアプリ",
@@ -47,12 +49,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja">
-      <head>
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="PFCα" />
-        <meta name="format-detection" content="telephone=no" />
-      </head>
       <body className={inter.className}>
         {children}
       </body>
