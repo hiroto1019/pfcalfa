@@ -71,14 +71,44 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
 
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          ...profile,
-          onboarding_completed: true,
-        });
+      // 1. プロフィール本体の更新（目標関連以外）
+      const { error: profileError } = await supabase.from('profiles').upsert({
+          id: profile.id,
+          username: profile.username,
+          gender: profile.gender,
+          birth_date: profile.birth_date,
+          height_cm: profile.height_cm,
+          initial_weight_kg: profile.initial_weight_kg,
+          food_preferences: profile.food_preferences,
+          onboarding_completed: true, 
+      });
 
-      if (error) throw error;
+      if (profileError) throw profileError;
+
+      const today = new Date().toISOString().split('T')[0];
+
+      // 2. 今日の体重を登録
+      await supabase.from('daily_weight_logs').upsert(
+        { user_id: profile.id, date: today, weight_kg: profile.initial_weight_kg },
+        { onConflict: 'user_id, date' }
+      );
+
+      // 3. 今日の活動レベルを登録
+      await supabase.from('daily_activity_logs').upsert(
+        { user_id: profile.id, date: today, activity_level: profile.activity_level },
+        { onConflict: 'user_id, date' }
+      );
+
+      // 4. 目標を登録
+      const goalData = {
+          user_id: profile.id,
+          target_weight_kg: profile.target_weight_kg > 0 ? profile.target_weight_kg : null,
+          target_date: profile.goal_target_date || null,
+          current_weight_kg: profile.initial_weight_kg,
+          goal_type: profile.goal_type,
+      };
+      await supabase.from('goals').insert(goalData);
+
       alert('プロフィールを登録しました');
       onboardingComplete();
     } catch (error) {
