@@ -39,9 +39,15 @@ export function DashboardGrid({ profile }: { profile: any }) {
   }, [profile, supabase]);
   
   const handleProfileUpdate = async (updatedData: any) => {
-    if (!profile?.id) return;
+    console.log("Received data in DashboardGrid to update:", updatedData);
+    if (!profile?.id) {
+      console.error("Update failed: profile.id is missing");
+      return;
+    }
     
     const { current_weight, ...profileDataToUpdate } = updatedData;
+    console.log("Data for profiles table:", profileDataToUpdate);
+    console.log("Data for daily_weight_logs:", current_weight);
 
     if (current_weight && current_weight > 0) {
       const today = new Date().toISOString().split('T')[0];
