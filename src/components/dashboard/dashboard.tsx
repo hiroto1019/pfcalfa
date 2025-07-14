@@ -1,25 +1,13 @@
-import { MealRecordModal } from "@/components/meals/meal-record-modal";
-import { Button } from "@/components/ui/button";
-import { Settings } from "lucide-react";
-import Link from "next/link";
 import { DashboardGrid } from "./dashboard-grid";
+import { type DashboardData } from "@/app/page";
 
-export function Dashboard({ profile }: { profile: any }) {
+export function Dashboard({ dashboardData }: { dashboardData: DashboardData }) {
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-50">
-      <div className="w-full max-w-screen-xl aspect-[16/9] bg-white rounded-xl shadow-lg flex flex-col p-4">
-        <header className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold">ダッシュボード</h1>
-          <Link href="/settings">
-            <Button variant="outline" size="sm">
-              <Settings className="w-4 h-4 mr-2" />
-              設定
-            </Button>
-          </Link>
-      </header>
-        <DashboardGrid profile={profile} />
-        <MealRecordModal />
-        </div>
+    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+      <div className="flex items-center justify-between space-y-2">
+        <h2 className="text-3xl font-bold tracking-tight">ダッシュボード</h2>
+      </div>
+      <DashboardGrid dashboardData={dashboardData} />
     </div>
   );
 }
