@@ -18,9 +18,7 @@ export async function POST(request: NextRequest) {
 
     // Grok APIに送信するプロンプト
     const prompt = `この画像に写っている食事の、食品名、総カロリー、PFCグラム数をJSON形式で返してください。
-    形式: {"food_name": "食品名", "calories": カロリー数, "protein": タンパク質(g), "fat": 脂質(g), "carbs": 炭水化物(g)}
-    
-    画像データ: data:${imageFile.type};base64,${base64Image}`;
+    形式: {"food_name": "食品名", "calories": カロリー数, "protein": タンパク質(g), "fat": 脂質(g), "carbs": 炭水化物(g)}`;
 
     // Gemini APIを呼び出し
     const geminiResponse = await fetch(
