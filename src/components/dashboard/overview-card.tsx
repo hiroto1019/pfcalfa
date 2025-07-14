@@ -13,7 +13,7 @@ interface OverviewCardProps {
   profile: {
     target_weight_kg: number | null;
     activity_level: number | null;
-    goal_type: string | null;
+    // goal_typeはUIから削除
     goal_target_date: string | null;
   };
   currentWeight: number | null;
@@ -27,7 +27,6 @@ export function OverviewCard({ profile, currentWeight, onUpdate }: OverviewCardP
     currentWeight: currentWeight ?? 0,
     targetWeight: profile.target_weight_kg ?? 0,
     activityLevel: profile.activity_level ?? 2,
-    goalType: profile.goal_type ?? 'lose_weight',
     goalDate: profile.goal_target_date ? new Date(profile.goal_target_date).toISOString().split('T')[0] : "",
   });
 
@@ -36,7 +35,6 @@ export function OverviewCard({ profile, currentWeight, onUpdate }: OverviewCardP
       currentWeight: currentWeight ?? 0,
       targetWeight: profile.target_weight_kg ?? 0,
       activityLevel: profile.activity_level ?? 2,
-      goalType: profile.goal_type ?? 'lose_weight',
       goalDate: profile.goal_target_date ? new Date(profile.goal_target_date).toISOString().split('T')[0] : "",
     });
   }, [profile, currentWeight]);
@@ -47,7 +45,6 @@ export function OverviewCard({ profile, currentWeight, onUpdate }: OverviewCardP
       current_weight_kg: formData.currentWeight > 0 ? formData.currentWeight : null,
       target_weight_kg: formData.targetWeight > 0 ? formData.targetWeight : null,
       activity_level: formData.activityLevel,
-      goal_type: formData.goalType,
       goal_target_date: formData.goalDate === "" ? null : formData.goalDate,
     });
     setIsSaving(false);
@@ -69,12 +66,6 @@ export function OverviewCard({ profile, currentWeight, onUpdate }: OverviewCardP
     5: '非常に激しい運動',
   };
 
-  const goalTypeMap: { [key: string]: string } = {
-    'lose_weight': '減量',
-    'maintain': '維持',
-    'gain_muscle': '増量',
-  };
-
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -91,17 +82,6 @@ export function OverviewCard({ profile, currentWeight, onUpdate }: OverviewCardP
             <div>
               <Label htmlFor="target_weight">目標体重 (kg)</Label>
               <Input id="target_weight" type="number" value={formData.targetWeight} onChange={e => setFormData({...formData, targetWeight: parseFloat(e.target.value) || 0})} />
-            </div>
-            <div>
-              <Label>目的</Label>
-              <Select value={formData.goalType} onValueChange={value => setFormData({...formData, goalType: value})}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="lose_weight">{goalTypeMap['lose_weight']}</SelectItem>
-                  <SelectItem value="maintain">{goalTypeMap['maintain']}</SelectItem>
-                  <SelectItem value="gain_muscle">{goalTypeMap['gain_muscle']}</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div>
               <Label>活動レベル</Label>
@@ -135,8 +115,8 @@ export function OverviewCard({ profile, currentWeight, onUpdate }: OverviewCardP
                 <p className="text-2xl font-bold text-green-600">{formData.targetWeight}kg</p>
             </div>
             <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
-                <p className="text-sm text-gray-500">目的</p>
-                <p className="font-semibold truncate text-sm" title={goalTypeMap[formData.goalType]}>{goalTypeMap[formData.goalType]}</p>
+                <p className="text-sm text-gray-500">活動レベル</p>
+                <p className="font-semibold truncate text-sm" title={activityLevelMap[formData.activityLevel]}>{activityLevelMap[formData.activityLevel]}</p>
             </div>
              <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
                 <p className="text-sm text-gray-500">目標達成日</p>

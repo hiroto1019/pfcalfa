@@ -7,7 +7,6 @@ export async function updateDashboardData(formData: {
   current_weight_kg: number | null;
   target_weight_kg: number | null;
   activity_level: number;
-  goal_type: string;
   goal_target_date: string | null;
 }) {
   const supabase = createClient();
@@ -23,7 +22,6 @@ export async function updateDashboardData(formData: {
     .update({
       target_weight_kg: formData.target_weight_kg,
       activity_level: formData.activity_level,
-      goal_type: formData.goal_type,
       goal_target_date: formData.goal_target_date,
     })
     .eq("id", user.id);
