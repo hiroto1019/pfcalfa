@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import {
   LineChart,
   Line,
@@ -8,138 +11,102 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
-} from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { createClient } from "@/lib/supabase/client";
+  ReferenceLine,
+} from 'recharts';
+import { format, startOfWeek, startOfMonth, parseISO } from 'date-fns';
 
-interface WeightData {
+type WeightLog = {
   date: string;
-  weight: number;
-  target?: number;
-}
+  weight_kg: number;
+};
 
-interface WeightChartProps {
-  compact?: boolean;
-  height?: number;
-}
-
-export function WeightChart({ compact = false, height = 300 }: WeightChartProps) {
-  const [data, setData] = useState<WeightData[]>([]);
+export function WeightChart({ profile }: { profile: any }) {
+  const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
+  const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [isLoading, setIsLoading] = useState(true);
-  const [period, setPeriod] = useState<"week" | "month" | "3months">("week");
   const supabase = createClient();
 
   useEffect(() => {
-    loadWeightData();
-  }, [period]);
-
-  const loadWeightData = async () => {
-    setIsLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // 目標体重を取得
-      const { data: goal } = await supabase
-        .from('goals')
-        .select('target_weight_kg')
-        .eq('user_id', user.id)
-        .single();
-
-      const endDate = new Date();
-      const startDate = new Date();
-      
-      if (period === "week") {
-        startDate.setDate(startDate.getDate() - 7);
-      } else if (period === "month") {
-        startDate.setDate(startDate.getDate() - 30);
-      } else {
-        startDate.setDate(startDate.getDate() - 90);
-      }
-
-      const { data: weightLogs } = await supabase
+    const fetchWeightLogs = async () => {
+      if (!profile?.id) return;
+      setIsLoading(true);
+      const { data, error } = await supabase
         .from('daily_weight_logs')
-        .select('*')
-        .eq('user_id', user.id)
-        .gte('date', startDate.toISOString().split('T')[0])
-        .lte('date', endDate.toISOString().split('T')[0])
-        .order('date');
+        .select('date, weight_kg')
+        .eq('user_id', profile.id)
+        .order('date', { ascending: true });
 
-      if (weightLogs && weightLogs.length > 0) {
-        const chartData = weightLogs.map(log => ({
-          date: new Date(log.date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' }),
-          weight: log.weight_kg,
-          target: goal?.target_weight_kg
-        }));
-
-        setData(chartData);
+      if (error) {
+        console.error('体重記録の読み込みエラー:', error);
       } else {
-        setData([]);
+        setWeightLogs(data);
       }
-    } catch (error) {
-      console.error('体重データ読み込みエラー:', error);
-    } finally {
       setIsLoading(false);
+    };
+
+    fetchWeightLogs();
+  }, [profile, supabase]);
+
+  const getFormattedData = () => {
+    if (timeRange === 'daily') {
+      return weightLogs.map(log => ({
+        ...log,
+        date: format(parseISO(log.date), 'M/d'),
+      }));
     }
+
+    const groupedData: { [key: string]: number[] } = {};
+    const groupingFn = timeRange === 'weekly' ? startOfWeek : startOfMonth;
+    
+    weightLogs.forEach(log => {
+      const groupKey = format(groupingFn(parseISO(log.date)), 'yyyy-MM-dd');
+      if (!groupedData[groupKey]) {
+        groupedData[groupKey] = [];
+      }
+      groupedData[groupKey].push(log.weight_kg);
+    });
+
+    return Object.entries(groupedData).map(([date, weights]) => ({
+      date: format(parseISO(date), 'M/d'),
+      weight_kg: weights.reduce((a, b) => a + b, 0) / weights.length,
+    }));
   };
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white p-3 border rounded-lg shadow-lg text-sm">
-          <p className="font-semibold">{label}</p>
-          {payload.map((entry: any, index: number) => (
-            <p key={index} style={{ color: entry.color }}>
-              {entry.name}: {entry.value}kg
-            </p>
-          ))}
-        </div>
-      );
-    }
-    return null;
-  };
+  const formattedData = getFormattedData();
+  const yDomain = [
+    Math.min(...(formattedData.map(d => d.weight_kg).concat(profile?.target_weight_kg ?? 0))) - 2,
+    Math.max(...(formattedData.map(d => d.weight_kg).concat(profile?.target_weight_kg ?? 0))) + 2,
+  ];
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="col-span-1 md:col-span-2 row-span-1">
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base font-semibold">体重推移</CardTitle>
+        <div className="flex gap-2">
+          <Button size="sm" variant={timeRange === 'daily' ? 'default' : 'outline'} onClick={() => setTimeRange('daily')}>日別</Button>
+          <Button size="sm" variant={timeRange === 'weekly' ? 'default' : 'outline'} onClick={() => setTimeRange('weekly')}>週別</Button>
+          <Button size="sm" variant={timeRange === 'monthly' ? 'default' : 'outline'} onClick={() => setTimeRange('monthly')}>月別</Button>
+        </div>
       </CardHeader>
-      <CardContent className="px-2 pt-4">
-        <Tabs value={period} onValueChange={(value) => setPeriod(value as any)}>
-          <TabsList className="grid w-full grid-cols-3 h-10 sm:h-12">
-            <TabsTrigger value="week" className="text-xs sm:text-sm">週間</TabsTrigger>
-            <TabsTrigger value="month" className="text-xs sm:text-sm">月間</TabsTrigger>
-            <TabsTrigger value="3months" className="text-xs sm:text-sm">3ヶ月</TabsTrigger>
-          </TabsList>
-        </Tabs>
+      <CardContent>
         {isLoading ? (
-          <div className="flex items-center justify-center h-40">
-            <p className="text-sm">データを読み込み中...</p>
-          </div>
-        ) : data.length === 0 ? (
-          <div className="flex items-center justify-center h-40">
-            <p className="text-gray-500 text-sm">体重データがありません</p>
-          </div>
+          <div className="flex items-center justify-center h-60">読み込み中...</div>
         ) : (
-          <ResponsiveContainer width="100%" height={150}>
-            <LineChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+          <ResponsiveContainer width="100%" height={240}>
+            <LineChart data={formattedData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="date" 
-                tick={{ fontSize: 10 }}
-                angle={-45}
-                textAnchor="end"
-                height={40}
-              />
-              <YAxis tick={{ fontSize: 10 }} />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend wrapperStyle={{ fontSize: 10 }} />
-              <Line type="monotone" dataKey="weight" name="体重" stroke="#8884d8" strokeWidth={2} />
-              {data[0]?.target && (
-                <Line type="monotone" dataKey="target" name="目標" stroke="#82ca9d" strokeDasharray="5 5" dot={false} />
+              <XAxis dataKey="date" />
+              <YAxis domain={yDomain} width={30} />
+              <Tooltip />
+              <Line type="monotone" dataKey="weight_kg" name="体重 (kg)" stroke="#8884d8" />
+              {profile?.target_weight_kg && (
+                <ReferenceLine
+                  y={profile.target_weight_kg}
+                  label={{ value: '目標', position: 'insideTopLeft' }}
+                  stroke="red"
+                  strokeDasharray="3 3"
+                />
               )}
             </LineChart>
           </ResponsiveContainer>

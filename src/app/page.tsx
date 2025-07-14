@@ -25,7 +25,7 @@ export default function DashboardPage() {
 
       const { data: profileData } = await supabase
         .from('profiles')
-        .select('onboarding_completed')
+        .select('*')
         .eq('id', user.id)
         .single();
       
@@ -42,7 +42,6 @@ export default function DashboardPage() {
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
-    // プロフィール情報を再読み込みしてダッシュボードに反映させる
     const reloadProfile = async () => {
        const { data: profileData } = await supabase
         .from('profiles')
@@ -68,5 +67,5 @@ export default function DashboardPage() {
     );
   }
   
-  return <Dashboard />;
+  return <Dashboard profile={profile} />;
 }

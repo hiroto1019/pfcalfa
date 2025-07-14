@@ -4,7 +4,7 @@ import { Settings } from "lucide-react";
 import Link from "next/link";
 import { DashboardGrid } from "./dashboard-grid";
 
-export function Dashboard() {
+export function Dashboard({ profile }: { profile: any }) {
   return (
     <div className="flex justify-center items-center min-h-screen bg-gray-50">
       <div className="w-full max-w-screen-xl aspect-[16/9] bg-white rounded-xl shadow-lg flex flex-col p-4">
@@ -17,7 +17,7 @@ export function Dashboard() {
             </Button>
           </Link>
       </header>
-        <DashboardGrid />
+        <DashboardGrid profile={profile} />
         <MealRecordModal />
         </div>
     </div>
