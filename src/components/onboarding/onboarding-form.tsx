@@ -42,27 +42,27 @@ export function OnboardingForm({ userId }: { userId: string }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <Label htmlFor="initial_weight_kg">現在の体重 (kg)</Label>
-                    <Input name="initial_weight_kg" id="initial_weight_kg" type="number" step="0.1" required />
+                    <Input name="initial_weight_kg" id="initial_weight_kg" type="number" step="0.1" />
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="target_weight_kg">目標体重 (kg)</Label>
-                    <Input name="target_weight_kg" id="target_weight_kg" type="number" step="0.1" required />
+                    <Input name="target_weight_kg" id="target_weight_kg" type="number" step="0.1" />
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="height_cm">身長 (cm)</Label>
-                    <Input name="height_cm" id="height_cm" type="number" step="0.1" required />
+                    <Input name="height_cm" id="height_cm" type="number" step="0.1" />
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="birth_date">生年月日</Label>
-                    <Input name="birth_date" id="birth_date" type="date" required />
+                    <Input name="birth_date" id="birth_date" type="date" />
                 </div>
                  <div className="space-y-2">
                     <Label htmlFor="target_date">目標達成日</Label>
-                    <Input name="target_date" id="target_date" type="date" required />
+                    <Input name="target_date" id="target_date" type="date" />
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="gender">性別</Label>
-                    <Select name="gender" required>
+                    <Select name="gender">
                       <SelectTrigger id="gender">
                         <SelectValue placeholder="選択してください" />
                       </SelectTrigger>
@@ -75,7 +75,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
             
               <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="activity_level">活動レベル</Label>
-                  <Select name="activity_level" defaultValue="2" required>
+                  <Select name="activity_level" defaultValue="2">
                      <SelectTrigger id="activity_level">
                       <SelectValue />
                     </SelectTrigger>

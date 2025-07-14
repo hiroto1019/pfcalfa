@@ -5,14 +5,16 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 
+const preprocessEmptyString = (val: unknown) => (val === '' ? null : val);
+
 const profileSchema = z.object({
   userId: z.string(),
-  height_cm: z.coerce.number(),
-  birth_date: z.string(),
-  gender: z.enum(['male', 'female']),
-  initial_weight_kg: z.coerce.number(),
-  target_weight_kg: z.coerce.number(),
-  target_date: z.string(),
+  height_cm: z.preprocess(preprocessEmptyString, z.coerce.number().nullable()),
+  birth_date: z.preprocess(preprocessEmptyString, z.string().nullable()),
+  gender: z.preprocess(preprocessEmptyString, z.enum(['male', 'female']).nullable()),
+  initial_weight_kg: z.preprocess(preprocessEmptyString, z.coerce.number().nullable()),
+  target_weight_kg: z.preprocess(preprocessEmptyString, z.coerce.number().nullable()),
+  target_date: z.preprocess(preprocessEmptyString, z.string().nullable()),
   activity_level: z.string(),
 });
 
@@ -54,7 +56,9 @@ export async function updateProfile(formData: FormData) {
   console.log("--- 4. Profile upsert successful ---");
 
   // goalsテーブルへのUpsert
-  const goal_type = data.initial_weight_kg > data.target_weight_kg ? 'diet' : 'bulk-up';
+  const goal_type = data.initial_weight_kg && data.target_weight_kg && data.initial_weight_kg > data.target_weight_kg
+    ? 'diet'
+    : 'bulk-up';
   const { error: goalError } = await supabase
     .from("goals")
     .upsert({
