@@ -5,10 +5,11 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Dashboard } from '@/components/dashboard/dashboard';
 import { OnboardingForm } from '@/components/onboarding/onboarding-form';
+import { type Profile } from '@/lib/types';
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
@@ -38,19 +39,21 @@ export default function DashboardPage() {
     };
 
     checkUser();
-  }, []);
+  }, [router, supabase]);
 
-  const handleOnboardingComplete = () => {
+  const handleOnboardingComplete = async () => {
     setShowOnboarding(false);
-    const reloadProfile = async () => {
-       const { data: profileData } = await supabase
+    setLoading(true); // 再読み込み開始
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
       setProfile(profileData);
-    };
-    reloadProfile();
+    }
+    setLoading(false); // 再読み込み完了
   };
 
   if (loading) {
@@ -67,5 +70,5 @@ export default function DashboardPage() {
     );
   }
 
-  return <Dashboard profile={profile} />;
+  return <Dashboard profile={profile} onUpdate={handleOnboardingComplete} />;
 }
