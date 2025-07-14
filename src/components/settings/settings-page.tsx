@@ -244,7 +244,7 @@ export function SettingsPage() {
     );
   }
 
-  const idealCalories = profile ? getIdealCalories(profile, profile.initial_weight_kg) : 2000;
+  const idealCalories = profile ? getIdealCalories(profile, profile.initial_weight_kg, profile.activity_level) : 2000;
 
   return (
     <div className="container mx-auto p-4 space-y-6">
