@@ -7,6 +7,21 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "PFCα - PFCバランス管理アプリ",
   description: "PFC（タンパク質・脂質・炭水化物）のバランスを管理し、健康的な食事をサポートするアプリ",
+  metadataBase: new URL('https://pfcalfa.vercel.app'), // ベースURLを設定
+  openGraph: {
+    title: "PFCα - PFCバランス管理アプリ",
+    description: "PFC（タンパク質・脂質・炭水化物）のバランスを管理し、健康的な食事をサポートするアプリ",
+    images: [`/ogp-image.png`],
+    type: 'website',
+    url: '/',
+    siteName: 'PFCα',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "PFCα - PFCバランス管理アプリ",
+    description: "PFC（タンパク質・脂質・炭水化物）のバランスを管理し、健康的な食事をサポートするアプリ",
+    images: [`/ogp-image.png`],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
