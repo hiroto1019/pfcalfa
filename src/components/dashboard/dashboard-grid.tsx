@@ -42,8 +42,8 @@ export function DashboardGrid({ profile }: { profile: any }) {
     return <div className="flex items-center justify-center h-full">データを読み込んでいます...</div>;
   }
   
-  const idealCalories = getIdealCalories(profile);
   const currentWeight = weightLogs.length > 0 ? weightLogs[weightLogs.length - 1].weight_kg : profile.initial_weight_kg;
+  const idealCalories = getIdealCalories(profile, currentWeight);
 
   const overviewData = {
     current_weight: currentWeight,
