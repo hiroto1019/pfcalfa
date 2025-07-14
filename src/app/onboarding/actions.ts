@@ -7,41 +7,34 @@ import { revalidatePath } from 'next/cache';
 
 const profileSchema = z.object({
   userId: z.string(),
-  height_cm: z.coerce.number().positive(),
-  birth_date: z.string().min(1, "生年月日を選択してください"),
-  gender: z.enum(["male", "female"]),
-  initial_weight_kg: z.coerce.number().positive(),
-  target_weight_kg: z.coerce.number().positive(),
-  target_date: z.string().min(1, "目標達成日を選択してください"),
-  activity_level: z.string().min(1, "活動レベルを選択してください"),
+  height_cm: z.coerce.number(),
+  birth_date: z.string(),
+  gender: z.enum(['male', 'female']),
+  initial_weight_kg: z.coerce.number(),
+  target_weight_kg: z.coerce.number(),
+  target_date: z.string(),
+  activity_level: z.string(),
 });
 
-export type OnboardingFormState = {
-  message: string;
-  errors?: {
-    [key in keyof z.infer<typeof profileSchema>]?: string[];
-  };
-};
-
-export async function updateProfile(
-  prevState: OnboardingFormState,
-  formData: FormData
-): Promise<OnboardingFormState> {
+export async function updateProfile(formData: FormData) {
+  console.log("--- 1. updateProfile action started ---");
   const supabase = createClient();
   const rawData = Object.fromEntries(formData.entries());
+  console.log("--- 2. Raw form data ---", rawData);
 
   const validatedFields = profileSchema.safeParse(rawData);
 
   if (!validatedFields.success) {
-    return {
-      message: '入力内容にエラーがあります。各項目をご確認ください。',
-      errors: validatedFields.error.flatten().fieldErrors,
-    };
+    console.error("--- VALIDATION FAILED ---", validatedFields.error);
+    // ここでリダイレクトすると、なぜ失敗したかユーザーに伝わらない
+    // 本来はエラーメッセージを返すのが望ましい
+    return;
   }
   
+  console.log("--- 3. Validation successful ---", validatedFields.data);
   const data = validatedFields.data;
 
-  // 1. profilesテーブルを更新または作成 (Upsert)
+  // profilesテーブルへのUpsert
   const { error: profileError } = await supabase
     .from("profiles")
     .upsert({
@@ -50,17 +43,17 @@ export async function updateProfile(
       birth_date: data.birth_date,
       gender: data.gender,
       initial_weight_kg: data.initial_weight_kg,
-      activity_level: data.activity_level,
+      activity_level: Number(data.activity_level),
       onboarding_completed: true,
-    })
-    .select();
+    });
 
   if (profileError) {
-    console.error("Profile upsert error:", profileError);
-    return { message: `プロフィールの保存に失敗しました: ${profileError.message}`, errors: {} };
+    console.error("--- PROFILE UPSERT FAILED ---", profileError);
+    return;
   }
+  console.log("--- 4. Profile upsert successful ---");
 
-  // 2. goalsテーブルに目標を作成または更新 (Upsert)
+  // goalsテーブルへのUpsert
   const goal_type = data.initial_weight_kg > data.target_weight_kg ? 'diet' : 'bulk-up';
   const { error: goalError } = await supabase
     .from("goals")
@@ -73,10 +66,12 @@ export async function updateProfile(
     }, { onConflict: 'user_id' });
 
   if (goalError) {
-    console.error("Goal upsert error:", goalError);
-    return { message: `目標の保存に失敗しました: ${goalError.message}`, errors: {} };
+    console.error("--- GOAL UPSERT FAILED ---", goalError);
+    return;
   }
+  console.log("--- 5. Goal upsert successful ---");
   
   revalidatePath('/');
   redirect("/");
+  console.log("--- 6. Redirecting to dashboard ---");
 }
