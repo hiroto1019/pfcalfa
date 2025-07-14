@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useTransition, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,16 @@ import {
 } from "@/components/ui/select";
 
 export function OnboardingForm({ userId }: { userId: string }) {
+  const [isPending, startTransition] = useTransition();
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    
+    startTransition(() => {
+      updateProfile(formData);
+    });
+  };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -26,7 +36,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={updateProfile} className="space-y-4" noValidate>
+          <form onSubmit={handleSubmit} className="space-y-4">
             <input type="hidden" name="userId" value={userId} />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -80,7 +90,9 @@ export function OnboardingForm({ userId }: { userId: string }) {
                 </div>
             </div>
             
-            <Button type="submit" className="w-full">登録する</Button>
+            <Button type="submit" className="w-full" disabled={isPending}>
+              {isPending ? '登録中...' : '登録する'}
+            </Button>
           </form>
         </CardContent>
       </Card>
