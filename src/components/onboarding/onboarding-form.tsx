@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,10 @@ import {
 } from "@/components/ui/select";
 
 export function OnboardingForm({ userId }: { userId: string }) {
+  // Selectコンポーネントの値が空でないことを確認するための状態
+  const [isGenderSelected, setIsGenderSelected] = useState(false);
+  const [isActivityLevelSelected, setIsActivityLevelSelected] = useState(true); // defaultValueがあるのでtrue
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <Card className="w-full max-w-lg">
@@ -50,7 +54,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="gender">性別</Label>
-                <Select name="gender" required>
+                <Select name="gender" required onValueChange={() => setIsGenderSelected(true)}>
                   <SelectTrigger id="gender">
                     <SelectValue placeholder="選択してください" />
                   </SelectTrigger>
@@ -62,7 +66,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
               </div>
                <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="activity_level">活動レベル</Label>
-                <Select name="activity_level" required defaultValue="2">
+                <Select name="activity_level" required defaultValue="2" onValueChange={() => setIsActivityLevelSelected(true)}>
                    <SelectTrigger id="activity_level">
                     <SelectValue />
                   </SelectTrigger>
@@ -77,7 +81,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
               </div>
             </div>
             
-            <Button type="submit" className="w-full">登録する</Button>
+            <Button type="submit" className="w-full" disabled={!isGenderSelected || !isActivityLevelSelected}>登録する</Button>
           </form>
         </CardContent>
       </Card>
