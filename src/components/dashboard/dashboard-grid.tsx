@@ -55,11 +55,8 @@ export function DashboardGrid({ profile }: { profile: any }) {
   return (
     <main className="grid flex-1 grid-cols-1 md:grid-cols-3 gap-4">
       {/* Top Row */}
-      <OverviewCard initialData={overviewData} onUpdate={() => {}} />
       <AiAdvice />
       <CalorieSummary idealCalories={idealCalories ?? 0} />
-      
-      {/* Bottom Row */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base font-semibold">PFCバランス</CardTitle>
@@ -68,8 +65,11 @@ export function DashboardGrid({ profile }: { profile: any }) {
           <PFCChart idealCalories={idealCalories ?? 0} />
         </CardContent>
       </Card>
-      <WeightChart profile={profile} weightLogs={weightLogs} isLoading={isLoading} />
+      
+      {/* Bottom Row */}
       <MealHistoryCard />
+      <OverviewCard initialData={overviewData} onUpdate={() => {}} />
+      <WeightChart profile={profile} weightLogs={weightLogs} isLoading={isLoading} />
     </main>
   );
 } 
