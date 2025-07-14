@@ -98,7 +98,7 @@ export default function DashboardPage() {
       goalTargetDate: profileData.goal_target_date
     });
     setLoading(false);
-  }, [supabase, router]);
+  }, []);
 
 
   useEffect(() => {
@@ -112,13 +112,13 @@ export default function DashboardPage() {
       fetchData(user.id);
     };
     checkUser();
-  }, [fetchData, router, supabase]);
+  }, [fetchData]);
 
-  const handleDataRefresh = () => {
+  const handleDataRefresh = useCallback(() => {
     if(user?.id) {
       fetchData(user.id);
     }
-  };
+  }, [user, fetchData]);
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
