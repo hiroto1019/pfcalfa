@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "PFC-ALFA PFCバランス管理アプリ",
     description: "PFCバランス管理アプリ",
-    url: "https://pfcalfa.com", // あとで実際のドメインに変更してください
+    url: "https://pfcalfa.vercel.app/",
     siteName: "PFC-ALFA",
     images: [
       {
