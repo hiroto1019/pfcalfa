@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useState } from "react";
 import { OverviewCard } from "./overview-card";
 import { CalorieSummary } from "./calorie-summary";
 import { AiAdvice } from "./ai-advice";
@@ -11,34 +10,10 @@ import { WeightChart } from "./weight-chart";
 import { getIdealCalories } from "@/lib/utils";
 import { MealHistoryCard } from "./meal-history-card"; 
 
-export function DashboardGrid({ profile }: { profile: any }) {
-  const [weightLogs, setWeightLogs] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const supabase = createClient();
+export function DashboardGrid({ profile, weightLogs, onUpdate }: { profile: any, weightLogs: any[], onUpdate: () => void }) {
+  const isLoading = !profile;
 
-  useEffect(() => {
-    const fetchWeightLogs = async () => {
-      if (!profile?.id) return;
-      setIsLoading(true);
-      const { data, error } = await supabase
-        .from('daily_weight_logs')
-        .select('date, weight_kg')
-        .eq('user_id', profile.id)
-        .order('date', { ascending: true });
-
-      if (error) {
-        console.error('体重記録の読み込みエラー:', error);
-        setWeightLogs([]);
-      } else {
-        setWeightLogs(data);
-      }
-      setIsLoading(false);
-    };
-
-    fetchWeightLogs();
-  }, [profile, supabase]);
-
-  if (!profile || isLoading) {
+  if (isLoading) {
     return <div className="flex items-center justify-center h-full">データを読み込んでいます...</div>;
   }
   
@@ -68,7 +43,7 @@ export function DashboardGrid({ profile }: { profile: any }) {
       
       {/* Bottom Row */}
       <MealHistoryCard />
-      <OverviewCard initialData={overviewData} onUpdate={() => {}} />
+      <OverviewCard initialData={overviewData} onUpdate={onUpdate} />
       <WeightChart profile={profile} weightLogs={weightLogs} isLoading={isLoading} />
     </main>
   );
