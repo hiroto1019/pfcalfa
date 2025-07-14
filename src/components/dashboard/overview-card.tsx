@@ -37,6 +37,7 @@ export function OverviewCard({ initialData, onUpdate }: OverviewCardProps) {
   }, [initialData]);
 
   const handleSave = async () => {
+    console.log("Saving data from OverviewCard:", formData);
     setIsSaving(true);
     await onUpdate(formData);
     setIsSaving(false);
