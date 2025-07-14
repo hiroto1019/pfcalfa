@@ -22,6 +22,7 @@ interface Profile {
     dislikes: string[];
     allergies: string[];
   };
+  goal_target_date?: string;
 }
 
 interface OnboardingFormProps {
@@ -60,6 +61,7 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
         activity_level: 2,
         goal_type: 'diet',
         food_preferences: { dislikes: [], allergies: [] },
+        goal_target_date: "",
       });
     }
   };
@@ -123,14 +125,25 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
             </select>
           </div>
         </div>
-        <div>
-          <Label htmlFor="birth_date">生年月日</Label>
-          <Input
-            id="birth_date"
-            type="date"
-            value={profile.birth_date}
-            onChange={(e) => setProfile({ ...profile, birth_date: e.target.value })}
-          />
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="birth_date">生年月日</Label>
+            <Input
+              id="birth_date"
+              type="date"
+              value={profile.birth_date ? profile.birth_date.split('T')[0] : ''}
+              onChange={(e) => setProfile({ ...profile, birth_date: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label htmlFor="goal_target_date">目標達成日</Label>
+            <Input
+              id="goal_target_date"
+              type="date"
+              value={profile.goal_target_date ? profile.goal_target_date.split('T')[0] : ''}
+              onChange={(e) => setProfile({ ...profile, goal_target_date: e.target.value })}
+            />
+          </div>
         </div>
         <div className="grid grid-cols-3 gap-4">
           <div>
