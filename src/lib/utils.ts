@@ -38,10 +38,10 @@ export function getIdealCalories(profile: any): number {
   const tdee = calculateTDEE(bmr, profile.activity_level);
 
   if (profile.goal_type === 'diet') {
-    return tdee - 500;
+    return Math.round(tdee - 500);
   } else if (profile.goal_type === 'bulk-up') {
-    return tdee + 500;
+    return Math.round(tdee + 500);
   } else {
-    return tdee;
+    return Math.round(tdee);
   }
 }

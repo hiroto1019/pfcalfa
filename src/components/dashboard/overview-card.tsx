@@ -92,11 +92,11 @@ export function OverviewCard({ initialData, onUpdate }: OverviewCardProps) {
   };
 
   const activityLevelMap: { [key: number]: string } = {
-    1: ' sedentary (office worker)',
-    2: 'lightly active (1-2 days/week exercise)',
-    3: 'moderately active (3-5 days/week exercise)',
-    4: 'very active (6-7 days/week exercise)',
-    5: 'extra active (daily exercise & physical job)',
+    1: '座り仕事中心（運動なし）',
+    2: '軽い運動（週1-2回）',
+    3: '中程度の運動（週3-5回）',
+    4: '激しい運動（週6-7回）',
+    5: '非常に激しい運動',
   };
 
   return (

@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { OverviewCard } from "./overview-card";
 import { CalorieSummary } from "./calorie-summary";
 import { AiAdvice } from "./ai-advice";
@@ -9,15 +11,41 @@ import { WeightChart } from "./weight-chart";
 import { getIdealCalories } from "@/lib/utils";
 
 export function DashboardGrid({ profile }: { profile: any }) {
+  const [weightLogs, setWeightLogs] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const supabase = createClient();
 
-  if (!profile) {
-    return <div className="flex items-center justify-center h-full">プロフィールを読み込んでいます...</div>;
+  useEffect(() => {
+    const fetchWeightLogs = async () => {
+      if (!profile?.id) return;
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('daily_weight_logs')
+        .select('date, weight_kg')
+        .eq('user_id', profile.id)
+        .order('date', { ascending: true });
+
+      if (error) {
+        console.error('体重記録の読み込みエラー:', error);
+        setWeightLogs([]);
+      } else {
+        setWeightLogs(data);
+      }
+      setIsLoading(false);
+    };
+
+    fetchWeightLogs();
+  }, [profile, supabase]);
+
+  if (!profile || isLoading) {
+    return <div className="flex items-center justify-center h-full">データを読み込んでいます...</div>;
   }
   
   const idealCalories = getIdealCalories(profile);
+  const currentWeight = weightLogs.length > 0 ? weightLogs[weightLogs.length - 1].weight_kg : profile.initial_weight_kg;
 
   const overviewData = {
-    current_weight: profile.initial_weight_kg,
+    current_weight: currentWeight,
     target_weight: profile.target_weight_kg,
     activity_level: profile.activity_level,
     goal_date: profile.goal_target_date,
@@ -36,7 +64,7 @@ export function DashboardGrid({ profile }: { profile: any }) {
         </CardContent>
       </Card>
       <AiAdvice />
-      <WeightChart profile={profile} />
+      <WeightChart profile={profile} weightLogs={weightLogs} isLoading={isLoading} />
     </main>
   );
 } 

@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,32 +20,8 @@ type WeightLog = {
   weight_kg: number;
 };
 
-export function WeightChart({ profile }: { profile: any }) {
-  const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
+export function WeightChart({ profile, weightLogs, isLoading }: { profile: any; weightLogs: WeightLog[]; isLoading: boolean }) {
   const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly'>('daily');
-  const [isLoading, setIsLoading] = useState(true);
-  const supabase = createClient();
-
-  useEffect(() => {
-    const fetchWeightLogs = async () => {
-      if (!profile?.id) return;
-      setIsLoading(true);
-      const { data, error } = await supabase
-        .from('daily_weight_logs')
-        .select('date, weight_kg')
-        .eq('user_id', profile.id)
-        .order('date', { ascending: true });
-
-      if (error) {
-        console.error('体重記録の読み込みエラー:', error);
-      } else {
-        setWeightLogs(data);
-      }
-      setIsLoading(false);
-    };
-
-    fetchWeightLogs();
-  }, [profile, supabase]);
 
   const getFormattedData = () => {
     if (timeRange === 'daily') {
@@ -80,7 +55,7 @@ export function WeightChart({ profile }: { profile: any }) {
   ];
 
   return (
-    <Card className="col-span-1 md:col-span-2 row-span-1">
+    <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base font-semibold">体重推移</CardTitle>
         <div className="flex gap-2">
