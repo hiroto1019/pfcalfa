@@ -8,7 +8,11 @@ import { useState, useRef, useEffect } from "react";
 import { analyzeImageNutrition, analyzeTextNutrition, GrokNutritionResponse } from "@/lib/grok";
 import { createClient } from "@/lib/supabase/client";
 
-export function MealRecordModal() {
+interface MealRecordModalProps {
+  onMealRegistered: () => void;
+}
+
+export function MealRecordModal({ onMealRegistered }: MealRecordModalProps) {
   const [mode, setMode] = useState<"camera" | "text" | null>(null);
   const [open, setOpen] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -154,6 +158,7 @@ export function MealRecordModal() {
       
       // ページをリフレッシュしてデータを更新
       window.location.reload();
+      onMealRegistered(); // データ更新をトリガー
     } catch (error) {
       console.error('食事記録エラー:', error);
       alert('食事記録の保存に失敗しました。');

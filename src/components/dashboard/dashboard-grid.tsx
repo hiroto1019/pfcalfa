@@ -35,17 +35,23 @@ export function DashboardGrid({ dashboardData }: { dashboardData: DashboardData 
     <main className="grid flex-1 grid-cols-1 md:grid-cols-3 gap-4">
       {/* Top Row */}
       <AiAdvice />
-      <CalorieSummary idealCalories={idealCalories} consumedCalories={totalCalories} />
+      <CalorieSummary 
+        idealCalories={idealCalories} 
+        consumedCalories={totalCalories} 
+        protein={totalProtein}
+        fat={totalFat}
+        carbs={totalCarbs}
+      />
       <Card>
         <CardHeader>
           <CardTitle className="text-base font-semibold">PFCバランス</CardTitle>
         </CardHeader>
         <CardContent>
           <PFCChart 
-            protein={totalProtein}
-            fat={totalFat}
-            carbs={totalCarbs}
             idealCalories={idealCalories} 
+            dailyProtein={totalProtein}
+            dailyFat={totalFat}
+            dailyCarbs={totalCarbs}
           />
         </CardContent>
       </Card>
