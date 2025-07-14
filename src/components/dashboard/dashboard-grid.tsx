@@ -37,6 +37,36 @@ export function DashboardGrid({ profile }: { profile: any }) {
 
     fetchWeightLogs();
   }, [profile, supabase]);
+  
+  const handleProfileUpdate = async (updatedData: any) => {
+    if (!profile?.id) return;
+    
+    const { current_weight, ...profileDataToUpdate } = updatedData;
+
+    if (current_weight && current_weight > 0) {
+      const today = new Date().toISOString().split('T')[0];
+      const { error: weightError } = await supabase
+        .from('daily_weight_logs')
+        .upsert({ user_id: profile.id, date: today, weight_kg: current_weight }, { onConflict: 'user_id, date' });
+      if (weightError) {
+        console.error('体重記録の保存エラー:', weightError);
+        alert('体重の保存に失敗しました。');
+      }
+    }
+
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update(profileDataToUpdate)
+      .eq('id', profile.id);
+
+    if (profileError) {
+      console.error('プロフィールの更新エラー:', profileError);
+      alert('プロフィールの更新に失敗しました。');
+    } else {
+      alert('プロフィールを更新しました。');
+      window.location.reload();
+    }
+  };
 
   if (!profile || isLoading) {
     return <div className="flex items-center justify-center h-full">データを読み込んでいます...</div>;
@@ -68,7 +98,7 @@ export function DashboardGrid({ profile }: { profile: any }) {
       
       {/* Bottom Row */}
       <MealHistoryCard />
-      <OverviewCard initialData={overviewData} onUpdate={() => {}} />
+      <OverviewCard initialData={overviewData} onUpdate={handleProfileUpdate} />
       <WeightChart profile={profile} weightLogs={weightLogs} isLoading={isLoading} />
     </main>
   );
