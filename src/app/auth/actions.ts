@@ -52,7 +52,7 @@ export async function signUp(data: FormData) {
   }
 
   revalidatePath('/', 'layout');
-  redirect('/login?message=' + encodeURIComponent('確認メールを送信しました。メールを確認してログインしてください'));
+  redirect('/');
 }
 
 export async function signInWithGithub() {

@@ -41,17 +41,17 @@ export async function updateProfile(formData: FormData) {
       throw profileError;
     }
 
-    // 2. goalsテーブルに最初の目標を作成
+    // 2. goalsテーブルに目標を作成または更新 (Upsert)
     const goal_type = data.initial_weight_kg > data.target_weight_kg ? 'diet' : 'bulk-up';
     const { error: goalError } = await supabase
       .from("goals")
-      .insert({
+      .upsert({
         user_id: data.userId,
         target_weight_kg: data.target_weight_kg,
         target_date: data.target_date,
         current_weight_kg: data.initial_weight_kg,
         goal_type: goal_type,
-  });
+      }, { onConflict: 'user_id' }); // user_idが重複した場合は更新する
 
     if (goalError) {
       console.error("Goal creation error:", goalError);
