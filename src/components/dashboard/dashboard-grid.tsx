@@ -13,96 +13,37 @@ import { MealHistoryCard } from "./meal-history-card";
 
 export function DashboardGrid({ profile }: { profile: any }) {
   const [weightLogs, setWeightLogs] = useState<any[]>([]);
-  const [consumedCalories, setConsumedCalories] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const supabase = createClient();
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchWeightLogs = async () => {
       if (!profile?.id) return;
       setIsLoading(true);
+      const { data, error } = await supabase
+        .from('daily_weight_logs')
+        .select('date, weight_kg')
+        .eq('user_id', profile.id)
+        .order('date', { ascending: true });
 
-      const today = new Date().toISOString().split('T')[0];
-
-      // 体重記録と食事記録を並行して取得
-      const [weightResponse, mealResponse] = await Promise.all([
-        supabase
-          .from('daily_weight_logs')
-          .select('date, weight_kg')
-          .eq('user_id', profile.id)
-          .order('date', { ascending: true }),
-        supabase
-          .from('meal_logs')
-          .select('calories')
-          .eq('user_id', profile.id)
-          .eq('date', today)
-      ]);
-
-      const { data: weightData, error: weightError } = weightResponse;
-      if (weightError) {
-        console.error('体重記録の読み込みエラー:', weightError);
+      if (error) {
+        console.error('体重記録の読み込みエラー:', error);
         setWeightLogs([]);
       } else {
-        setWeightLogs(weightData);
+        setWeightLogs(data);
       }
-
-      const { data: mealData, error: mealError } = mealResponse;
-      if (mealError) {
-        console.error('食事記録の読み込みエラー:', mealError);
-        setConsumedCalories(0);
-      } else {
-        const totalCalories = mealData.reduce((sum, meal) => sum + (meal.calories || 0), 0);
-        setConsumedCalories(totalCalories);
-      }
-      
       setIsLoading(false);
     };
 
-    fetchData();
+    fetchWeightLogs();
   }, [profile, supabase]);
-  
-  const handleProfileUpdate = async (updatedData: any) => {
-    console.log("Received data in DashboardGrid to update:", updatedData);
-    if (!profile?.id) {
-      console.error("Update failed: profile.id is missing");
-      return;
-    }
-    
-    const { current_weight, ...profileDataToUpdate } = updatedData;
-    console.log("Data for profiles table:", profileDataToUpdate);
-    console.log("Data for daily_weight_logs:", current_weight);
-
-    if (current_weight && current_weight > 0) {
-      const today = new Date().toISOString().split('T')[0];
-      const { error: weightError } = await supabase
-        .from('daily_weight_logs')
-        .upsert({ user_id: profile.id, date: today, weight_kg: current_weight }, { onConflict: 'user_id, date' });
-      if (weightError) {
-        console.error('体重記録の保存エラー:', weightError);
-        alert('体重の保存に失敗しました。');
-      }
-    }
-
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update(profileDataToUpdate)
-      .eq('id', profile.id);
-
-    if (profileError) {
-      console.error('プロフィールの更新エラー:', profileError);
-      alert('プロフィールの更新に失敗しました。');
-    } else {
-      alert('プロフィールを更新しました。');
-      window.location.reload();
-    }
-  };
 
   if (!profile || isLoading) {
     return <div className="flex items-center justify-center h-full">データを読み込んでいます...</div>;
   }
   
+  const idealCalories = getIdealCalories(profile);
   const currentWeight = weightLogs.length > 0 ? weightLogs[weightLogs.length - 1].weight_kg : profile.initial_weight_kg;
-  const idealCalories = getIdealCalories({ ...profile, current_weight_kg: currentWeight });
 
   const overviewData = {
     current_weight: currentWeight,
@@ -115,7 +56,7 @@ export function DashboardGrid({ profile }: { profile: any }) {
     <main className="grid flex-1 grid-cols-1 md:grid-cols-3 gap-4">
       {/* Top Row */}
       <AiAdvice />
-      <CalorieSummary idealCalories={idealCalories ?? 0} consumedCalories={consumedCalories} />
+      <CalorieSummary idealCalories={idealCalories ?? 0} />
       <Card>
         <CardHeader>
           <CardTitle className="text-base font-semibold">PFCバランス</CardTitle>
@@ -127,7 +68,7 @@ export function DashboardGrid({ profile }: { profile: any }) {
       
       {/* Bottom Row */}
       <MealHistoryCard />
-      <OverviewCard initialData={overviewData} onUpdate={handleProfileUpdate} />
+      <OverviewCard initialData={overviewData} onUpdate={() => {}} />
       <WeightChart profile={profile} weightLogs={weightLogs} isLoading={isLoading} />
     </main>
   );

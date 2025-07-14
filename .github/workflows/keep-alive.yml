@@ -1,17 +1,19 @@
-name: Supabase Keep-Alive
+name: Keep Supabase Alive
 
 on:
   schedule:
-    # 毎週日曜日の午前0時 (UTC) に実行
-    - cron: '0 0 * * 0'
+    # 毎日UTC午前0時（日本時間午前9時）に実行
+    - cron: '0 0 * * *'
+  workflow_dispatch: # 手動実行も可能にする
 
 jobs:
   keep-alive:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Send request to Supabase
+      - name: Send request to Supabase to keep project alive
         run: |
-          curl -X GET \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/profiles?select=*&limit=1" \
-            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" 
+          curl -i -X 'OPTIONS' \
+          "${{ secrets.SUPABASE_URL }}/rest/v1/" \
+          -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+          -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" 
