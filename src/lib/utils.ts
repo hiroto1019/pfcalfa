@@ -29,13 +29,13 @@ function calculateTDEE(bmr: number, activityLevel: number) {
 }
 
 // 理想のカロリーを計算する
-export function getIdealCalories(profile: any, currentWeight: number | null): number {
-  if (!profile || !currentWeight || !profile.birth_date || !profile.height_cm || !profile.activity_level || !profile.goal_type) {
+export function getIdealCalories(profile: any, currentWeight: number | null, activityLevel: number | null): number {
+  if (!profile || !currentWeight || !activityLevel || !profile.birth_date || !profile.height_cm || !profile.goal_type) {
     return 2000; // 必要な情報がなければデフォルト値
   }
 
   const bmr = calculateBMR(profile, currentWeight);
-  const tdee = calculateTDEE(bmr, profile.activity_level);
+  const tdee = calculateTDEE(bmr, activityLevel);
 
   if (profile.goal_type === 'lose_weight') {
     return Math.round(tdee - 500);

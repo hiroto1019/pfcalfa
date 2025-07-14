@@ -1,43 +1,30 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, Dispatch, SetStateAction } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { updateDashboardData } from "./actions"; // 新しいアクション
+import { updateDashboardData } from "./actions";
 import { toast } from "sonner";
 
+interface FormData {
+  currentWeight: number;
+  targetWeight: number;
+  activityLevel: number;
+  goalDate: string;
+}
+
 interface OverviewCardProps {
-  profile: {
-    target_weight_kg: number | null;
-    activity_level: number | null;
-    // goal_typeはUIから削除
-    goal_target_date: string | null;
-  };
-  currentWeight: number | null;
+  formData: FormData;
+  setFormData: Dispatch<SetStateAction<FormData>>;
   onUpdate: () => void;
 }
 
-export function OverviewCard({ profile, currentWeight, onUpdate }: OverviewCardProps) {
+export function OverviewCard({ formData, setFormData, onUpdate }: OverviewCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [formData, setFormData] = useState({
-    currentWeight: currentWeight ?? 0,
-    targetWeight: profile.target_weight_kg ?? 0,
-    activityLevel: profile.activity_level ?? 2,
-    goalDate: profile.goal_target_date ? new Date(profile.goal_target_date).toISOString().split('T')[0] : "",
-  });
-
-  useEffect(() => {
-    setFormData({
-      currentWeight: currentWeight ?? 0,
-      targetWeight: profile.target_weight_kg ?? 0,
-      activityLevel: profile.activity_level ?? 2,
-      goalDate: profile.goal_target_date ? new Date(profile.goal_target_date).toISOString().split('T')[0] : "",
-    });
-  }, [profile, currentWeight]);
 
   const handleSave = async () => {
     setIsSaving(true);
