@@ -56,6 +56,20 @@ export function SettingsPage() {
 
       if (profileData) {
         setProfile(profileData);
+      } else if (user) {
+        // プロフィールが存在しない場合、空のフォームを表示するためにデフォルト値を設定
+        setProfile({
+          id: user.id,
+          username: "",
+          gender: "male",
+          birth_date: "",
+          height_cm: 0,
+          initial_weight_kg: 0,
+          target_weight_kg: 0,
+          activity_level: 2,
+          goal_type: 'diet',
+          food_preferences: { dislikes: [], allergies: [] },
+        });
       }
     } catch (error) {
       console.error('プロフィール読み込みエラー:', error);
@@ -71,7 +85,8 @@ export function SettingsPage() {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({
+        .upsert({
+          id: profile.id,
           username: profile.username,
           gender: profile.gender,
           birth_date: profile.birth_date,
@@ -80,7 +95,8 @@ export function SettingsPage() {
           target_weight_kg: profile.target_weight_kg,
           activity_level: profile.activity_level,
           goal_type: profile.goal_type,
-          food_preferences: profile.food_preferences
+          food_preferences: profile.food_preferences,
+          onboarding_completed: true, // 保存時にオンボーディング完了とする
         })
         .eq('id', profile.id);
 
