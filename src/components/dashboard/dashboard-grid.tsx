@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PFCChart } from "./pfc-chart";
 import { WeightChart } from "./weight-chart";
 import { getIdealCalories } from "@/lib/utils";
-import { MealHistoryCard } from "./meal-history-card"; 
+import { MealHistoryCard } from "./meal-history-card";
+import { CombinedChart } from './combined-chart';
 
 export function DashboardGrid({ profile }: { profile: any }) {
   const [weightLogs, setWeightLogs] = useState<any[]>([]);
@@ -60,15 +61,7 @@ export function DashboardGrid({ profile }: { profile: any }) {
       <CalorieSummary idealCalories={idealCalories ?? 0} />
       
       {/* Bottom Row */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base font-semibold">PFCバランス</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <PFCChart idealCalories={idealCalories ?? 0} />
-        </CardContent>
-      </Card>
-      <WeightChart profile={profile} weightLogs={weightLogs} isLoading={isLoading} />
+      <CombinedChart profile={profile} />
       <MealHistoryCard />
     </main>
   );

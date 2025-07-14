@@ -100,7 +100,7 @@ export function OverviewCard({ initialData, onUpdate }: OverviewCardProps) {
   };
 
   return (
-    <Card className="col-span-1 md:col-span-2">
+    <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base font-semibold">今日のサマリーと目標</CardTitle>
         <Button variant="outline" size="sm" onClick={() => setIsEditing(!isEditing)}>{isEditing ? 'キャンセル' : '編集'}</Button>
@@ -138,22 +138,22 @@ export function OverviewCard({ initialData, onUpdate }: OverviewCardProps) {
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
-              <p className="text-sm text-gray-600">今日の体重</p>
-              <p className="text-lg font-bold">{formData.weight} kg</p>
+          <div className="grid grid-cols-2 grid-rows-2 gap-4">
+            <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
+                <p className="text-sm text-gray-500">今日の体重</p>
+                <p className="text-2xl font-bold">{formData.weight}kg</p>
             </div>
-             <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
-              <p className="text-sm text-gray-600">目標体重</p>
-              <p className="text-lg font-bold text-green-600">{formData.targetWeight} kg</p>
+            <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
+                <p className="text-sm text-gray-500">目標体重</p>
+                <p className="text-2xl font-bold text-green-600">{formData.targetWeight}kg</p>
             </div>
-             <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
-              <p className="text-sm text-gray-600">活動レベル</p>
-              <p className="font-semibold text-sm truncate" title={activityLevelMap[formData.activityLevel]}>{activityLevelMap[formData.activityLevel]}</p>
+            <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
+                <p className="text-sm text-gray-500">活動レベル</p>
+                <p className="font-semibold truncate text-sm" title={activityLevelMap[formData.activityLevel]}>{activityLevelMap[formData.activityLevel]}</p>
             </div>
-            <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
-              <p className="text-sm text-gray-600">目標達成日</p>
-              <p className="text-lg font-semibold">{formData.goalDate ? new Date(formData.goalDate).toLocaleDateString() : '未設定'}</p>
+             <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
+                <p className="text-sm text-gray-500">目標達成日</p>
+                <p className="text-lg font-semibold">{formData.goalDate ? new Date(formData.goalDate).toLocaleDateString() : '未設定'}</p>
             </div>
           </div>
         )}
