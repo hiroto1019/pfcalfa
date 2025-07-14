@@ -30,9 +30,10 @@ interface ChartData {
 
 interface PFCChartProps {
   compact?: boolean;
+  idealCalories: number;
 }
 
-export function PFCChart({ compact = false }: PFCChartProps) {
+export function PFCChart({ compact = false, idealCalories }: PFCChartProps) {
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [period, setPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
@@ -47,35 +48,15 @@ export function PFCChart({ compact = false }: PFCChartProps) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      // プロファイル取得
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      if (!profile) return;
-
-      // 理想カロリー計算を共通関数に置き換え
-      const { data: todayWeight } = await supabase
-        .from('daily_weight_logs')
-        .select('weight_kg')
-        .eq('user_id', user.id)
-        .eq('date', new Date().toISOString().split('T')[0])
-        .single();
-      const { data: todayActivity } = await supabase
-        .from('daily_activity_logs')
-        .select('activity_level')
-        .eq('user_id', user.id)
-        .eq('date', new Date().toISOString().split('T')[0])
-        .single();
-      const currentWeight = todayWeight?.weight_kg ?? profile.initial_weight_kg;
-      const currentActivityLevel = todayActivity?.activity_level ?? profile.activity_level;
-      const targetCalories = getIdealCalories(profile, currentWeight, currentActivityLevel);
       
-      // 目標PFC
+      // 親から渡されたidealCaloriesを目標カロリーとして直接使用
+      const targetCalories = idealCalories;
+
+      // 目標PFCの計算ロジックは残す
       const targetProtein = (targetCalories * 0.25) / 4;
       const targetFat = (targetCalories * 0.25) / 9;
       const targetCarbs = (targetCalories * 0.5) / 4;
+
       // 実績データ取得
       let chartData: any[] = [];
       if (period === "daily") {
