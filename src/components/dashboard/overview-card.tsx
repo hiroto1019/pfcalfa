@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
-import { type Profile } from "@/app/page"; // Profile型をインポート
+import { type Profile } from "@/lib/types"; // 共通の型定義ファイルからインポート
 import { toast } from "sonner";
 
 
