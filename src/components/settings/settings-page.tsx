@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { deleteUser } from "@/app/settings/actions";
 
 interface Profile {
   id: string;
@@ -109,17 +110,12 @@ export function SettingsPage() {
     }
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // プロフィールを削除
-      await supabase.from('profiles').delete().eq('id', user.id);
-      
-      // アカウントを削除
-      await supabase.auth.admin.deleteUser(user.id);
-      
+      const result = await deleteUser();
+      if (result?.error) {
+        throw new Error(result.error);
+      }
       alert('アカウントを削除しました');
-      router.push('/login');
+      // Redirect is handled by the server action
     } catch (error) {
       console.error('アカウント削除エラー:', error);
       alert('アカウントの削除に失敗しました');
