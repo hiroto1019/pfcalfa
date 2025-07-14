@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { createClient } from "@/lib/supabase/client";
 
 interface OverviewCardProps {
   initialData: {
@@ -15,80 +14,34 @@ interface OverviewCardProps {
     target_weight: number | null;
     goal_date: string | null;
   };
-  onUpdate: () => void;
+  onUpdate: (data: any) => void;
 }
 
 export function OverviewCard({ initialData, onUpdate }: OverviewCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
-    weight: initialData.current_weight ?? 0,
-    activityLevel: initialData.activity_level ?? 2,
-    targetWeight: initialData.target_weight ?? 0,
-    goalDate: initialData.goal_date ? new Date(initialData.goal_date).toISOString().split('T')[0] : "",
+    current_weight: initialData.current_weight ?? 0,
+    activity_level: initialData.activity_level ?? 2,
+    target_weight_kg: initialData.target_weight ?? 0,
+    goal_target_date: initialData.goal_date ? new Date(initialData.goal_date).toISOString().split('T')[0] : "",
   });
-  const supabase = createClient();
 
   useEffect(() => {
     setFormData({
-      weight: initialData.current_weight ?? 0,
-      activityLevel: initialData.activity_level ?? 2,
-      targetWeight: initialData.target_weight ?? 0,
-      goalDate: initialData.goal_date ? new Date(initialData.goal_date).toISOString().split('T')[0] : "",
+      current_weight: initialData.current_weight ?? 0,
+      activity_level: initialData.activity_level ?? 2,
+      target_weight_kg: initialData.target_weight ?? 0,
+      goal_target_date: initialData.goal_date ? new Date(initialData.goal_date).toISOString().split('T')[0] : "",
     });
   }, [initialData]);
 
   const handleSave = async () => {
+    console.log("Saving data from OverviewCard:", formData);
     setIsSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-        setIsSaving(false);
-        return;
-    }
-
-    const today = new Date().toISOString().split('T')[0];
-    
-    // 入力値が0や空の場合はnullに変換する
-    const safeCurrentWeight = formData.weight > 0 ? formData.weight : null;
-    const safeTargetWeight = formData.targetWeight > 0 ? formData.targetWeight : null;
-    const safeGoalDate = formData.goalDate === "" ? null : formData.goalDate;
-
-    const { error: weightError } = await supabase.from('daily_weight_logs').upsert({ user_id: user.id, date: today, weight_kg: safeCurrentWeight }, { onConflict: 'user_id, date' });
-    const { error: activityError } = await supabase.from('daily_activity_logs').upsert({ user_id: user.id, date: today, activity_level: formData.activityLevel }, { onConflict: 'user_id, date' });
-
-    const { data: existingGoal, error: selectError } = await supabase.from('goals').select('id').eq('user_id', user.id).single();
-
-    let goalError;
-    if (selectError && selectError.code !== 'PGRST116') {
-        console.error("Error selecting goal:", selectError);
-        goalError = selectError;
-    } else if (existingGoal) {
-        const { error } = await supabase.from('goals').update({ 
-            target_weight_kg: safeTargetWeight, 
-            target_date: safeGoalDate,
-            current_weight_kg: safeCurrentWeight // 今日の体重も更新
-        }).eq('id', existingGoal.id);
-        goalError = error;
-    } else {
-        const { error } = await supabase.from('goals').insert({ 
-            user_id: user.id, 
-            target_weight_kg: safeTargetWeight, 
-            target_date: safeGoalDate, 
-            current_weight_kg: safeCurrentWeight, 
-            goal_type: 'diet' 
-        });
-        goalError = error;
-    }
-
-    if (weightError) console.error("Error saving weight:", weightError);
-    if (activityError) console.error("Error saving activity:", activityError);
-    if (goalError) console.error("Error saving goal:", goalError);
-    
+    await onUpdate(formData);
     setIsSaving(false);
     setIsEditing(false);
-    if (!weightError && !activityError && !goalError) {
-      onUpdate();
-    }
   };
 
   const activityLevelMap: { [key: number]: string } = {
@@ -100,7 +53,7 @@ export function OverviewCard({ initialData, onUpdate }: OverviewCardProps) {
   };
 
   return (
-    <Card className="col-span-1 md:col-span-2">
+    <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base font-semibold">今日のサマリーと目標</CardTitle>
         <Button variant="outline" size="sm" onClick={() => setIsEditing(!isEditing)}>{isEditing ? 'キャンセル' : '編集'}</Button>
@@ -110,11 +63,11 @@ export function OverviewCard({ initialData, onUpdate }: OverviewCardProps) {
           <div className="space-y-4">
             <div>
               <Label htmlFor="weight">今日の体重 (kg)</Label>
-              <Input id="weight" type="number" value={formData.weight} onChange={e => setFormData({...formData, weight: parseFloat(e.target.value) || 0})} />
+              <Input id="weight" type="number" value={formData.current_weight} onChange={e => setFormData({...formData, current_weight: parseFloat(e.target.value) || 0})} />
             </div>
             <div>
               <Label>活動レベル</Label>
-              <Select value={String(formData.activityLevel)} onValueChange={value => setFormData({...formData, activityLevel: Number(value)})}>
+              <Select value={String(formData.activity_level)} onValueChange={value => setFormData({...formData, activity_level: Number(value)})}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="1">{activityLevelMap[1]}</SelectItem>
@@ -127,11 +80,11 @@ export function OverviewCard({ initialData, onUpdate }: OverviewCardProps) {
             </div>
             <div>
               <Label htmlFor="target_weight">目標体重 (kg)</Label>
-              <Input id="target_weight" type="number" value={formData.targetWeight} onChange={e => setFormData({...formData, targetWeight: parseFloat(e.target.value) || 0})} />
+              <Input id="target_weight" type="number" value={formData.target_weight_kg} onChange={e => setFormData({...formData, target_weight_kg: parseFloat(e.target.value) || 0})} />
             </div>
             <div>
               <Label htmlFor="target_date">目標達成日</Label>
-              <Input id="target_date" type="date" value={formData.goalDate} onChange={e => setFormData({...formData, goalDate: e.target.value})} />
+              <Input id="target_date" type="date" value={formData.goal_target_date} onChange={e => setFormData({...formData, goal_target_date: e.target.value})} />
             </div>
             <div className="flex justify-end">
               <Button onClick={handleSave} disabled={isSaving}>{isSaving ? "保存中..." : "保存"}</Button>
@@ -139,21 +92,21 @@ export function OverviewCard({ initialData, onUpdate }: OverviewCardProps) {
           </div>
         ) : (
           <div className="grid grid-cols-2 grid-rows-2 gap-4">
-            <div className="bg-gray-50 rounded-lg p-4 text-center">
+            <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
                 <p className="text-sm text-gray-500">今日の体重</p>
-                <p className="text-2xl font-bold">{formData.weight}kg</p>
+                <p className="text-2xl font-bold">{formData.current_weight}kg</p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-4 text-center">
+            <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
                 <p className="text-sm text-gray-500">目標体重</p>
-                <p className="text-2xl font-bold text-green-600">{formData.targetWeight}kg</p>
+                <p className="text-2xl font-bold text-green-600">{formData.target_weight_kg}kg</p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-4 text-center">
+            <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
                 <p className="text-sm text-gray-500">活動レベル</p>
-                <p className="font-semibold truncate" title={activityLevelMap[formData.activityLevel]}>{activityLevelMap[formData.activityLevel]}</p>
+                <p className="font-semibold truncate text-sm" title={activityLevelMap[formData.activity_level]}>{activityLevelMap[formData.activity_level]}</p>
             </div>
-             <div className="bg-gray-50 rounded-lg p-4 text-center">
+             <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
                 <p className="text-sm text-gray-500">目標達成日</p>
-                <p className="text-lg font-semibold">{formData.goalDate ? new Date(formData.goalDate).toLocaleDateString() : '未設定'}</p>
+                <p className="text-lg font-semibold">{formData.goal_target_date ? new Date(formData.goal_target_date).toLocaleDateString() : '未設定'}</p>
             </div>
           </div>
         )}
