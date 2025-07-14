@@ -5,8 +5,22 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
   title: "PFCα - PFCバランス管理アプリ",
   description: "PFC（タンパク質・脂質・炭水化物）のバランスを管理し、健康的な食事をサポートするアプリ",
+  openGraph: {
+    title: "PFCα - PFCバランス管理アプリ",
+    description: "PFC（タンパク質・脂質・炭水化物）のバランスを管理し、健康的な食事をサポートするアプリ",
+    images: ["/ogp-image.png"],
+    type: 'website',
+    url: '/',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "PFCα - PFCバランス管理アプリ",
+    description: "PFC（タンパク質・脂質・炭水化物）のバランスを管理し、健康的な食事をサポートするアプリ",
+    images: ["/ogp-image.png"],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
