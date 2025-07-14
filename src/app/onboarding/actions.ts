@@ -1,41 +1,69 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { z } from 'zod';
 
-const formSchema = z.object({
-  username: z.string().min(2),
-  gender: z.enum(["male", "female", "other"]),
-  birth_date: z.date(),
+const profileSchema = z.object({
+  userId: z.string(),
   height_cm: z.coerce.number().positive(),
+  birth_date: z.string().date(),
+  gender: z.enum(["male", "female"]),
   initial_weight_kg: z.coerce.number().positive(),
   target_weight_kg: z.coerce.number().positive(),
-  activity_level: z.enum(["1", "2", "3", "4", "5"]),
-  goal_type: z.enum(["diet", "bulk-up", "maintain"]),
+  target_date: z.string().date(),
+  activity_level: z.coerce.number().min(1).max(5),
 });
 
-export async function createProfile(values: z.infer<typeof formSchema>) {
+export async function updateProfile(formData: FormData) {
   const supabase = createClient();
+  const rawData = Object.fromEntries(formData.entries());
 
-  const { data: { user } } = await supabase.auth.getUser();
+  try {
+    const data = profileSchema.parse(rawData);
 
-  if (!user) {
-    throw new Error("User not found");
-  }
+    // 1. profilesテーブルを更新または作成 (Upsert)
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .upsert({
+        id: data.userId, // idを追加
+        height_cm: data.height_cm,
+        birth_date: data.birth_date,
+        gender: data.gender,
+        initial_weight_kg: data.initial_weight_kg,
+        activity_level: data.activity_level,
+        onboarding_completed: true,
+      })
+      .select(); // Upsertの後にselect()を呼ぶのが一般的
 
-  const validated = formSchema.parse(values);
+    if (profileError) {
+      console.error("Profile upsert error:", profileError);
+      throw profileError;
+    }
 
-  const { error } = await supabase.from('profiles').insert({
-    id: user.id,
-    ...validated,
-    activity_level: parseInt(validated.activity_level, 10),
+    // 2. goalsテーブルに最初の目標を作成
+    const goal_type = data.initial_weight_kg > data.target_weight_kg ? 'diet' : 'bulk-up';
+    const { error: goalError } = await supabase
+      .from("goals")
+      .insert({
+        user_id: data.userId,
+        target_weight_kg: data.target_weight_kg,
+        target_date: data.target_date,
+        current_weight_kg: data.initial_weight_kg,
+        goal_type: goal_type,
   });
 
-  if (error) {
-    console.error(error);
-    throw new Error("Failed to create profile");
-  }
+    if (goalError) {
+      console.error("Goal creation error:", goalError);
+      throw goalError;
+    }
 
-  revalidatePath('/');
+  } catch (error) {
+    console.error("Onboarding Error:", error);
+    // TODO: エラーメッセージをUIに表示する
+    return;
+  }
+  
+  // 3. ダッシュボードにリダイレクト
+  redirect("/");
 }

@@ -1,17 +1,17 @@
 
 -- profiles Table
-CREATE TABLE public.profiles (
-  id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  username text,
-  gender text,
-  birth_date date,
-  height_cm numeric,
-  initial_weight_kg numeric,
-  target_weight_kg numeric,
-  activity_level integer,
-  goal_type text,
-  food_preferences jsonb,
-  PRIMARY KEY (id)
+CREATE TABLE profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id),
+    username TEXT UNIQUE,
+    full_name TEXT,
+    avatar_url TEXT,
+    website TEXT,
+    height_cm INT,
+    birth_date DATE,
+    gender TEXT,
+    initial_weight_kg NUMERIC(5, 2),
+    activity_level INT,
+    onboarding_completed BOOLEAN DEFAULT FALSE
 );
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view and edit their own profile."

@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Dashboard } from "@/components/dashboard/dashboard";
-import { OnboardingTrigger } from "@/components/onboarding/onboarding-trigger";
 
 export default async function Home() {
   const supabase = createClient();
@@ -14,12 +13,13 @@ export default async function Home() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("*")
+    .select("id") // idだけで十分
     .eq("id", user.id)
     .single();
 
   if (!profile) {
-    return <OnboardingTrigger />;
+    // プロフィールがなければオンボーディングページへ
+    return redirect('/onboarding');
   }
 
   return <Dashboard />;
