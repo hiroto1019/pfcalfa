@@ -68,7 +68,13 @@ export function DashboardGrid({ profile }: { profile: any }) {
     return <div className="flex items-center justify-center h-full">データを読み込んでいます...</div>;
   }
   
-  const idealCalories = getIdealCalories(profile, editableData.currentWeight, editableData.activityLevel);
+  const updatedProfile = {
+    ...profile,
+    goal_weight_kg: editableData.targetWeight,
+    goal_target_date: editableData.goalDate,
+    activity_level: editableData.activityLevel,
+  };
+  const idealCalories = getIdealCalories(updatedProfile, editableData.currentWeight);
 
   return (
     <main className="grid flex-1 grid-cols-1 md:grid-cols-3 gap-4">
