@@ -6,9 +6,33 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
+// CORS settings
+const allowedOrigins = [
+  "https://pfcalfa.vercel.app",
+  "http://localhost:3000",
+];
+
 console.log("Hello from Functions!")
 
 serve(async (req) => {
+  const origin = req.headers.get("Origin") || "";
+  const isAllowedOrigin = allowedOrigins.includes(origin);
+
+  // Handle CORS preflight request
+  if (req.method === "OPTIONS") {
+    if (isAllowedOrigin) {
+      return new Response("ok", {
+        headers: {
+          "Access-Control-Allow-Origin": origin,
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+        },
+      });
+    } else {
+      return new Response("Forbidden", { status: 403 });
+    }
+  }
+
   // JST (UTC+9) の現在時刻を取得
   const now = new Date();
   const jstOffset = 9 * 60 * 60 * 1000; // 9時間
@@ -21,9 +45,14 @@ serve(async (req) => {
   
   const jstDateString = `${year}-${month}-${day}`;
 
+  const headers = {
+    "Content-Type": "application/json",
+    ...(isAllowedOrigin && { "Access-Control-Allow-Origin": origin }),
+  };
+
   return new Response(
     JSON.stringify({ date: jstDateString }),
-    { headers: { "Content-Type": "application/json" } },
+    { headers },
   )
 })
 
