@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { deleteUser } from "@/app/settings/actions";
 import { getIdealCalories } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Profile {
   id: string;
@@ -355,18 +356,18 @@ export function SettingsPage() {
                 <option value={5}>非常に激しい運動</option>
               </select>
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="goal_type">目標</Label>
-              <select
-                id="goal_type"
-                value={profile.goal_type}
-                onChange={(e) => setProfile({ ...profile, goal_type: e.target.value })}
-                className="w-full p-2 border rounded"
-              >
-                <option value="diet">ダイエット</option>
-                <option value="maintain">維持</option>
-                <option value="bulk-up">増量</option>
-              </select>
+              <Select name="goal_type" defaultValue={profile?.goal_type || ''}>
+                <SelectTrigger id="goal_type">
+                  <SelectValue placeholder="目標を選択" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="lose_weight">ダイエット</SelectItem>
+                  <SelectItem value="maintain">維持</SelectItem>
+                  <SelectItem value="gain_muscle">増量</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <Button onClick={handleSave} disabled={isSaving}>

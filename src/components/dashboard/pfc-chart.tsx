@@ -55,7 +55,11 @@ export function PFCChart({ compact = false, idealCalories }: PFCChartProps) {
       const targetFat = (targetCalories * 0.25) / 9;
       const targetCarbs = (targetCalories * 0.5) / 4;
 
-      const endDate = new Date();
+      // JSTの今日の日付を取得
+      const { data: jstDateData, error: jstDateError } = await supabase.functions.invoke('get-jst-date');
+      if (jstDateError) throw jstDateError;
+      const endDate = new Date(jstDateData.date);
+
       let startDate: Date;
 
       if (period === "weekly") {

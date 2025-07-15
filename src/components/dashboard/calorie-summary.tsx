@@ -38,7 +38,11 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const todayDate = new Date().toISOString().split('T')[0];
+      // Edge Functionを呼び出してJSTの今日の日付を取得
+      const { data: jstDateData, error: jstDateError } = await supabase.functions.invoke('get-jst-date');
+      if (jstDateError) throw jstDateError;
+      const todayDate = jstDateData.date;
+
       const { data: dailySummary } = await supabase
         .from('daily_summaries')
         .select('*')
