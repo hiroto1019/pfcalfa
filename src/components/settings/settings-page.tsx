@@ -245,10 +245,10 @@ export function SettingsPage() {
     );
   }
 
-  const idealCalories = profile ? getIdealCalories(profile, profile.initial_weight_kg, profile.activity_level) : 2000;
+  const idealCalories = profile && currentWeight ? getIdealCalories(profile, currentWeight, profile.activity_level) : 2000;
 
   return (
-    <div className="container mx-auto p-4 space-y-6">
+    <div className="container mx-auto p-4 max-w-4xl">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">設定</h1>
         <Button variant="outline" onClick={() => router.push('/')}>
@@ -358,7 +358,10 @@ export function SettingsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="goal_type">目標</Label>
-              <Select name="goal_type" defaultValue={profile?.goal_type || ''}>
+              <Select 
+                value={profile.goal_type}
+                onValueChange={(value) => setProfile({ ...profile, goal_type: value })}
+              >
                 <SelectTrigger id="goal_type">
                   <SelectValue placeholder="目標を選択" />
                 </SelectTrigger>
