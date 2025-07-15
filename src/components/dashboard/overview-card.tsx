@@ -38,13 +38,13 @@ export function OverviewCard({ formData, setFormData, onUpdate }: OverviewCardPr
 
     if (result.success) {
       toast.success("情報を更新しました！");
-      setIsEditing(false);
+    setIsEditing(false);
       onUpdate();
     } else {
       toast.error(result.error);
     }
   };
-  
+
   const activityLevelMap: { [key: number]: string } = {
     1: '座り仕事中心（運動なし）',
     2: '軽い運動（週1-2回）',
@@ -83,7 +83,7 @@ export function OverviewCard({ formData, setFormData, onUpdate }: OverviewCardPr
                 </SelectContent>
               </Select>
             </div>
-             <div>
+            <div>
               <Label htmlFor="target_date">目標達成日</Label>
               <Input id="target_date" type="date" value={formData.goalDate} onChange={e => setFormData({...formData, goalDate: e.target.value})} />
             </div>

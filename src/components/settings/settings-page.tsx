@@ -245,7 +245,7 @@ export function SettingsPage() {
     );
   }
 
-  const idealCalories = profile && currentWeight ? getIdealCalories(profile, currentWeight) : 2000;
+  const idealCalories = profile && currentWeight ? getIdealCalories(profile, currentWeight, profile.activity_level) : 2000;
 
   return (
     <div className="container mx-auto p-4 max-w-4xl">

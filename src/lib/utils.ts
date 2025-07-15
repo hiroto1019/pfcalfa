@@ -29,31 +29,49 @@ function calculateTDEE(bmr: number, activityLevel: number) {
 }
 
 // 理想のカロリーを計算する
-export function getIdealCalories(profile: any, currentWeight: number | null): number {
-  if (!profile || !currentWeight || !profile.activity_level || !profile.birth_date || !profile.height_cm || !profile.goal_type) {
+export function getIdealCalories(
+  profile: any,
+  currentWeight: number | null,
+  activityLevel: number | null,
+  goalWeight?: number | null,
+  goalTargetDate?: string | null
+): number {
+  if (!profile || !currentWeight || !activityLevel || !profile.birth_date || !profile.height_cm || !profile.goal_type) {
     return 2000; // 必要な情報がなければデフォルト値
   }
 
   const bmr = calculateBMR(profile, currentWeight);
-  const tdee = calculateTDEE(bmr, profile.activity_level);
+  const tdee = calculateTDEE(bmr, activityLevel);
 
-  // 目標達成日が有効な場合、それに基づいて計算
-  if (profile.goal_target_date && profile.goal_weight) {
-    const targetDate = new Date(profile.goal_target_date);
+  // 目標体重と目標日から1日のカロリー調整を計算
+  if (profile.goal_type !== 'maintain' && goalWeight && goalTargetDate) {
+    const targetDate = new Date(goalTargetDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0); // 時間をリセットして日付のみで比較
 
-    if (targetDate > today) {
-      const daysRemaining = Math.max(1, (targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      const weightToChange = currentWeight - profile.goal_weight; // kg
-      const totalCaloriesToChange = weightToChange * 7200; // 1kg = 7200kcal
-      const dailyCalorieAdjustment = totalCaloriesToChange / daysRemaining;
-      
-      return Math.round(tdee - dailyCalorieAdjustment);
+    // 未来の日付でない場合はTDEEに基づく計算に戻る
+    if (targetDate <= today) {
+        if (profile.goal_type === 'lose_weight') {
+            return Math.round(tdee - 500);
+          } else if (profile.goal_type === 'gain_muscle') {
+            return Math.round(tdee + 500);
+          } else { // maintain
+            return Math.round(tdee);
+          }
+    }
+
+    const diffTime = Math.abs(targetDate.getTime() - today.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays > 0) {
+      const weightDiff = goalWeight - currentWeight;
+      const totalCalorieDiff = weightDiff * 7200; // 脂肪1kg ≈ 7200 kcal
+      const dailyCalorieAdjustment = totalCalorieDiff / diffDays;
+      return Math.round(tdee + dailyCalorieAdjustment);
     }
   }
 
-  // フォールバック: 従来の目標タイプに基づく計算
+  // 従来の計算ロジック
   if (profile.goal_type === 'lose_weight') {
     return Math.round(tdee - 500);
   } else if (profile.goal_type === 'gain_muscle') {
