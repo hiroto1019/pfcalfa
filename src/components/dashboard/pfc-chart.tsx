@@ -67,10 +67,11 @@ export function PFCChart({ compact = false, idealCalories }: PFCChartProps) {
       const targetFat = (targetCalories * 0.25) / 9;
       const targetCarbs = (targetCalories * 0.5) / 4;
 
-      // JSTの今日の日付を取得
-      const { data: jstDateData, error: jstDateError } = await supabase.functions.invoke('get-jst-date');
-      if (jstDateError) throw jstDateError;
-      const endDate = new Date(jstDateData.date);
+      // 日付取得方法を統一（get-jst-date関数を使用せず、クライアント側でJSTを計算）
+      const now = new Date();
+      const jstOffset = 9 * 60; // JSTはUTC+9
+      const jstDate = new Date(now.getTime() + jstOffset * 60000);
+      const endDate = jstDate;
 
       let startDate: Date;
 

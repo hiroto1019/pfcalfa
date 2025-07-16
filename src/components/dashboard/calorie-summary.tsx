@@ -50,10 +50,11 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Edge Functionを呼び出してJSTの今日の日付を取得
-      const { data: jstDateData, error: jstDateError } = await supabase.functions.invoke('get-jst-date');
-      if (jstDateError) throw jstDateError;
-      const todayDate = jstDateData.date;
+      // 日付取得方法を統一（get-jst-date関数を使用せず、クライアント側でJSTを計算）
+      const now = new Date();
+      const jstOffset = 9 * 60; // JSTはUTC+9
+      const jstDate = new Date(now.getTime() + jstOffset * 60000);
+      const todayDate = jstDate.toISOString().split('T')[0];
 
       console.log('カロリーサマリー - 今日の日付:', todayDate);
 
@@ -70,19 +71,67 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
 
       console.log('カロリーサマリー - daily_summary:', dailySummary);
 
-      // 今日のmealsテーブルも確認
+      // 今日のmealsテーブルも確認（日付範囲を広げて確認）
       const { data: todayMeals, error: mealsError } = await supabase
         .from('meals')
         .select('*')
         .eq('user_id', user.id)
-        .gte('created_at', todayDate + 'T00:00:00')
-        .lte('created_at', todayDate + 'T23:59:59');
+        .gte('created_at', todayDate + 'T00:00:00+09:00')
+        .lte('created_at', todayDate + 'T23:59:59+09:00');
 
       if (mealsError) {
         console.error('meals取得エラー:', mealsError);
       }
 
       console.log('カロリーサマリー - 今日のmeals:', todayMeals);
+
+      // もしdaily_summaryがnullでmealsがある場合、手動でdaily_summaryを作成
+      if (!dailySummary && todayMeals && todayMeals.length > 0) {
+        console.log('daily_summaryが存在しないため、手動で作成します');
+        
+        const totalCalories = todayMeals.reduce((sum, meal) => sum + meal.calories, 0);
+        const totalProtein = todayMeals.reduce((sum, meal) => sum + meal.protein, 0);
+        const totalFat = todayMeals.reduce((sum, meal) => sum + meal.fat, 0);
+        const totalCarbs = todayMeals.reduce((sum, meal) => sum + meal.carbs, 0);
+
+        const { data: newDailySummary, error: insertError } = await supabase
+          .from('daily_summaries')
+          .insert({
+            user_id: user.id,
+            date: todayDate,
+            total_calories: totalCalories,
+            total_protein: totalProtein,
+            total_fat: totalFat,
+            total_carbs: totalCarbs
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('daily_summary作成エラー:', insertError);
+        } else {
+          console.log('daily_summary作成成功:', newDailySummary);
+          // 作成したデータを使用
+          const actualCalories = newDailySummary.total_calories;
+          const actualProtein = newDailySummary.total_protein;
+          const actualFat = newDailySummary.total_fat;
+          const actualCarbs = newDailySummary.total_carbs;
+
+          // PFC比率を計算
+          const totalCaloriesFromPFC = actualProtein * 4 + actualFat * 9 + actualCarbs * 4;
+          const proteinRatio = totalCaloriesFromPFC > 0 ? (actualProtein * 4 / totalCaloriesFromPFC) * 100 : 0;
+          const fatRatio = totalCaloriesFromPFC > 0 ? (actualFat * 9 / totalCaloriesFromPFC) * 100 : 0;
+          const carbsRatio = totalCaloriesFromPFC > 0 ? (actualCarbs * 4 / totalCaloriesFromPFC) * 100 : 0;
+
+          setData({
+            actualCalories,
+            proteinRatio: Math.round(proteinRatio),
+            fatRatio: Math.round(fatRatio),
+            carbsRatio: Math.round(carbsRatio),
+          });
+          return;
+        }
+      }
 
       const actualCalories = dailySummary?.total_calories ?? 0;
       const actualProtein = dailySummary?.total_protein ?? 0;

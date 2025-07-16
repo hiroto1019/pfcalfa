@@ -78,12 +78,16 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
           food_preferences: profile.food_preferences
         });
       }
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date();
+      const jstOffset = 9 * 60; // JSTはUTC+9
+      const jstDate = new Date(today.getTime() + jstOffset * 60000);
+      const todayDate = jstDate.toISOString().split('T')[0];
+      
       const { data: dailySummary } = await supabase
         .from('daily_summaries')
         .select('*')
         .eq('user_id', user.id)
-        .eq('date', today)
+        .eq('date', todayDate)
         .single();
       if (dailySummary) {
         setDailyData(dailySummary);
