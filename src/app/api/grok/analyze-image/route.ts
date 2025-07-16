@@ -48,8 +48,24 @@ export async function POST(request: NextRequest) {
     console.log('Base64エンコード完了, サイズ:', base64Image.length);
 
     // Grok APIに送信するプロンプト
-    const prompt = `この画像に写っている食事の、食品名、総カロリー、PFCグラム数をJSON形式で返してください。
-    形式: {"food_name": "食品名", "calories": カロリー数, "protein": タンパク質(g), "fat": 脂質(g), "carbs": 炭水化物(g)}`;
+    const prompt = `この画像に写っている食事を分析して、以下のJSON形式で返してください。必ずJSONのみを返し、他の説明は含めないでください。
+
+{
+  "food_name": "食品名",
+  "calories": カロリー数,
+  "protein": タンパク質のグラム数,
+  "fat": 脂質のグラム数,
+  "carbs": 炭水化物のグラム数
+}
+
+画像に食事が写っていない場合は、以下のJSONを返してください：
+{
+  "food_name": "食事が写っていません",
+  "calories": 0,
+  "protein": 0,
+  "fat": 0,
+  "carbs": 0
+}`;
 
     console.log('Gemini API呼び出し開始');
     console.log('GEMINI_API_KEY設定確認:', process.env.GEMINI_API_KEY ? '設定済み' : '未設定');
@@ -123,14 +139,62 @@ export async function POST(request: NextRequest) {
       // JSONレスポンスを抽出
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        console.log('JSONレスポンスが見つかりません:', content);
-        throw new Error('JSONレスポンスが見つかりません');
+        console.log('JSONレスポンスが見つかりません。内容:', content);
+        
+        // フォールバック: 手動でJSONを構築
+        const fallbackResponse = {
+          food_name: "解析できませんでした",
+          calories: 0,
+          protein: 0,
+          fat: 0,
+          carbs: 0
+        };
+        
+        // 内容から食品名を推測
+        if (content.includes('食べ物') || content.includes('食事') || content.includes('料理')) {
+          fallbackResponse.food_name = "食事（詳細不明）";
+        } else if (content.includes('飲み物') || content.includes('ドリンク')) {
+          fallbackResponse.food_name = "飲み物";
+        } else {
+          fallbackResponse.food_name = "食品（詳細不明）";
+        }
+        
+        console.log('フォールバックレスポンスを使用:', fallbackResponse);
+        return NextResponse.json(fallbackResponse);
       }
 
-      const nutritionData = JSON.parse(jsonMatch[0]);
-      console.log('解析結果:', nutritionData);
-
-      return NextResponse.json(nutritionData);
+      try {
+        const nutritionData = JSON.parse(jsonMatch[0]);
+        console.log('解析結果:', nutritionData);
+        
+        // 必須フィールドの検証
+        const requiredFields = ['food_name', 'calories', 'protein', 'fat', 'carbs'];
+        const missingFields = requiredFields.filter(field => !(field in nutritionData));
+        
+        if (missingFields.length > 0) {
+          console.log('必須フィールドが不足:', missingFields);
+          // 不足しているフィールドにデフォルト値を設定
+          missingFields.forEach(field => {
+            nutritionData[field] = field === 'food_name' ? '食品（詳細不明）' : 0;
+          });
+        }
+        
+        return NextResponse.json(nutritionData);
+      } catch (parseError) {
+        console.log('JSONパースエラー:', parseError);
+        console.log('パースしようとしたJSON:', jsonMatch[0]);
+        
+        // パースエラーの場合もフォールバック
+        const fallbackResponse = {
+          food_name: "解析できませんでした",
+          calories: 0,
+          protein: 0,
+          fat: 0,
+          carbs: 0
+        };
+        
+        return NextResponse.json(fallbackResponse);
+      }
 
     } catch (fetchError: any) {
       clearTimeout(timeoutId);

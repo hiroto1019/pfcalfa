@@ -76,13 +76,26 @@ export function MealRecordModal() {
       
       const result = await analyzeImageNutrition(processedFile);
       setNutritionData(result);
-      setFormData({
-        food_name: result.food_name,
-        calories: result.calories.toString(),
-        protein: result.protein.toString(),
-        fat: result.fat.toString(),
-        carbs: result.carbs.toString()
-      });
+      
+      // 解析結果の検証
+      if (result.food_name === "解析できませんでした" || result.food_name === "食事が写っていません") {
+        setErrorMessage('画像から食事を認識できませんでした。食事が写っている画像を選択してください。');
+        setFormData({
+          food_name: "",
+          calories: "",
+          protein: "",
+          fat: "",
+          carbs: ""
+        });
+      } else {
+        setFormData({
+          food_name: result.food_name,
+          calories: result.calories.toString(),
+          protein: result.protein.toString(),
+          fat: result.fat.toString(),
+          carbs: result.carbs.toString()
+        });
+      }
     } catch (error: any) {
       console.error('画像解析エラー:', error);
       if (error.message.includes('タイムアウト')) {
