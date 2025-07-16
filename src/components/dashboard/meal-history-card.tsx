@@ -73,19 +73,19 @@ export function MealHistoryCard() {
           </div>
         ) : (
           <ScrollArea className="h-[220px] pr-4">
-            <div className="space-y-4">
+            <div className="space-y-4 max-w-full">
               {meals.map((meal) => (
-                <div key={meal.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 rounded-md bg-gray-50 gap-2">
-                  <div className="flex-grow min-w-0">
+                <div key={meal.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-start p-2 rounded-md bg-gray-50 gap-2 overflow-hidden">
+                  <div className="flex-grow min-w-0 max-w-full">
                     <p className="font-semibold truncate text-sm" title={meal.food_name}>{meal.food_name}</p>
                     <p className="text-xs text-gray-500">{format(new Date(meal.created_at), 'M月d日 HH:mm')}</p>
                   </div>
-                  <div className="text-xs text-right space-y-1 flex-shrink-0">
-                    <p className="font-bold text-sm">{meal.calories} kcal</p>
-                    <div className="flex gap-2 text-gray-600">
-                      <span>P: {meal.protein}g</span>
-                      <span>F: {meal.fat}g</span>
-                      <span>C: {meal.carbs}g</span>
+                  <div className="text-xs text-right space-y-1 flex-shrink-0 min-w-[80px] max-w-[120px]">
+                    <p className="font-bold text-sm break-keep">{meal.calories} kcal</p>
+                    <div className="flex flex-wrap gap-1 text-gray-600 justify-end">
+                      <span className="whitespace-nowrap text-xs">P: {meal.protein}g</span>
+                      <span className="whitespace-nowrap text-xs">F: {meal.fat}g</span>
+                      <span className="whitespace-nowrap text-xs">C: {meal.carbs}g</span>
                     </div>
                   </div>
                 </div>
