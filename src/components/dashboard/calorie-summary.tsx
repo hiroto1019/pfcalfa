@@ -35,7 +35,11 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
   // 食事記録イベントをリッスン
   useEffect(() => {
     const handleMealRecorded = () => {
-      loadCalorieData();
+      console.log('カロリーサマリー - 食事記録イベントを受信');
+      // 少し遅延させてからデータを再読み込み（DB更新を待つ）
+      setTimeout(() => {
+        loadCalorieData();
+      }, 500);
     };
 
     window.addEventListener('mealRecorded', handleMealRecorded);

@@ -253,6 +253,58 @@ export function MealRecordModal() {
 
       console.log('食事記録保存成功:', data);
 
+      // 食事記録保存後、daily_summariesを手動で更新
+      try {
+        // 今日の日付を取得（JST）
+        const now = new Date();
+        const jstOffset = 9 * 60; // JSTはUTC+9
+        const jstDate = new Date(now.getTime() + jstOffset * 60000);
+        const todayDate = jstDate.toISOString().split('T')[0];
+
+        console.log('daily_summaries手動更新開始:', todayDate);
+
+        // 今日のmealsテーブルから集計
+        const { data: todayMeals, error: mealsError } = await supabase
+          .from('meals')
+          .select('*')
+          .eq('user_id', user.id)
+          .gte('created_at', todayDate + 'T00:00:00+09:00')
+          .lte('created_at', todayDate + 'T23:59:59+09:00');
+
+        if (mealsError) {
+          console.error('meals取得エラー:', mealsError);
+        } else {
+          console.log('今日のmeals:', todayMeals);
+
+          // daily_summariesを更新または作成
+          const totalCalories = todayMeals?.reduce((sum, meal) => sum + meal.calories, 0) ?? 0;
+          const totalProtein = todayMeals?.reduce((sum, meal) => sum + meal.protein, 0) ?? 0;
+          const totalFat = todayMeals?.reduce((sum, meal) => sum + meal.fat, 0) ?? 0;
+          const totalCarbs = todayMeals?.reduce((sum, meal) => sum + meal.carbs, 0) ?? 0;
+
+          const { data: dailySummary, error: upsertError } = await supabase
+            .from('daily_summaries')
+            .upsert({
+              user_id: user.id,
+              date: todayDate,
+              total_calories: totalCalories,
+              total_protein: totalProtein,
+              total_fat: totalFat,
+              total_carbs: totalCarbs
+            })
+            .select()
+            .single();
+
+          if (upsertError) {
+            console.error('daily_summaries更新エラー:', upsertError);
+          } else {
+            console.log('daily_summaries更新成功:', dailySummary);
+          }
+        }
+      } catch (updateError) {
+        console.error('daily_summaries手動更新エラー:', updateError);
+      }
+
       // フォームをリセット
       setFormData({
         food_name: "",

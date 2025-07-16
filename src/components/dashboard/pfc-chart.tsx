@@ -47,7 +47,11 @@ export function PFCChart({ compact = false, idealCalories }: PFCChartProps) {
   useEffect(() => {
     // 食事記録イベントをリッスン
     const handleMealRecorded = () => {
-      loadChartData();
+      console.log('PFCチャート - 食事記録イベントを受信');
+      // 少し遅延させてからデータを再読み込み（DB更新を待つ）
+      setTimeout(() => {
+        loadChartData();
+      }, 500);
     };
 
     window.addEventListener('mealRecorded', handleMealRecorded);

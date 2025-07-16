@@ -47,7 +47,11 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
   // 食事記録イベントをリッスン
   useEffect(() => {
     const handleMealRecorded = () => {
-      loadUserData();
+      console.log('AIアドバイス - 食事記録イベントを受信');
+      // 少し遅延させてからデータを再読み込み（DB更新を待つ）
+      setTimeout(() => {
+        loadUserData();
+      }, 500);
     };
 
     window.addEventListener('mealRecorded', handleMealRecorded);
