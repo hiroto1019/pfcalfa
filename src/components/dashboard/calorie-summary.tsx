@@ -60,7 +60,9 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
       const jstDate = new Date(now.getTime() + jstOffset * 60000);
       const todayDate = jstDate.toISOString().split('T')[0];
 
-      console.log('カロリーサマリー - 今日の日付:', todayDate);
+      console.log('=== カロリーサマリー - データ読み込み開始 ===');
+      console.log('今日の日付:', todayDate);
+      console.log('ユーザーID:', user.id);
 
       const { data: dailySummary, error: dailySummaryError } = await supabase
         .from('daily_summaries')
@@ -71,6 +73,11 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
 
       if (dailySummaryError) {
         console.error('daily_summaries取得エラー:', dailySummaryError);
+        console.error('エラー詳細:', {
+          message: dailySummaryError.message,
+          details: dailySummaryError.details,
+          hint: dailySummaryError.hint
+        });
       }
 
       console.log('カロリーサマリー - daily_summary:', dailySummary);

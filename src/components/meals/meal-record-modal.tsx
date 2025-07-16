@@ -261,7 +261,9 @@ export function MealRecordModal() {
         const jstDate = new Date(now.getTime() + jstOffset * 60000);
         const todayDate = jstDate.toISOString().split('T')[0];
 
-        console.log('daily_summaries手動更新開始:', todayDate);
+        console.log('=== daily_summaries手動更新開始 ===');
+        console.log('今日の日付:', todayDate);
+        console.log('ユーザーID:', user.id);
 
         // 今日のmealsテーブルから集計
         const { data: todayMeals, error: mealsError } = await supabase
@@ -274,13 +276,21 @@ export function MealRecordModal() {
         if (mealsError) {
           console.error('meals取得エラー:', mealsError);
         } else {
-          console.log('今日のmeals:', todayMeals);
+          console.log('今日のmeals件数:', todayMeals?.length || 0);
+          console.log('今日のmeals詳細:', todayMeals);
 
           // daily_summariesを更新または作成
           const totalCalories = todayMeals?.reduce((sum, meal) => sum + meal.calories, 0) ?? 0;
           const totalProtein = todayMeals?.reduce((sum, meal) => sum + meal.protein, 0) ?? 0;
           const totalFat = todayMeals?.reduce((sum, meal) => sum + meal.fat, 0) ?? 0;
           const totalCarbs = todayMeals?.reduce((sum, meal) => sum + meal.carbs, 0) ?? 0;
+
+          console.log('集計結果:', {
+            totalCalories,
+            totalProtein,
+            totalFat,
+            totalCarbs
+          });
 
           const { data: dailySummary, error: upsertError } = await supabase
             .from('daily_summaries')
@@ -297,12 +307,18 @@ export function MealRecordModal() {
 
           if (upsertError) {
             console.error('daily_summaries更新エラー:', upsertError);
+            console.error('エラー詳細:', {
+              message: upsertError.message,
+              details: upsertError.details,
+              hint: upsertError.hint
+            });
           } else {
             console.log('daily_summaries更新成功:', dailySummary);
           }
         }
       } catch (updateError) {
         console.error('daily_summaries手動更新エラー:', updateError);
+        console.error('エラーの詳細:', updateError);
       }
 
       // フォームをリセット
