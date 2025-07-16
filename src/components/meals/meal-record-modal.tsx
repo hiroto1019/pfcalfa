@@ -296,6 +296,11 @@ export function MealRecordModal() {
                 <div>脂質: {nutritionData.fat}g</div>
                 <div>炭水化物: {nutritionData.carbs}g</div>
               </div>
+              <div className="mt-3 pt-3 border-t border-gray-200">
+                <p className="text-xs text-gray-600">
+                  💡 解析結果が不正確な場合は、下のフォームで手動で修正できます
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -336,6 +341,11 @@ export function MealRecordModal() {
                 <div>タンパク質: {nutritionData.protein}g</div>
                 <div>脂質: {nutritionData.fat}g</div>
                 <div>炭水化物: {nutritionData.carbs}g</div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-gray-200">
+                <p className="text-xs text-gray-600">
+                  💡 解析結果が不正確な場合は、下のフォームで手動で修正できます
+                </p>
               </div>
             </div>
           )}

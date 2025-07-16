@@ -1,5 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// 栄養データの検証と補正関数
+function validateAndCorrectNutritionData(data: any) {
+  const corrected = { ...data };
+  
+  // 数値フィールドの検証と補正
+  const numericFields = ['calories', 'protein', 'fat', 'carbs'];
+  numericFields.forEach(field => {
+    if (typeof corrected[field] !== 'number' || isNaN(corrected[field])) {
+      corrected[field] = 0;
+    }
+    // 負の値を0に修正
+    if (corrected[field] < 0) {
+      corrected[field] = 0;
+    }
+  });
+  
+  // 食品名の検証
+  if (!corrected.food_name || typeof corrected.food_name !== 'string') {
+    corrected.food_name = '食品（詳細不明）';
+  }
+  
+  // 飲料の場合は最低限のカロリーを設定
+  const drinkKeywords = ['ジュース', 'コーヒー', 'お茶', '牛乳', '水', 'お酒', 'ビール', 'ワイン', 'コーラ', 'ソーダ'];
+  const isDrink = drinkKeywords.some(keyword => corrected.food_name.includes(keyword));
+  
+  if (isDrink && corrected.calories === 0) {
+    // 飲料の一般的なカロリーを設定
+    if (corrected.food_name.includes('ジュース')) {
+      corrected.calories = 100;
+      corrected.carbs = 25;
+    } else if (corrected.food_name.includes('コーヒー')) {
+      corrected.calories = 5;
+      corrected.carbs = 1;
+    } else if (corrected.food_name.includes('牛乳')) {
+      corrected.calories = 120;
+      corrected.protein = 8;
+      corrected.fat = 5;
+      corrected.carbs = 12;
+    } else if (corrected.food_name.includes('お酒') || corrected.food_name.includes('ビール')) {
+      corrected.calories = 150;
+      corrected.carbs = 10;
+    }
+  }
+  
+  // カロリーが0だが他の栄養素がある場合の補正
+  if (corrected.calories === 0 && (corrected.protein > 0 || corrected.fat > 0 || corrected.carbs > 0)) {
+    corrected.calories = corrected.protein * 4 + corrected.fat * 9 + corrected.carbs * 4;
+  }
+  
+  return corrected;
+}
+
 export async function POST(request: NextRequest) {
   try {
     console.log('画像解析API開始');
@@ -48,17 +100,38 @@ export async function POST(request: NextRequest) {
     console.log('Base64エンコード完了, サイズ:', base64Image.length);
 
     // Grok APIに送信するプロンプト
-    const prompt = `この画像に写っている食事を分析して、以下のJSON形式で返してください。必ずJSONのみを返し、他の説明は含めないでください。
+    const prompt = `あなたは栄養士の専門家です。この画像に写っている食品・飲料を詳細に分析し、正確な栄養成分を推定してください。
+
+【分析の指示】
+1. 画像に写っている食品・飲料を特定してください
+2. 量（グラム数、ml数）を推定してください
+3. 標準的な栄養成分表に基づいて、以下の栄養素を計算してください：
+   - カロリー（kcal）
+   - タンパク質（g）
+   - 脂質（g）
+   - 炭水化物（g）
+
+【重要な注意事項】
+- ジュース、コーヒー、お茶などの飲料も必ずカロリーを計算してください
+- 砂糖入り飲料は炭水化物として計算してください
+- 牛乳はタンパク質、脂質、炭水化物すべてを含みます
+- お酒はアルコール分もカロリーとして計算してください
+- 調味料（ソース、ドレッシングなど）も含めて計算してください
+- 量が不明な場合は、一般的な一人前の量を想定してください
+
+【返答形式】
+必ず以下のJSON形式のみで返してください。説明文は一切含めないでください：
 
 {
-  "food_name": "食品名",
-  "calories": カロリー数,
-  "protein": タンパク質のグラム数,
-  "fat": 脂質のグラム数,
-  "carbs": 炭水化物のグラム数
+  "food_name": "具体的な食品名（例：オレンジジュース 200ml）",
+  "calories": 数値のみ（例：90）,
+  "protein": 数値のみ（例：1.5）,
+  "fat": 数値のみ（例：0.2）,
+  "carbs": 数値のみ（例：20.5）
 }
 
-画像に食事が写っていない場合は、以下のJSONを返してください：
+【食品が写っていない場合】
+画像に食品・飲料が写っていない場合は以下を返してください：
 {
   "food_name": "食事が写っていません",
   "calories": 0,
@@ -179,7 +252,11 @@ export async function POST(request: NextRequest) {
           });
         }
         
-        return NextResponse.json(nutritionData);
+        // 解析結果の妥当性チェックと補正
+        const correctedData = validateAndCorrectNutritionData(nutritionData);
+        console.log('補正後の解析結果:', correctedData);
+        
+        return NextResponse.json(correctedData);
       } catch (parseError) {
         console.log('JSONパースエラー:', parseError);
         console.log('パースしようとしたJSON:', jsonMatch[0]);
