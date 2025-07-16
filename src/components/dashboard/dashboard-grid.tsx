@@ -91,13 +91,17 @@ export function DashboardGrid({ profile }: { profile: any }) {
       </Card>
       
       {/* Bottom Row */}
-      <MealHistoryCard />
-      <OverviewCard 
-        formData={editableData}
-        setFormData={setEditableData}
-        onUpdate={handleUpdate} 
-      />
-      <WeightChart profile={profile} weightLogs={weightLogs} isLoading={isLoading} />
+      <div className="md:col-span-2">
+        <MealHistoryCard />
+      </div>
+      <div className="space-y-4">
+        <OverviewCard 
+          formData={editableData}
+          setFormData={setEditableData}
+          onUpdate={handleUpdate} 
+        />
+        <WeightChart profile={profile} weightLogs={weightLogs} isLoading={isLoading} />
+      </div>
     </main>
   );
 } 
