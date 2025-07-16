@@ -291,29 +291,67 @@ export function MealRecordModal() {
             totalFat,
             totalCarbs
           });
+          
+          // 各食事の詳細も表示
+          console.log('各食事の詳細:');
+          todayMeals?.forEach((meal, index) => {
+            console.log(`${index + 1}. ${meal.food_name}: ${meal.calories}kcal (P:${meal.protein}g, F:${meal.fat}g, C:${meal.carbs}g)`);
+          });
 
-          const { data: dailySummary, error: upsertError } = await supabase
+          // 既存のdaily_summaryを確認
+          const { data: existingSummary, error: checkError } = await supabase
             .from('daily_summaries')
-            .upsert({
-              user_id: user.id,
-              date: todayDate,
-              total_calories: totalCalories,
-              total_protein: totalProtein,
-              total_fat: totalFat,
-              total_carbs: totalCarbs
-            })
-            .select()
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('date', todayDate)
             .single();
 
-          if (upsertError) {
-            console.error('daily_summaries更新エラー:', upsertError);
+          if (checkError && checkError.code !== 'PGRST116') {
+            console.error('daily_summaries確認エラー:', checkError);
+          }
+
+          let updateResult;
+          if (existingSummary) {
+            // 既存レコードがある場合は更新
+            console.log('既存のdaily_summaryを更新:', existingSummary);
+            updateResult = await supabase
+              .from('daily_summaries')
+              .update({
+                total_calories: totalCalories,
+                total_protein: totalProtein,
+                total_fat: totalFat,
+                total_carbs: totalCarbs
+              })
+              .eq('user_id', user.id)
+              .eq('date', todayDate)
+              .select()
+              .single();
+          } else {
+            // 新規レコードの場合は挿入
+            console.log('新しいdaily_summaryを作成');
+            updateResult = await supabase
+              .from('daily_summaries')
+              .insert({
+                user_id: user.id,
+                date: todayDate,
+                total_calories: totalCalories,
+                total_protein: totalProtein,
+                total_fat: totalFat,
+                total_carbs: totalCarbs
+              })
+              .select()
+              .single();
+          }
+
+          if (updateResult.error) {
+            console.error('daily_summaries更新エラー:', updateResult.error);
             console.error('エラー詳細:', {
-              message: upsertError.message,
-              details: upsertError.details,
-              hint: upsertError.hint
+              message: updateResult.error.message,
+              details: updateResult.error.details,
+              hint: updateResult.error.hint
             });
           } else {
-            console.log('daily_summaries更新成功:', dailySummary);
+            console.log('daily_summaries更新成功:', updateResult.data);
           }
         }
       } catch (updateError) {
