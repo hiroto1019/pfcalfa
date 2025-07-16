@@ -30,7 +30,7 @@ function calculateTDEE(bmr: number, activityLevel: number) {
 
 // 理想のカロリーを計算する
 export function getIdealCalories(
-  profile: any,
+  profile: any, 
   currentWeight: number | null,
   activityLevel: number | null,
   goalWeight?: number | null,

@@ -42,10 +42,28 @@ export function MealRecordModal() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // ファイルサイズチェック（10MB制限）
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      setErrorMessage('画像ファイルが大きすぎます。10MB以下のファイルを選択してください。');
+      return;
+    }
+
+    // ファイル形式チェック
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setErrorMessage('サポートされていないファイル形式です。JPEG、PNG、WebP形式の画像を選択してください。');
+      return;
+    }
+
     setIsAnalyzing(true);
     setErrorMessage("");
+    
     try {
-      const result = await analyzeImageNutrition(file);
+      // 画像をリサイズ（モバイルでの大きな画像に対応）
+      const resizedFile = await resizeImage(file);
+      
+      const result = await analyzeImageNutrition(resizedFile);
       setNutritionData(result);
       setFormData({
         food_name: result.food_name,
@@ -60,6 +78,48 @@ export function MealRecordModal() {
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  // 画像をリサイズする関数
+  const resizeImage = async (file: File, maxWidth: number = 1024, maxHeight: number = 1024): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // アスペクト比を保ちながらリサイズ
+        let { width, height } = img;
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+        if (height > maxHeight) {
+          width = (width * maxHeight) / height;
+          height = maxHeight;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const resizedFile = new File([blob], file.name, {
+              type: file.type,
+              lastModified: Date.now(),
+            });
+            resolve(resizedFile);
+          } else {
+            reject(new Error('画像のリサイズに失敗しました'));
+          }
+        }, file.type, 0.8); // 品質を80%に設定
+      };
+      
+      img.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
+      img.src = URL.createObjectURL(file);
+    });
   };
 
   const handleTextAnalysis = async () => {
@@ -171,7 +231,7 @@ export function MealRecordModal() {
             <Input 
               id="meal-image" 
               type="file" 
-              accept="image/*" 
+              accept="image/jpeg,image/jpg,image/png,image/webp" 
               onChange={handleImageUpload}
               ref={fileInputRef}
             />
@@ -179,6 +239,11 @@ export function MealRecordModal() {
           {isAnalyzing && (
             <div className="text-center py-4">
               <p>画像を解析中...</p>
+            </div>
+          )}
+          {errorMessage && (
+            <div className="border border-red-200 rounded-lg p-4 bg-red-50">
+              <p className="text-red-600 text-sm">{errorMessage}</p>
             </div>
           )}
           {nutritionData && (
@@ -217,6 +282,11 @@ export function MealRecordModal() {
               {isAnalyzing ? "解析中..." : "解析する"}
             </Button>
           </div>
+          {errorMessage && (
+            <div className="border border-red-200 rounded-lg p-4 bg-red-50">
+              <p className="text-red-600 text-sm">{errorMessage}</p>
+            </div>
+          )}
           {nutritionData && (
             <div className="border rounded-lg p-4 bg-gray-50">
               <h3 className="font-semibold mb-2">解析結果</h3>
