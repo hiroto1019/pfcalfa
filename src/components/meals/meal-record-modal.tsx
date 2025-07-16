@@ -61,9 +61,20 @@ export function MealRecordModal() {
     
     try {
       // 画像をリサイズ（モバイルでの大きな画像に対応）
-      const resizedFile = await resizeImage(file);
+      let processedFile = file;
       
-      const result = await analyzeImageNutrition(resizedFile);
+      // ファイルサイズが2MBを超える場合はリサイズ
+      if (file.size > 2 * 1024 * 1024) {
+        try {
+          processedFile = await resizeImage(file);
+          console.log('画像をリサイズしました:', file.size, '->', processedFile.size, 'bytes');
+        } catch (resizeError) {
+          console.warn('画像のリサイズに失敗しました。元の画像を使用します:', resizeError);
+          // リサイズに失敗した場合は元の画像を使用
+        }
+      }
+      
+      const result = await analyzeImageNutrition(processedFile);
       setNutritionData(result);
       setFormData({
         food_name: result.food_name,
@@ -74,7 +85,13 @@ export function MealRecordModal() {
       });
     } catch (error: any) {
       console.error('画像解析エラー:', error);
-      setErrorMessage('画像解析に失敗しました。手入力で登録できます。');
+      if (error.message.includes('タイムアウト')) {
+        setErrorMessage('画像解析がタイムアウトしました。画像サイズを小さくするか、再度お試しください。');
+      } else if (error.message.includes('ファイルが大きすぎます')) {
+        setErrorMessage('画像ファイルが大きすぎます。10MB以下のファイルを選択してください。');
+      } else {
+        setErrorMessage('画像解析に失敗しました。手入力で登録できます。');
+      }
     } finally {
       setIsAnalyzing(false);
     }
@@ -88,36 +105,46 @@ export function MealRecordModal() {
       const img = new Image();
       
       img.onload = () => {
-        // アスペクト比を保ちながらリサイズ
-        let { width, height } = img;
-        if (width > maxWidth) {
-          height = (height * maxWidth) / width;
-          width = maxWidth;
-        }
-        if (height > maxHeight) {
-          width = (width * maxHeight) / height;
-          height = maxHeight;
-        }
-        
-        canvas.width = width;
-        canvas.height = height;
-        
-        ctx?.drawImage(img, 0, 0, width, height);
-        
-        canvas.toBlob((blob) => {
-          if (blob) {
-            const resizedFile = new File([blob], file.name, {
-              type: file.type,
-              lastModified: Date.now(),
-            });
-            resolve(resizedFile);
-          } else {
-            reject(new Error('画像のリサイズに失敗しました'));
+        try {
+          // アスペクト比を保ちながらリサイズ
+          let { width, height } = img;
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
           }
-        }, file.type, 0.8); // 品質を80%に設定
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          if (!ctx) {
+            reject(new Error('Canvas context の取得に失敗しました'));
+            return;
+          }
+          
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const resizedFile = new File([blob], file.name, {
+                type: file.type,
+                lastModified: Date.now(),
+              });
+              resolve(resizedFile);
+            } else {
+              reject(new Error('画像のリサイズに失敗しました'));
+            }
+          }, file.type, 0.7); // 品質を70%に設定してファイルサイズを削減
+        } catch (error) {
+          reject(new Error(`画像のリサイズ処理でエラーが発生しました: ${error}`));
+        }
       };
       
       img.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
+      img.crossOrigin = 'anonymous'; // CORSエラーを防ぐ
       img.src = URL.createObjectURL(file);
     });
   };

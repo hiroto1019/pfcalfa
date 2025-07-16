@@ -1,47 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// 画像をリサイズする関数
-async function resizeImage(file: File, maxWidth: number = 1024, maxHeight: number = 1024): Promise<File> {
-  return new Promise((resolve, reject) => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = () => {
-      // アスペクト比を保ちながらリサイズ
-      let { width, height } = img;
-      if (width > maxWidth) {
-        height = (height * maxWidth) / width;
-        width = maxWidth;
-      }
-      if (height > maxHeight) {
-        width = (width * maxHeight) / height;
-        height = maxHeight;
-      }
-      
-      canvas.width = width;
-      canvas.height = height;
-      
-      ctx?.drawImage(img, 0, 0, width, height);
-      
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const resizedFile = new File([blob], file.name, {
-            type: file.type,
-            lastModified: Date.now(),
-          });
-          resolve(resizedFile);
-        } else {
-          reject(new Error('画像のリサイズに失敗しました'));
-        }
-      }, file.type, 0.8); // 品質を80%に設定
-    };
-    
-    img.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
-    img.src = URL.createObjectURL(file);
-  });
-}
-
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();

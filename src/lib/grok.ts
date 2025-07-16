@@ -37,7 +37,9 @@ export async function analyzeImageNutrition(imageFile: File): Promise<GrokNutrit
   });
 
   if (!response.ok) {
-    throw new Error('画像解析に失敗しました');
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.error || `画像解析に失敗しました (${response.status})`;
+    throw new Error(errorMessage);
   }
 
   return response.json();
@@ -54,7 +56,9 @@ export async function analyzeTextNutrition(text: string): Promise<GrokNutritionR
   });
 
   if (!response.ok) {
-    throw new Error('テキスト解析に失敗しました');
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.error || `テキスト解析に失敗しました (${response.status})`;
+    throw new Error(errorMessage);
   }
 
   return response.json();
