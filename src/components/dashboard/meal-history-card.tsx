@@ -58,11 +58,11 @@ export function MealHistoryCard() {
   }, [supabase]);
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="w-[404px] h-[344px]">
+      <CardHeader className="pb-2">
         <CardTitle className="text-base font-semibold">食事履歴</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-8">
         {isLoading ? (
           <div className="flex items-center justify-center h-56">
             <p>読み込み中...</p>
@@ -72,17 +72,17 @@ export function MealHistoryCard() {
             <p className="text-gray-500">食事の記録がありません</p>
           </div>
         ) : (
-          <ScrollArea className="h-[220px] pr-4">
-            <div className="space-y-4">
+          <ScrollArea className="h-[220px]">
+            <div className="space-y-2.5">
               {meals.map((meal) => (
-                <div key={meal.id} className="flex justify-between items-start p-2 rounded-md bg-gray-50 gap-2 overflow-hidden">
-                  <div className="flex-grow min-w-0 pr-2">
+                <div key={meal.id} className="flex justify-between items-start p-2 px-4 rounded bg-gray-50 border border-gray-200">
+                  <div className="flex-grow min-w-0 pr-4">
                     <p className="font-semibold truncate text-sm" title={meal.food_name}>{meal.food_name}</p>
-                    <p className="text-xs text-gray-500">{format(new Date(meal.created_at), 'M月d日 HH:mm')}</p>
+                    <p className="text-xs text-gray-500 mt-1">{format(new Date(meal.created_at), 'M月d日 HH:mm')}</p>
                   </div>
-                  <div className="text-right flex-shrink-0 min-w-[120px]">
+                  <div className="text-right flex-shrink-0 w-[118px]">
                     <p className="font-bold text-sm mb-1">カロリー: {meal.calories}kcal</p>
-                    <div className="flex gap-2 text-xs text-gray-600">
+                    <div className="flex justify-between text-xs text-gray-600 font-bold">
                       <span>P: {meal.protein}g</span>
                       <span>F: {meal.fat}g</span>
                       <span>C: {meal.carbs}g</span>
