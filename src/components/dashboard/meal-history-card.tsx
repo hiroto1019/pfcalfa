@@ -75,17 +75,17 @@ export function MealHistoryCard() {
           <ScrollArea className="h-[220px] pr-4">
             <div className="space-y-4">
               {meals.map((meal) => (
-                <div key={meal.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-start p-2 rounded-md bg-gray-50 gap-2">
-                  <div className="flex-grow min-w-0 pr-2 max-w-[60%]">
+                <div key={meal.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-start p-2 rounded-md bg-gray-50 gap-2 overflow-hidden">
+                  <div className="flex-grow min-w-0 pr-2 max-w-[55%]">
                     <p className="font-semibold truncate text-sm" title={meal.food_name}>{meal.food_name}</p>
                     <p className="text-xs text-gray-500">{format(new Date(meal.created_at), 'M月d日 HH:mm')}</p>
                   </div>
-                  <div className="text-xs text-right space-y-1 flex-shrink-0 min-w-[90px]">
-                    <p className="font-bold text-sm">{meal.calories} kcal</p>
+                  <div className="text-xs text-right space-y-1 flex-shrink-0 min-w-[85px] max-w-[45%]">
+                    <p className="font-bold text-sm truncate">{meal.calories} kcal</p>
                     <div className="flex flex-col gap-0.5 text-gray-600">
-                      <span className="text-xs">P: {meal.protein}g</span>
-                      <span className="text-xs">F: {meal.fat}g</span>
-                      <span className="text-xs">C: {meal.carbs}g</span>
+                      <span className="text-xs truncate">P: {meal.protein}g</span>
+                      <span className="text-xs truncate">F: {meal.fat}g</span>
+                      <span className="text-xs truncate">C: {meal.carbs}g</span>
                     </div>
                   </div>
                 </div>
