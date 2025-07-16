@@ -55,12 +55,34 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
       if (jstDateError) throw jstDateError;
       const todayDate = jstDateData.date;
 
-      const { data: dailySummary } = await supabase
+      console.log('カロリーサマリー - 今日の日付:', todayDate);
+
+      const { data: dailySummary, error: dailySummaryError } = await supabase
         .from('daily_summaries')
         .select('*')
         .eq('user_id', user.id)
         .eq('date', todayDate)
         .single();
+
+      if (dailySummaryError) {
+        console.error('daily_summaries取得エラー:', dailySummaryError);
+      }
+
+      console.log('カロリーサマリー - daily_summary:', dailySummary);
+
+      // 今日のmealsテーブルも確認
+      const { data: todayMeals, error: mealsError } = await supabase
+        .from('meals')
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('created_at', todayDate + 'T00:00:00')
+        .lte('created_at', todayDate + 'T23:59:59');
+
+      if (mealsError) {
+        console.error('meals取得エラー:', mealsError);
+      }
+
+      console.log('カロリーサマリー - 今日のmeals:', todayMeals);
 
       const actualCalories = dailySummary?.total_calories ?? 0;
       const actualProtein = dailySummary?.total_protein ?? 0;
