@@ -44,6 +44,18 @@ export function PFCChart({ compact = false, idealCalories }: PFCChartProps) {
     loadChartData();
   }, [period]);
 
+  useEffect(() => {
+    // 食事記録イベントをリッスン
+    const handleMealRecorded = () => {
+      loadChartData();
+    };
+
+    window.addEventListener('mealRecorded', handleMealRecorded);
+    return () => {
+      window.removeEventListener('mealRecorded', handleMealRecorded);
+    };
+  }, []);
+
   const loadChartData = async () => {
     setIsLoading(true);
     try {

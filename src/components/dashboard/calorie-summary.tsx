@@ -32,6 +32,18 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
     };
   }, []);
 
+  // 食事記録イベントをリッスン
+  useEffect(() => {
+    const handleMealRecorded = () => {
+      loadCalorieData();
+    };
+
+    window.addEventListener('mealRecorded', handleMealRecorded);
+    return () => {
+      window.removeEventListener('mealRecorded', handleMealRecorded);
+    };
+  }, []);
+
   const loadCalorieData = async () => {
     setIsLoading(true);
     try {

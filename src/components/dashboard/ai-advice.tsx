@@ -44,6 +44,18 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
     loadUserData();
   }, []);
 
+  // 食事記録イベントをリッスン
+  useEffect(() => {
+    const handleMealRecorded = () => {
+      loadUserData();
+    };
+
+    window.addEventListener('mealRecorded', handleMealRecorded);
+    return () => {
+      window.removeEventListener('mealRecorded', handleMealRecorded);
+    };
+  }, []);
+
   const loadUserData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();

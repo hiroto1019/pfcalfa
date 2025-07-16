@@ -252,8 +252,13 @@ export function MealRecordModal() {
       setMode(null);
       setOpen(false);
       
-      // ページをリフレッシュしてデータを更新
-      window.location.reload();
+      // 成功メッセージを表示
+      alert('食事記録を保存しました！');
+      
+      // ページをリロードせずに、親コンポーネントに更新を通知
+      // カスタムイベントを発火して、ダッシュボードの更新を促す
+      window.dispatchEvent(new CustomEvent('mealRecorded'));
+      
     } catch (error) {
       console.error('食事記録エラー:', error);
       alert('食事記録の保存に失敗しました。');
