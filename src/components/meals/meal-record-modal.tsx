@@ -102,6 +102,8 @@ export function MealRecordModal() {
         setErrorMessage('画像解析がタイムアウトしました。画像サイズを小さくするか、再度お試しください。');
       } else if (error.message.includes('ファイルが大きすぎます')) {
         setErrorMessage('画像ファイルが大きすぎます。10MB以下のファイルを選択してください。');
+      } else if (error.message.includes('過負荷状態') || error.message.includes('503')) {
+        setErrorMessage('Gemini APIが一時的に過負荷状態です。しばらく時間をおいて再度お試しください。');
       } else {
         setErrorMessage('画像解析に失敗しました。手入力で登録できます。');
       }

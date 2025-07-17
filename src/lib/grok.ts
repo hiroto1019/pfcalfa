@@ -39,6 +39,12 @@ export async function analyzeImageNutrition(imageFile: File): Promise<GrokNutrit
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     const errorMessage = errorData.error || `画像解析に失敗しました (${response.status})`;
+    
+    // 503エラーの場合は特別なメッセージを返す
+    if (response.status === 503) {
+      throw new Error('Gemini APIが一時的に過負荷状態です。しばらく時間をおいて再度お試しください。');
+    }
+    
     throw new Error(errorMessage);
   }
 
