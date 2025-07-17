@@ -71,7 +71,7 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
     if (!profile) return false;
     
     return (
-      profile.username.trim() !== "" &&
+      (profile.username?.trim() || "") !== "" &&
       profile.gender !== "" &&
       profile.birth_date !== "" &&
       profile.height_cm > 0 &&

@@ -182,7 +182,7 @@ export function SettingsPage() {
   };
 
   const addDislike = () => {
-    if (!newDislike.trim() || !profile) return;
+    if (!newDislike?.trim() || !profile) return;
     
     const dislikes = profile.food_preferences?.dislikes || [];
     if (!dislikes.includes(newDislike)) {
@@ -211,7 +211,7 @@ export function SettingsPage() {
   };
 
   const addAllergy = () => {
-    if (!newAllergy.trim() || !profile) return;
+    if (!newAllergy?.trim() || !profile) return;
     
     const allergies = profile.food_preferences?.allergies || [];
     if (!allergies.includes(newAllergy)) {

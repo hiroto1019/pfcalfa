@@ -165,7 +165,7 @@ export function MealRecordModal() {
   };
 
   const handleTextAnalysis = async () => {
-    const text = textInput.trim();
+    const text = textInput?.trim() || "";
     if (!text) return;
 
     setIsAnalyzing(true);
@@ -446,7 +446,7 @@ export function MealRecordModal() {
             <Button 
               type="button" 
               onClick={handleTextAnalysis}
-              disabled={isAnalyzing || !textInput.trim()}
+              disabled={isAnalyzing || !textInput?.trim()}
               className="mt-2"
             >
               {isAnalyzing ? "解析中..." : "解析する"}
