@@ -54,8 +54,8 @@ function validateAndCorrectNutritionData(data: any) {
 
 // Gemini API呼び出し関数（リトライ機能付き）
 async function callGeminiAPI(base64Image: string, imageType: string, retryCount = 0): Promise<any> {
-  const maxRetries = 3;
-  const baseDelay = 1000; // 1秒
+  const maxRetries = 5; // 3回から5回に増加
+  const baseDelay = 2000; // 1秒から2秒に増加
 
   const prompt = `あなたは栄養士の専門家です。この画像に写っている食品・飲料を詳細に分析し、正確な栄養成分を推定してください。
 
@@ -101,7 +101,7 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
     console.log(`Gemini API呼び出し開始 (試行 ${retryCount + 1}/${maxRetries + 1})`);
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒タイムアウト
+    const timeoutId = setTimeout(() => controller.abort(), 45000); // 30秒から45秒に増加
 
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite-001:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -138,8 +138,8 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
       
       // 503エラー（過負荷）の場合はリトライ
       if (geminiResponse.status === 503 && retryCount < maxRetries) {
-        const delay = baseDelay * Math.pow(2, retryCount); // 指数バックオフ
-        console.log(`${delay}ms後にリトライします...`);
+        const delay = baseDelay * Math.pow(2, retryCount); // 指数バックオフ: 2秒、4秒、8秒、16秒、32秒
+        console.log(`${delay}ms後にリトライします... (${retryCount + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return callGeminiAPI(base64Image, imageType, retryCount + 1);
       }
@@ -243,7 +243,7 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
     // 503エラーでリトライ回数が残っている場合は再帰呼び出し
     if (fetchError.message.includes('503') && retryCount < maxRetries) {
       const delay = baseDelay * Math.pow(2, retryCount);
-      console.log(`${delay}ms後にリトライします...`);
+      console.log(`${delay}ms後にリトライします... (${retryCount + 1}/${maxRetries})`);
       await new Promise(resolve => setTimeout(resolve, delay));
       return callGeminiAPI(base64Image, imageType, retryCount + 1);
     }

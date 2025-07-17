@@ -103,7 +103,7 @@ export function MealRecordModal() {
       } else if (error.message.includes('ファイルが大きすぎます')) {
         setErrorMessage('画像ファイルが大きすぎます。10MB以下のファイルを選択してください。');
       } else if (error.message.includes('過負荷状態') || error.message.includes('503')) {
-        setErrorMessage('Gemini APIが一時的に過負荷状態です。しばらく時間をおいて再度お試しください。');
+        setErrorMessage('Gemini APIが一時的に過負荷状態です。しばらく時間をおいて再度お試しください。\n\n代替手段：\n• 手入力で食事を登録\n• 数分後に再度画像解析を試行\n• テキスト入力で食品名を指定');
       } else {
         setErrorMessage('画像解析に失敗しました。手入力で登録できます。');
       }
