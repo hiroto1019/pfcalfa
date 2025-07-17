@@ -66,8 +66,24 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
     }
   };
 
+  // 必須項目チェック関数
+  const isFormValid = () => {
+    if (!profile) return false;
+    
+    return (
+      profile.username.trim() !== "" &&
+      profile.gender !== "" &&
+      profile.birth_date !== "" &&
+      profile.height_cm > 0 &&
+      profile.initial_weight_kg > 0 &&
+      profile.target_weight_kg > 0 &&
+      profile.activity_level > 0 &&
+      profile.goal_type !== ""
+    );
+  };
+
   const handleSave = async () => {
-    if (!profile) return;
+    if (!profile || !isFormValid()) return;
 
     setIsSaving(true);
     try {
@@ -104,21 +120,23 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="username">お名前</Label>
+            <Label htmlFor="username">お名前 <span className="text-red-500">*</span></Label>
             <Input
               id="username"
               value={profile.username}
               onChange={(e) => setProfile({ ...profile, username: e.target.value })}
+              placeholder="例: 田中太郎"
             />
           </div>
           <div>
-            <Label htmlFor="gender">性別</Label>
+            <Label htmlFor="gender">性別 <span className="text-red-500">*</span></Label>
             <select
               id="gender"
               value={profile.gender}
               onChange={(e) => setProfile({ ...profile, gender: e.target.value })}
               className="w-full p-2 border rounded"
             >
+              <option value="">選択してください</option>
               <option value="male">男性</option>
               <option value="female">女性</option>
               <option value="other">その他</option>
@@ -127,7 +145,7 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="birth_date">生年月日</Label>
+            <Label htmlFor="birth_date">生年月日 <span className="text-red-500">*</span></Label>
             <Input
               id="birth_date"
               type="date"
@@ -147,42 +165,54 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
         </div>
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <Label htmlFor="height_cm">身長 (cm)</Label>
+            <Label htmlFor="height_cm">身長 (cm) <span className="text-red-500">*</span></Label>
             <Input
               id="height_cm"
               type="number"
-              value={profile.height_cm}
-              onChange={(e) => setProfile({ ...profile, height_cm: Number(e.target.value) })}
+              value={profile.height_cm || ''}
+              onChange={(e) => setProfile({ ...profile, height_cm: Number(e.target.value) || 0 })}
+              placeholder="例: 170"
+              min="100"
+              max="250"
             />
           </div>
           <div>
-            <Label htmlFor="initial_weight_kg">現在の体重 (kg)</Label>
+            <Label htmlFor="initial_weight_kg">現在の体重 (kg) <span className="text-red-500">*</span></Label>
             <Input
               id="initial_weight_kg"
               type="number"
-              value={profile.initial_weight_kg}
-              onChange={(e) => setProfile({ ...profile, initial_weight_kg: Number(e.target.value) })}
+              value={profile.initial_weight_kg || ''}
+              onChange={(e) => setProfile({ ...profile, initial_weight_kg: Number(e.target.value) || 0 })}
+              placeholder="例: 65.5"
+              min="30"
+              max="200"
+              step="0.1"
             />
           </div>
           <div>
-            <Label htmlFor="target_weight_kg">目標体重 (kg)</Label>
+            <Label htmlFor="target_weight_kg">目標体重 (kg) <span className="text-red-500">*</span></Label>
             <Input
               id="target_weight_kg"
               type="number"
-              value={profile.target_weight_kg}
-              onChange={(e) => setProfile({ ...profile, target_weight_kg: Number(e.target.value) })}
+              value={profile.target_weight_kg || ''}
+              onChange={(e) => setProfile({ ...profile, target_weight_kg: Number(e.target.value) || 0 })}
+              placeholder="例: 60.0"
+              min="30"
+              max="200"
+              step="0.1"
             />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="activity_level">活動レベル</Label>
+            <Label htmlFor="activity_level">活動レベル <span className="text-red-500">*</span></Label>
             <select
               id="activity_level"
               value={profile.activity_level}
               onChange={(e) => setProfile({ ...profile, activity_level: Number(e.target.value) })}
               className="w-full p-2 border rounded"
             >
+              <option value={0}>選択してください</option>
               <option value={1}>座り仕事中心（運動なし）</option>
               <option value={2}>軽い運動（週1-2回）</option>
               <option value={3}>中程度の運動（週3-5回）</option>
@@ -191,22 +221,40 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
             </select>
           </div>
           <div>
-            <Label htmlFor="goal_type">目標</Label>
+            <Label htmlFor="goal_type">目標 <span className="text-red-500">*</span></Label>
             <select
               id="goal_type"
               value={profile.goal_type}
               onChange={(e) => setProfile({ ...profile, goal_type: e.target.value })}
               className="w-full p-2 border rounded"
             >
+              <option value="">選択してください</option>
               <option value="diet">ダイエット</option>
               <option value="maintain">維持</option>
               <option value="bulk-up">増量</option>
             </select>
           </div>
         </div>
-        <Button onClick={handleSave} disabled={isSaving} className="w-full">
+        
+        {/* 必須項目の説明 */}
+        <div className="text-sm text-gray-600">
+          <span className="text-red-500">*</span> は必須項目です
+        </div>
+        
+        <Button 
+          onClick={handleSave} 
+          disabled={isSaving || !isFormValid()} 
+          className="w-full"
+        >
           {isSaving ? '登録中...' : '登録して始める'}
         </Button>
+        
+        {/* フォームが無効な場合のメッセージ */}
+        {!isFormValid() && (
+          <div className="text-sm text-orange-600 bg-orange-50 p-3 rounded-md">
+            全ての必須項目を入力してください
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -155,12 +155,27 @@ export function SettingsPage() {
     }
 
     try {
-      const result = await deleteUser();
-      if (result?.error) {
-        throw new Error(result.error);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('ユーザーが見つかりませんでした。');
+        return;
       }
+
+      // ユーザーの全データを削除（CASCADEにより関連データも削除される）
+      const { error: deleteDataError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', user.id);
+
+      if (deleteDataError) {
+        throw new Error(deleteDataError.message);
+      }
+
+      // ユーザーをログアウトさせる
+      await supabase.auth.signOut();
+      
       alert('アカウントを削除しました');
-      // Redirect is handled by the server action
+      router.push('/login');
     } catch (error) {
       console.error('アカウント削除エラー:', error);
       alert('アカウントの削除に失敗しました');
