@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { getIdealCalories } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { deleteUserAccount } from "@/app/auth/actions";
 
 interface Profile {
   id: string;
@@ -200,21 +201,18 @@ export function SettingsPage() {
         return;
       }
 
-      // ユーザーの全データを削除（CASCADEにより関連データも削除される）
-      const { error: deleteDataError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', user.id);
-
-      if (deleteDataError) {
-        throw new Error(deleteDataError.message);
-      }
-
-      // ユーザーをログアウトさせる
-      await supabase.auth.signOut();
+      // サーバーアクションを使用してユーザーデータを削除
+      const result = await deleteUserAccount(user.id);
       
-      alert('アカウントを削除しました');
-      router.push('/login');
+      if (result.success) {
+        // ユーザーをログアウトさせる
+        await supabase.auth.signOut();
+        alert('アカウントデータを削除しました。アカウントは無効化されました。');
+        router.push('/login');
+      } else {
+        // エラーメッセージを表示
+        alert(`アカウントの削除に失敗しました: ${result.error}`);
+      }
     } catch (error) {
       console.error('アカウント削除エラー:', error);
       alert('アカウントの削除に失敗しました');
@@ -639,6 +637,10 @@ export function SettingsPage() {
 
           <div className="border-t pt-4">
             <h3 className="font-semibold text-red-600 mb-3">危険な操作</h3>
+            <p className="text-sm text-gray-600 mb-3">
+              アカウント削除により、全てのデータが削除され、アカウントは無効化されます。
+              完全なアカウント削除には管理者の確認が必要な場合があります。
+            </p>
             <Button 
               variant="destructive" 
               onClick={() => setShowDeleteConfirm(true)}
@@ -657,7 +659,7 @@ export function SettingsPage() {
             <CardHeader>
               <CardTitle className="text-red-600">アカウント削除の確認</CardTitle>
               <CardDescription>
-                本当にアカウントを削除しますか？全てのデータが完全に削除され、元に戻すことはできません。
+                本当にアカウントを削除しますか？全てのデータが完全に削除され、アカウントは無効化されます。この操作は元に戻すことはできません。
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

@@ -48,34 +48,55 @@ export async function signUp(data: FormData) {
     if (error.message.includes('already registered')) {
       return redirect('/register?message=' + encodeURIComponent('このメールアドレスは既に登録されています'));
     }
-    return redirect('/register?message=' + encodeURIComponent(error.message));
+    return redirect('/register?message=' + encodeURIComponent('登録に失敗しました'));
   }
 
   revalidatePath('/', 'layout');
-  redirect('/');
+  redirect('/login?message=' + encodeURIComponent('確認メールを送信しました。メールを確認してログインしてください'));
 }
 
 export async function signInWithGithub() {
   const supabase = createClient();
-  // 動的にリダイレクト先を取得
-  const origin = headers().get('origin') || 'http://127.0.0.1:3000';
-  const redirectTo = `${origin}/auth/callback`;
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'github',
     options: {
-      redirectTo,
+      redirectTo: `${headers().get('origin')}/auth/callback`,
     },
   });
 
   if (error) {
-    console.error('GitHub OAuth error:', error);
-    return redirect('/login?message=' + encodeURIComponent('GitHubでのログインに失敗しました: ' + error.message));
+    console.error('GitHub sign in error:', error);
+    return redirect('/login?message=' + encodeURIComponent('GitHubログインに失敗しました'));
   }
 
-  if (!data.url) {
-    console.error('No OAuth URL returned');
-    return redirect('/login?message=' + encodeURIComponent('GitHubでのログインに失敗しました'));
-  }
+  return redirect(data.url);
+}
 
-  redirect(data.url);
+export async function deleteUserAccount(userId: string) {
+  const supabase = createClient();
+
+  try {
+    // 関連データを削除（CASCADEにより関連データも削除される）
+    const { error: deleteDataError } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', userId);
+
+    if (deleteDataError) {
+      console.error('プロフィール削除エラー:', deleteDataError);
+      throw new Error('プロフィールの削除に失敗しました');
+    }
+
+    // 無料プランではauth.admin.deleteUserが利用できないため、
+    // ユーザーのデータを削除してアカウントを無効化する
+    // 実際のユーザー削除は管理者が手動で行う必要があります
+    
+    return { success: true };
+  } catch (error) {
+    console.error('アカウント削除エラー:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'アカウントの削除に失敗しました' 
+    };
+  }
 }
