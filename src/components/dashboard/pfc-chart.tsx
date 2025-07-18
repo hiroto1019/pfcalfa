@@ -17,6 +17,16 @@ import { createClient } from "@/lib/supabase/client";
 import { getIdealCalories } from "@/lib/utils";
 import { startOfWeek, startOfMonth, subDays } from 'date-fns';
 
+interface DailySummary {
+  id: string;
+  user_id: string;
+  date: string;
+  total_calories: number;
+  total_protein: number;
+  total_fat: number;
+  total_carbs: number;
+}
+
 interface ChartData {
   name: string;
   ideal_protein: number;
@@ -102,10 +112,11 @@ export function PFCChart({ compact = false, idealCalories }: PFCChartProps) {
       let actualCalories = 0;
 
       if (summaries && summaries.length > 0) {
-        const totalDays = summaries.length;
-        const totalP = summaries.reduce((sum, s) => sum + s.total_protein, 0);
-        const totalF = summaries.reduce((sum, s) => sum + s.total_fat, 0);
-        const totalC = summaries.reduce((sum, s) => sum + s.total_carbs, 0);
+        const typedSummaries = summaries as DailySummary[];
+        const totalDays = typedSummaries.length;
+        const totalP = typedSummaries.reduce((sum: number, s: DailySummary) => sum + s.total_protein, 0);
+        const totalF = typedSummaries.reduce((sum: number, s: DailySummary) => sum + s.total_fat, 0);
+        const totalC = typedSummaries.reduce((sum: number, s: DailySummary) => sum + s.total_carbs, 0);
         
         const avgP = totalP / totalDays;
         const avgF = totalF / totalDays;
