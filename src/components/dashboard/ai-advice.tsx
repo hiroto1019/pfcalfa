@@ -263,6 +263,9 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
       clearTimeout(fetchTimeoutRef.current);
     }
 
+    // 更新時はキャッシュをクリア（新機能）
+    localStorage.removeItem(getAdviceKey());
+
     setIsLoading(true);
     setRetryCount(prev => prev + 1);
 
@@ -290,7 +293,7 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
         setAdvice(adviceData);
         const currentTime = Date.now();
         setLastUpdateTime(currentTime);
-        // キャッシュにタイムスタンプ付きで保存
+        // キャッシュにタイムスタンプ付きで保存（更新時は新しいキャッシュ）
         localStorage.setItem(getAdviceKey(), JSON.stringify({
           data: adviceData,
           timestamp: currentTime

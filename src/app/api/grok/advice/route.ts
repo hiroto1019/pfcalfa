@@ -28,20 +28,24 @@ function createFallbackResponse(userProfile?: any, dailyData?: any) {
   if (userProfile) {
     const targetCalories = calculateTargetCalories(userProfile);
     const calorieDiff = dailyData ? Math.round(targetCalories - (dailyData.total_calories || 0)) : 0;
+    const currentCalories = dailyData?.total_calories || 0;
+    const currentProtein = dailyData?.total_protein || 0;
+    const currentFat = dailyData?.total_fat || 0;
+    const currentCarbs = dailyData?.total_carbs || 0;
     
     if (userProfile.goal_type === 'diet') {
       mealSummary = "ダイエット中は野菜を多めに、炭水化物を控えめにしましょう。低カロリー食材を活用して。";
-      mealDetail = `ダイエット中は野菜を多めに、炭水化物を控えめにしましょう。朝食にサラダと卵、昼食は鶏胸肉と野菜、夕食は魚と野菜を中心に。間食はナッツやヨーグルトを選び、水分も十分に摂りましょう。${dailyData ? `今日の摂取カロリー: ${dailyData.total_calories || 0}kcal、目標カロリー${Math.round(targetCalories)}kcalとの差: ${calorieDiff}kcal` : ''}1日の目標カロリー${Math.round(targetCalories)}kcalを意識して、食事の量と質をバランスよく調整してください。`;
+      mealDetail = `ダイエット中は野菜を多めに、炭水化物を控えめにしましょう。朝食にサラダと卵、昼食は鶏胸肉と野菜、夕食は魚と野菜を中心に。間食はナッツやヨーグルトを選び、水分も十分に摂りましょう。${dailyData ? `今日の摂取カロリー: ${currentCalories}kcal、目標カロリー${Math.round(targetCalories)}kcalとの差: ${calorieDiff}kcal、タンパク質${Math.round(currentProtein)}g、脂質${Math.round(currentFat)}g、炭水化物${Math.round(currentCarbs)}g` : ''}1日の目標カロリー${Math.round(targetCalories)}kcalを意識して、食事の量と質をバランスよく調整してください。`;
       exerciseSummary = "ウォーキングや軽い筋トレで代謝を上げましょう。毎日30分の運動を習慣に。";
       exerciseDetail = "ウォーキングや軽い筋トレで代謝を上げましょう。毎日30分のウォーキング、週3回の筋トレ（スクワット、プッシュアップ、プランク）を習慣に。階段を使う、一駅分歩くなど、日常生活でも運動量を増やしましょう。有酸素運動で脂肪燃焼を促進し、筋トレで基礎代謝を維持することが重要です。";
     } else if (userProfile.goal_type === 'bulk-up') {
       mealSummary = "筋肉をつけるためにタンパク質を多めに摂りましょう。プロテインも活用して。";
-      mealDetail = `筋肉をつけるためにタンパク質を多めに摂りましょう。朝食にプロテインシェイク、昼食は鶏胸肉や牛肉、夕食は魚や豆腐を中心に。間食にナッツやチーズ、運動後はプロテインを摂取。炭水化物も適度に摂ってエネルギーを確保しましょう。${dailyData ? `今日の摂取カロリー: ${dailyData.total_calories || 0}kcal、目標カロリー${Math.round(targetCalories)}kcalとの差: ${calorieDiff}kcal` : ''}1日3食に加えて、運動前後の栄養補給も重要です。`;
+      mealDetail = `筋肉をつけるためにタンパク質を多めに摂りましょう。朝食にプロテインシェイク、昼食は鶏胸肉や牛肉、夕食は魚や豆腐を中心に。間食にナッツやチーズ、運動後はプロテインを摂取。炭水化物も適度に摂ってエネルギーを確保しましょう。${dailyData ? `今日の摂取カロリー: ${currentCalories}kcal、目標カロリー${Math.round(targetCalories)}kcalとの差: ${calorieDiff}kcal、タンパク質${Math.round(currentProtein)}g、脂質${Math.round(currentFat)}g、炭水化物${Math.round(currentCarbs)}g` : ''}1日3食に加えて、運動前後の栄養補給も重要です。`;
       exerciseSummary = "筋トレを中心に、有酸素運動も取り入れましょう。週4回のトレーニングを目標に。";
       exerciseDetail = "筋トレを中心に、有酸素運動も取り入れましょう。週4回の筋トレ（胸、背中、脚、肩をローテーション）、各部位8-12回×3セット。有酸素運動は週2回30分程度。十分な休息と栄養補給で筋肉の成長をサポートしましょう。プログレッシブオーバーロードを意識して、徐々に負荷を上げていくことが重要です。";
     } else {
       mealSummary = "バランスの良い食事で健康を維持しましょう。多様な食材を取り入れて。";
-      mealDetail = `バランスの良い食事で健康を維持しましょう。野菜、タンパク質、炭水化物をバランスよく摂取。朝食はしっかりと、昼食は適度に、夕食は軽めに。間食は果物やナッツを選び、水分補給も忘れずに。${dailyData ? `今日の摂取カロリー: ${dailyData.total_calories || 0}kcal、目標カロリー${Math.round(targetCalories)}kcalとの差: ${calorieDiff}kcal` : ''}1日の栄養バランスを意識して、多様な食材を取り入れることが重要です。`;
+      mealDetail = `バランスの良い食事で健康を維持しましょう。野菜、タンパク質、炭水化物をバランスよく摂取。朝食はしっかりと、昼食は適度に、夕食は軽めに。間食は果物やナッツを選び、水分補給も忘れずに。${dailyData ? `今日の摂取カロリー: ${currentCalories}kcal、目標カロリー${Math.round(targetCalories)}kcalとの差: ${calorieDiff}kcal、タンパク質${Math.round(currentProtein)}g、脂質${Math.round(currentFat)}g、炭水化物${Math.round(currentCarbs)}g` : ''}1日の栄養バランスを意識して、多様な食材を取り入れることが重要です。`;
       exerciseSummary = "週3回程度の運動で体力を維持しましょう。楽しめる運動を見つけて。";
       exerciseDetail = "週3回程度の運動で体力を維持しましょう。ウォーキング、ジョギング、サイクリングなどの有酸素運動を30分程度。筋トレも週2回取り入れて、全身の筋肉をバランスよく鍛えましょう。継続可能な運動習慣を作り、楽しみながら健康を維持することが大切です。";
     }
@@ -289,18 +293,19 @@ export async function POST(request: NextRequest) {
 
 ユーザー情報: ${userProfile.username}, ${userProfile.gender}, ${userProfile.height_cm}cm, ${userProfile.initial_weight_kg}kg→${userProfile.target_weight_kg}kg, 目標:${userProfile.goal_type}
 ${foodPreferencesText ? `${foodPreferencesText}` : ''}
-${dailyData ? `今日の摂取: ${dailyData.total_calories || 0}kcal, タンパク質:${Math.round(dailyData.total_protein || 0)}g, 脂質:${Math.round(dailyData.total_fat || 0)}g, 炭水化物:${Math.round(dailyData.total_carbs || 0)}g` : ''}
+${dailyData ? `今日の摂取状況: カロリー${dailyData.total_calories || 0}kcal, タンパク質${Math.round(dailyData.total_protein || 0)}g, 脂質${Math.round(dailyData.total_fat || 0)}g, 炭水化物${Math.round(dailyData.total_carbs || 0)}g` : ''}
 
 重要: 目標カロリーは${Math.round(targetCalories)}kcalです。この数値を必ず使用してください。他の数値を計算したり、異なる数値を表示してはいけません。
 
 アドバイスのポイント:
-- 食事: 具体的な食材やメニューを提案、栄養バランスを考慮
-- 運動: 具体的な運動種目、時間、頻度を提案
+- 食事: 今日の摂取データを踏まえて、不足している栄養素を補う具体的な食材やメニューを提案
+- 運動: 今日の摂取カロリーと目標カロリーの差を考慮した適切な運動強度を提案
 - 要約は40-60文字で、毎回異なる表現を使用
 - 詳細は100-300文字で、具体的で実行しやすい内容
 - 今日の摂取データがある場合は、それを踏まえた具体的なアドバイス
 - 目標カロリー${Math.round(targetCalories)}kcalを基準としたアドバイスを提供
-- 数値は整数で表示`;
+- 数値は整数で表示
+- 今日のPFCバランス（タンパク質${Math.round(dailyData?.total_protein || 0)}g、脂質${Math.round(dailyData?.total_fat || 0)}g、炭水化物${Math.round(dailyData?.total_carbs || 0)}g）を考慮したアドバイス`;
 
     console.log('GEMINI_API_KEY設定確認:', process.env.GEMINI_API_KEY ? '設定済み' : '未設定');
     
