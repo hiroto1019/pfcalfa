@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { findFoodByName, getFoodsByCategory, findFoodsByCalorieRange, findFoodsByNutrition } from '../../../../lib/food-database';
+import { searchFoodFromMultipleSources } from '../../../../lib/external-apis';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,9 +17,34 @@ export async function GET(request: NextRequest) {
 
     // 検索クエリがある場合
     if (query) {
-      const food = findFoodByName(query);
-      if (food) {
-        results.push(food);
+      // 1. まず内部データベースで検索
+      const internalFood = findFoodByName(query);
+      if (internalFood) {
+        results.push(internalFood);
+      }
+      
+      // 2. 常に外部APIからも検索（内部データベースの結果と併用）
+      try {
+        console.log(`外部API検索開始: ${query}`);
+        const externalResults = await searchFoodFromMultipleSources(query);
+        console.log(`外部API検索結果: ${externalResults.length}件`);
+        
+        // 外部APIの結果を内部データベースの形式に変換
+        const convertedResults = externalResults.map(food => ({
+          name: food.name,
+          calories: food.calories,
+          protein: food.protein,
+          fat: food.fat,
+          carbs: food.carbs,
+          category: '外部データ',
+          unit: food.unit,
+          source: food.source
+        }));
+        
+        results.push(...convertedResults);
+      } catch (error) {
+        console.error('外部API検索エラー:', error);
+        // 外部APIが失敗しても内部データベースの結果は返す
       }
     }
     // カテゴリ検索

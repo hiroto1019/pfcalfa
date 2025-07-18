@@ -123,9 +123,9 @@ async function validateAndCorrectNutritionData(data: any) {
       console.log('食品データベースの読み込みに失敗:', error);
       // エラーの場合も一般的な食事として推定
       corrected.calories = 200;
-      corrected.protein = 10;
-      corrected.fat = 5;
-      corrected.carbs = 25;
+    corrected.protein = 10;
+    corrected.fat = 5;
+    corrected.carbs = 25;
       console.log('エラー時の一般的な食事としてカロリーを推定: 200kcal');
     }
   }
@@ -304,7 +304,7 @@ function createFallbackResponse(content: string) {
       fallbackResponse.calories = 200;
       fallbackResponse.protein = 3;
       fallbackResponse.fat = 10;
-      fallbackResponse.carbs = 25;
+    fallbackResponse.carbs = 25;
     }
   } else if (lowerContent.includes('ケーキ')) {
     fallbackResponse.food_name = "ケーキ";

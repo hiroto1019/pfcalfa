@@ -119,6 +119,20 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
       console.log('AIアドバイス - 食事記録イベントを受信');
       // 強制更新フラグを設定
       forceUpdateRef.current = true;
+      // 履歴更新フラグを設定してボタンを「更新」に変更
+      setCanUpdate(true);
+      // 遅延を短縮（高速化）
+      setTimeout(() => {
+        loadUserData();
+      }, 500);
+    };
+
+    const handleExerciseRecorded = () => {
+      console.log('AIアドバイス - 運動記録イベントを受信');
+      // 強制更新フラグを設定
+      forceUpdateRef.current = true;
+      // 履歴更新フラグを設定してボタンを「更新」に変更
+      setCanUpdate(true);
       // 遅延を短縮（高速化）
       setTimeout(() => {
         loadUserData();
@@ -126,8 +140,10 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
     };
 
     window.addEventListener('mealRecorded', handleMealRecorded);
+    window.addEventListener('exerciseRecorded', handleExerciseRecorded);
     return () => {
       window.removeEventListener('mealRecorded', handleMealRecorded);
+      window.removeEventListener('exerciseRecorded', handleExerciseRecorded);
     };
   }, []);
 
@@ -395,6 +411,7 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
             size="sm" 
             onClick={fetchAdvice}
             disabled={isLoading || !isDataReady}
+            className={canUpdate ? "bg-black text-white hover:bg-gray-800" : ""}
           >
             {isLoading ? "更新中..." : canUpdate ? "更新" : "最新"}
           </Button>
@@ -418,7 +435,7 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
                   <h3 className="font-semibold text-green-700 mb-2">🍽️ 食事アドバイス</h3>
                   <p className="text-sm text-gray-700 leading-relaxed">
                     {showDetails ? (
-                      <div className="whitespace-pre-line">
+                      <div className="whitespace-pre-line max-h-48 overflow-y-auto">
                         {advice.meal_detail}
                       </div>
                     ) : (
@@ -430,7 +447,7 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
                   <h3 className="font-semibold text-blue-700 mb-2">🏃‍♂️ 運動アドバイス</h3>
                   <p className="text-sm text-gray-700 leading-relaxed">
                     {showDetails ? (
-                      <div className="whitespace-pre-line">
+                      <div className="whitespace-pre-line max-h-48 overflow-y-auto">
                         {advice.exercise_detail}
                       </div>
                     ) : (
@@ -450,9 +467,7 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
                 </Button>
               </div>
               
-              <div className="text-xs text-gray-400 mt-2">
-                ※{lastUpdateTime ? new Date(lastUpdateTime).toLocaleTimeString('ja-JP') : '不明'}に生成
-              </div>
+
             </>
           ) : (
             <div className="text-center py-4">

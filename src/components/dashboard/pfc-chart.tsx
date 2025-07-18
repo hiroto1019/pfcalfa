@@ -185,9 +185,9 @@ export function PFCChart({ compact = false, idealCalories }: PFCChartProps) {
       return (
         <div className="bg-white p-3 border rounded-lg shadow-lg text-sm">
           <div className="font-semibold mb-1">{d.name}</div>
-          <div style={{ color: '#42a5f5' }}>タンパク質: {Math.round(d.protein)} kcal</div>
-          <div style={{ color: '#ff9800' }}>脂質: {Math.round(d.fat)} kcal</div>
-          <div style={{ color: '#ffee58' }}>炭水化物: {Math.round(d.carbs)} kcal</div>
+          <div style={{ color: '#739FFF' }}>タンパク質: {Math.round(d.protein)} kcal</div>
+          <div style={{ color: '#FFEE70' }}>脂質: {Math.round(d.fat)} kcal</div>
+          <div style={{ color: '#FF7C80' }}>炭水化物: {Math.round(d.carbs)} kcal</div>
           <div className="mt-1 font-bold">合計: {total} kcal</div>
         </div>
       );
@@ -215,9 +215,9 @@ export function PFCChart({ compact = false, idealCalories }: PFCChartProps) {
           <XAxis dataKey="name" tick={{ fontSize: 12 }} />
           <YAxis tick={{ fontSize: 12 }} />
           <Tooltip content={<CustomTooltip />} />
-          <Bar dataKey="protein" stackId="a" fill="#42a5f5" />
-          <Bar dataKey="fat" stackId="a" fill="#ff9800" />
-          <Bar dataKey="carbs" stackId="a" fill="#ffee58" />
+          <Bar dataKey="protein" stackId="a" fill="#739FFF" />
+          <Bar dataKey="fat" stackId="a" fill="#FFEE70" />
+          <Bar dataKey="carbs" stackId="a" fill="#FF7C80" />
           </BarChart>
         </ResponsiveContainer>
     </div>

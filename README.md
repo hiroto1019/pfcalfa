@@ -37,16 +37,20 @@ PFC Alfaは、AIを活用した食事管理アプリケーションです。画�
 - **詳細な栄養成分**: カロリー、タンパク質、脂質、炭水化物
 - **日本語対応**: 日本の食品を中心としたデータベース
 
-### 外部API連携
-- **USDA Food Database API**: アメリカの食品データベース
-- **楽天レシピAPI**: 日本のレシピ情報
-- **ブラウザ拡張機能連携**: Chrome拡張機能とのデータ共有
+### 外部データ連携（完全無料）
+- **文部科学省食品成分データベース**: 日本の食品成分データ（無料）
+- **カロリーSlism**: 日本のカロリー情報サイト（スクレイピング）
+- **楽天レシピ**: 日本の料理レシピサイト（スクレイピング）
+- **クックパッド**: 日本の料理レシピサイト（スクレイピング）
+- **過去履歴検索**: ユーザーが過去に登録した食事の再利用（無料）
 
 ### 検索機能
 - **食品名検索**: 部分一致による検索
 - **カテゴリ検索**: 食品カテゴリ別の検索
 - **栄養成分検索**: カロリー範囲や栄養成分による検索
 - **類似食品提案**: 検索結果が見つからない場合の類似食品提案
+- **外部サイト検索**: 複数の外部サイトからリアルタイムで食品情報を取得（無料）
+- **過去履歴検索**: ユーザーが過去に登録した食事を検索・再利用（無料）
 
 ## セットアップ
 
@@ -68,11 +72,22 @@ npm install
 # Gemini API
 GEMINI_API_KEY=your_gemini_api_key_here
 
+# 外部API連携（オプション - 現在は無効化）
+# 必要に応じて有効化できます
+
 # 楽天API（楽天レシピAPI）
-RAKUTEN_APP_ID=your_rakuten_app_id_here
+# RAKUTEN_APP_ID=your_rakuten_app_id_here
+
+# Nutritionix API
+# NUTRITIONIX_APP_ID=your_nutritionix_app_id_here
+# NUTRITIONIX_APP_KEY=your_nutritionix_app_key_here
+
+# Edamam Food Database API
+# EDAMAM_APP_ID=your_edamam_app_id_here
+# EDAMAM_APP_KEY=your_edamam_app_key_here
 
 # USDA Food Database API
-USDA_API_KEY=your_usda_api_key_here
+# USDA_API_KEY=your_usda_api_key_here
 
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
@@ -138,6 +153,7 @@ POST /api/grok/advice
 
 ### 外部APIの追加
 `src/lib/external-apis.ts`に新しいAPI連携機能を追加できます。
+現在は無料機能のみを有効化していますが、必要に応じて有料APIも追加可能です。
 
 ## デプロイ
 
@@ -163,9 +179,9 @@ MIT License
 
 ### v2.0.0 (最新)
 - 包括的な食品データベースの追加
-- 外部API連携機能の実装
+- 無料外部データ連携機能の実装（文部科学省データ + スクレイピング）
 - 食品検索機能の追加
-- ブラウザ拡張機能連携の準備
+- 過去履歴検索機能の追加
 - UI/UXの大幅改善
 
 ### v1.0.0

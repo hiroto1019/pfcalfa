@@ -557,7 +557,7 @@ export function SettingsPage() {
             <Button 
               onClick={handleSave} 
               disabled={isSaving} 
-              className="w-full sm:w-auto px-8 py-3 h-12"
+              className="w-full sm:w-auto px-8 py-2 h-10"
             >
             {isSaving ? '保存中...' : '保存'}
           </Button>

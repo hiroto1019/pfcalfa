@@ -94,6 +94,7 @@ export const FOOD_DATABASE: Record<string, FoodItem> = {
   'チーズ': { name: 'チーズ', calories: 350, protein: 25, fat: 28, carbs: 2, category: FOOD_CATEGORIES.EGG, unit: '100g' },
   '豆腐': { name: '豆腐', calories: 80, protein: 8, fat: 5, carbs: 2, category: FOOD_CATEGORIES.EGG, unit: '1丁(300g)' },
   '納豆': { name: '納豆', calories: 100, protein: 10, fat: 5, carbs: 8, category: FOOD_CATEGORIES.EGG, unit: '1パック(50g)' },
+  '麻婆豆腐': { name: '麻婆豆腐', calories: 350, protein: 20, fat: 18, carbs: 15, category: FOOD_CATEGORIES.EGG, unit: '1人前' },
 
   // 野菜
   'サラダ': { name: 'サラダ', calories: 80, protein: 3, fat: 2, carbs: 15, category: FOOD_CATEGORIES.VEGETABLES, unit: '1人前' },
@@ -186,7 +187,7 @@ export function findFoodByName(foodName: string): FoodItem | null {
   if (FOOD_DATABASE[foodName]) {
     return FOOD_DATABASE[foodName];
   }
-  
+
   // 正規化した名前での完全一致
   if (FOOD_DATABASE[normalizedName]) {
     return FOOD_DATABASE[normalizedName];

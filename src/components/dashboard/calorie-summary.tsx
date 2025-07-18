@@ -16,11 +16,27 @@ interface Meal {
   created_at: string;
 }
 
+interface Exercise {
+  id: string;
+  user_id: string;
+  exercise_name: string;
+  duration_minutes: number;
+  calories_burned: number;
+  exercise_type: string;
+  notes: string;
+  created_at: string;
+}
+
 interface CalorieSummaryData {
   actualCalories: number;
+  exerciseCalories: number;
+  netCalories: number;
   proteinRatio: number;
   fatRatio: number;
   carbsRatio: number;
+  proteinGrams: number;
+  fatGrams: number;
+  carbsGrams: number;
 }
 
 interface CalorieSummaryProps {
@@ -60,6 +76,22 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
     };
   }, []);
 
+  // 運動記録イベントをリッスン
+  useEffect(() => {
+    const handleExerciseRecorded = () => {
+      console.log('カロリーサマリー - 運動記録イベントを受信');
+      // 少し遅延させてからデータを再読み込み（DB更新を待つ）
+      setTimeout(() => {
+        loadCalorieData();
+      }, 500);
+    };
+
+    window.addEventListener('exerciseRecorded', handleExerciseRecorded);
+    return () => {
+      window.removeEventListener('exerciseRecorded', handleExerciseRecorded);
+    };
+  }, []);
+
   const loadCalorieData = async () => {
     setIsLoading(true);
     try {
@@ -76,6 +108,7 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
       console.log('今日の日付:', todayDate);
       console.log('ユーザーID:', user.id);
 
+      // 食事データの取得
       const { data: dailySummary, error: dailySummaryError } = await supabase
         .from('daily_summaries')
         .select('*')
@@ -85,16 +118,11 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
 
       if (dailySummaryError) {
         console.error('daily_summaries取得エラー:', dailySummaryError);
-        console.error('エラー詳細:', {
-          message: dailySummaryError.message,
-          details: dailySummaryError.details,
-          hint: dailySummaryError.hint
-        });
       }
 
       console.log('カロリーサマリー - daily_summary:', dailySummary);
 
-      // 今日のmealsテーブルも確認（日付範囲を広げて確認）
+      // 今日のmealsテーブルも確認
       const { data: todayMeals, error: mealsError } = await supabase
         .from('meals')
         .select('*')
@@ -107,6 +135,20 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
       }
 
       console.log('カロリーサマリー - 今日のmeals:', todayMeals);
+
+      // 運動データの取得
+      const { data: todayExercises, error: exercisesError } = await supabase
+        .from('exercise_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('created_at', todayDate + 'T00:00:00+09:00')
+        .lte('created_at', todayDate + 'T23:59:59+09:00');
+
+      if (exercisesError) {
+        console.error('exercise_logs取得エラー:', exercisesError);
+      }
+
+      console.log('カロリーサマリー - 今日のexercises:', todayExercises);
 
       // もしdaily_summaryがnullでmealsがある場合、手動でdaily_summaryを作成
       if (!dailySummary && todayMeals && todayMeals.length > 0) {
@@ -141,6 +183,13 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
           const actualFat = newDailySummary.total_fat;
           const actualCarbs = newDailySummary.total_carbs;
 
+          // 運動消費カロリーを計算
+          const exerciseCalories = todayExercises ? 
+            (todayExercises as Exercise[]).reduce((sum: number, exercise: Exercise) => sum + exercise.calories_burned, 0) : 0;
+
+          // 純カロリー（摂取 - 運動消費）
+          const netCalories = actualCalories - exerciseCalories;
+
           // PFC比率を計算
           const totalCaloriesFromPFC = actualProtein * 4 + actualFat * 9 + actualCarbs * 4;
           const proteinRatio = totalCaloriesFromPFC > 0 ? (actualProtein * 4 / totalCaloriesFromPFC) * 100 : 0;
@@ -149,9 +198,14 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
 
           setData({
             actualCalories,
+            exerciseCalories,
+            netCalories,
             proteinRatio: Math.round(proteinRatio),
             fatRatio: Math.round(fatRatio),
             carbsRatio: Math.round(carbsRatio),
+            proteinGrams: actualProtein,
+            fatGrams: actualFat,
+            carbsGrams: actualCarbs,
           });
           return;
         }
@@ -162,6 +216,13 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
       const actualFat = dailySummary?.total_fat ?? 0;
       const actualCarbs = dailySummary?.total_carbs ?? 0;
 
+      // 運動消費カロリーを計算
+      const exerciseCalories = todayExercises ? 
+        (todayExercises as Exercise[]).reduce((sum: number, exercise: Exercise) => sum + exercise.calories_burned, 0) : 0;
+
+      // 純カロリー（摂取 - 運動消費）
+      const netCalories = actualCalories - exerciseCalories;
+
       // PFC比率を計算
       const totalCaloriesFromPFC = actualProtein * 4 + actualFat * 9 + actualCarbs * 4;
       const proteinRatio = totalCaloriesFromPFC > 0 ? (actualProtein * 4 / totalCaloriesFromPFC) * 100 : 0;
@@ -170,9 +231,14 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
 
       setData({
         actualCalories,
+        exerciseCalories,
+        netCalories,
         proteinRatio: Math.round(proteinRatio),
         fatRatio: Math.round(fatRatio),
         carbsRatio: Math.round(carbsRatio),
+        proteinGrams: actualProtein,
+        fatGrams: actualFat,
+        carbsGrams: actualCarbs,
       });
     } catch (error) {
       console.error('カロリーデータ読み込みエラー:', error);
@@ -185,7 +251,7 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle  className="text-base font-semibold">カロリーサマリー</CardTitle>
+          <CardTitle className="text-base font-semibold">カロリーサマリー</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center h-48">
@@ -200,7 +266,7 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle  className="text-base font-semibold">カロリーサマリー</CardTitle>
+          <CardTitle className="text-base font-semibold">カロリーサマリー</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center h-48">
@@ -211,58 +277,102 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
     );
   }
 
-  const calorieProgress = idealCalories > 0 ? (data.actualCalories / idealCalories) * 100 : 0;
-  const progressColor = calorieProgress > 100 ? 'bg-red-500' : 'bg-green-500';
+  // 進捗計算（理想カロリーを100%とする）
+  const calculateProgress = () => {
+    if (idealCalories <= 0) return 0;
+    if (data.netCalories <= 0) return 0;
+    
+    const progress = (data.netCalories / idealCalories) * 100;
+    return Math.round(progress);
+  };
+
+  const progress = calculateProgress();
+  const progressColor = progress > 100 ? 'text-red-600' : progress >= 80 ? 'text-yellow-600' : 'text-green-600';
+  const progressBgColor = progress > 100 ? 'bg-red-50' : progress >= 80 ? 'bg-yellow-50' : 'bg-green-50';
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base font-semibold">カロリーサマリー</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* カロリー比較 */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="text-center p-3 bg-blue-50 rounded-lg">
-            <p className="text-sm text-gray-600">今日の摂取</p>
-            <p className="text-2xl font-bold text-blue-600">{data.actualCalories}</p>
-            <p className="text-xs text-gray-500">kcal</p>
-          </div>
-          <div className="text-center p-3 bg-green-50 rounded-lg">
-            <p className="text-sm text-gray-600">理想カロリー</p>
-            <p className="text-2xl font-bold text-green-600">{idealCalories}</p>
-            <p className="text-xs text-gray-400">kcal</p>
-          </div>
-        </div>
+      <CardContent className="p-4">
+        {/* レスポンシブ対応: 横並び → 縦並び */}
+        <div className="flex flex-col lg:flex-row gap-4 mt-2">
+          {/* 左カラム: 今日の総カロリー */}
+          <div className="flex-1">
+            <div className="text-center p-3 bg-white rounded-lg border border-gray-200 flex flex-col lg:h-full">
+              <p className="text-sm text-gray-600">今日の総カロリー</p>
+              <div className="flex items-center justify-center gap-1 mb-3">
+                <p className="text-2xl font-bold text-orange-600">{data.netCalories}</p>
+                <p className="text-sm text-gray-500">kcal</p>
+              </div>
+              
+              {/* 今日の摂取 */}
+              <div className="text-center p-2 bg-blue-50 rounded-lg border border-blue-200 mb-2">
+                <p className="text-xs text-gray-600">今日の摂取</p>
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <p className="text-lg font-bold text-purple-600">{data.actualCalories}</p>
+                  <p className="text-xs text-gray-500">kcal</p>
+                </div>
+                
+                {/* PFC割合（背景色付きタグ形式） */}
+                <div className="flex justify-center gap-1">
+                  <div className="px-1 py-0.5 bg-blue-100 rounded text-[10px]">
+                    <span className="text-blue-600">P:{data.proteinRatio}%</span>
+                  </div>
+                  <div className="px-1 py-0.5 bg-yellow-100 rounded text-[10px]">
+                    <span className="text-yellow-600">F:{data.fatRatio}%</span>
+                  </div>
+                  <div className="px-1 py-0.5 bg-red-100 rounded text-[10px]">
+                    <span className="text-red-600">C:{data.carbsRatio}%</span>
+                  </div>
+                </div>
+              </div>
 
-        {/* 進捗バー */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span>進捗</span>
-            <span>{Math.round(calorieProgress)}%</span>
+              {/* 今日の運動消費 */}
+              <div className="text-center p-2 bg-purple-50 rounded-lg border border-purple-200 lg:flex-1 lg:flex lg:flex-col lg:justify-center">
+                <p className="text-xs text-gray-600">今日の運動消費</p>
+                <div className="flex items-center justify-center gap-1">
+                  <p className="text-lg font-bold text-purple-600">{data.exerciseCalories}</p>
+                  <p className="text-xs text-gray-500">kcal</p>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div 
-              className={`h-2 rounded-full ${progressColor} transition-all duration-300`}
-              style={{ width: `${Math.min(calorieProgress, 100)}%` }}
-            ></div>
-          </div>
-        </div>
 
-        {/* PFC比率 */}
-        <div className="space-y-2">
-          <p className="text-sm font-medium">PFC比率</p>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="p-2 bg-purple-50 rounded">
-              <p className="text-xs text-gray-600">P</p>
-              <p className="font-semibold text-purple-600">{data.proteinRatio}%</p>
-            </div>
-            <div className="p-2 bg-yellow-50 rounded">
-              <p className="text-xs text-gray-600">F</p>
-              <p className="font-semibold text-yellow-600">{data.fatRatio}%</p>
-            </div>
-            <div className="p-2 bg-blue-50 rounded">
-              <p className="text-xs text-gray-600">C</p>
-              <p className="font-semibold text-blue-600">{data.carbsRatio}%</p>
+          {/* 右カラム: 理想カロリー */}
+          <div className="flex-1">
+            <div className="text-center p-3 bg-white rounded-lg border border-gray-200 flex flex-col lg:h-full">
+              <p className="text-sm text-gray-600">理想カロリー</p>
+              <div className="flex items-center justify-center gap-1 mb-3">
+                <p className="text-2xl font-bold text-green-600">{idealCalories}</p>
+                <p className="text-sm text-gray-500">kcal</p>
+              </div>
+              
+              {/* 理想PFC割合 */}
+              <div className="text-center p-2 bg-blue-50 rounded-lg border border-blue-200 mb-2">
+                <p className="text-xs text-gray-600 mb-1">理想PFC割合</p>
+                <div className="flex justify-center gap-1">
+                  <div className="px-1 py-0.5 bg-blue-100 rounded text-[10px]">
+                    <span className="text-blue-600">P:20%</span>
+                  </div>
+                  <div className="px-1 py-0.5 bg-yellow-100 rounded text-[10px]">
+                    <span className="text-yellow-600">F:25%</span>
+                  </div>
+                  <div className="px-1 py-0.5 bg-red-100 rounded text-[10px]">
+                    <span className="text-red-600">C:55%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 進捗表示 */}
+              <div className="text-center p-2 bg-orange-50 rounded-lg border border-orange-200 lg:flex-1 lg:flex lg:flex-col lg:justify-center">
+                <p className="text-xs text-gray-600">進捗</p>
+                <p className="text-lg font-bold text-red-600">{progress}%</p>
+                <p className="text-[10px] text-gray-500">
+                  {progress > 100 ? '目標超過' : progress >= 80 ? '目標近い' : '目標未達'}
+                </p>
+              </div>
             </div>
           </div>
         </div>

@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PFCChart } from "./pfc-chart";
 import { WeightChart } from "./weight-chart";
 import { getIdealCalories } from "@/lib/utils";
-import { MealHistoryCard } from "./meal-history-card"; 
+import { HistoryCard } from "./meal-history-card"; 
 import { useRouter } from "next/navigation";
 
 export function DashboardGrid({ profile }: { profile: any }) {
@@ -91,7 +91,7 @@ export function DashboardGrid({ profile }: { profile: any }) {
       </Card>
       
       {/* Bottom Row */}
-      <MealHistoryCard />
+      <HistoryCard />
       <OverviewCard 
         formData={editableData}
         setFormData={setEditableData}

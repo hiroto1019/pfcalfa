@@ -20,10 +20,10 @@ setInterval(cleanupCache, 10 * 60 * 1000);
 // 高速なフォールバックレスポンス生成（改善版）
 function createFallbackResponse(userProfile?: any, dailyData?: any) {
   // ユーザーの目標に基づいた詳細なフォールバック
-  let mealSummary = "バランスの良い食事で健康を維持しましょう。野菜とタンパク質を意識して。";
-  let mealDetail = "バランスの良い食事で健康を維持しましょう。野菜、タンパク質、炭水化物をバランスよく摂取。朝食はしっかりと、昼食は適度に、夕食は軽めに。間食は果物やナッツを選び、水分補給も忘れずに。";
-  let exerciseSummary = "適度な運動を取り入れてください。ウォーキングから始めてみましょう。";
-  let exerciseDetail = "適度な運動を取り入れてください。ウォーキング、ジョギング、サイクリングなどの有酸素運動を30分程度。筋トレも週2回取り入れて、全身の筋肉をバランスよく鍛えましょう。";
+  let mealSummary = "バランスの良い食事で健康を維持しましょう。野菜とタンパク質を意識して、バランスの良い栄養摂取を目指しましょう。";
+  let mealDetail = "バランスの良い食事で健康を維持しましょう。野菜、タンパク質、炭水化物をバランスよく摂取。朝食はしっかりと、昼食は適度に、夕食は軽めに。間食は果物やナッツを選び、水分補給も忘れずに。食事の時間をゆっくりとり、よく噛んで食べることで満腹感を得やすくなります。水分補給も忘れずに、1日1.5L以上の水を飲むことを心がけましょう。";
+  let exerciseSummary = "適度な運動を取り入れてください。ウォーキングから始めてみましょう。継続可能な運動習慣を作り、楽しみながら健康を維持しましょう。";
+  let exerciseDetail = "適度な運動を取り入れてください。ウォーキング、ジョギング、サイクリングなどの有酸素運動を30分程度。筋トレも週2回取り入れて、全身の筋肉をバランスよく鍛えましょう。また、運動前後のストレッチを忘れずに行い、怪我の予防をしましょう。運動の強度は会話ができる程度を目安にし、無理のない範囲で継続することが大切です。";
   
   if (userProfile) {
     const targetCalories = calculateTargetCalories(userProfile);
@@ -34,20 +34,20 @@ function createFallbackResponse(userProfile?: any, dailyData?: any) {
     const currentCarbs = dailyData?.total_carbs || 0;
     
     if (userProfile.goal_type === 'diet') {
-      mealSummary = "ダイエット中は野菜を多めに、炭水化物を控えめにしましょう。低カロリー食材を活用して。";
-      mealDetail = `ダイエット中は野菜を多めに、炭水化物を控えめにしましょう。朝食にサラダと卵、昼食は鶏胸肉と野菜、夕食は魚と野菜を中心に。間食はナッツやヨーグルトを選び、水分も十分に摂りましょう。${dailyData ? `今日の摂取カロリー: ${currentCalories}kcal、目標カロリー${Math.round(targetCalories)}kcalとの差: ${calorieDiff}kcal、タンパク質${Math.round(currentProtein)}g、脂質${Math.round(currentFat)}g、炭水化物${Math.round(currentCarbs)}g` : ''}1日の目標カロリー${Math.round(targetCalories)}kcalを意識して、食事の量と質をバランスよく調整してください。`;
-      exerciseSummary = "ウォーキングや軽い筋トレで代謝を上げましょう。毎日30分の運動を習慣に。";
-      exerciseDetail = "ウォーキングや軽い筋トレで代謝を上げましょう。毎日30分のウォーキング、週3回の筋トレ（スクワット、プッシュアップ、プランク）を習慣に。階段を使う、一駅分歩くなど、日常生活でも運動量を増やしましょう。有酸素運動で脂肪燃焼を促進し、筋トレで基礎代謝を維持することが重要です。";
+      mealSummary = "ダイエット中は野菜を多めに、炭水化物を控えめにしましょう。低カロリー食材を活用して、バランスの良い栄養摂取を目指しましょう。";
+      mealDetail = `ダイエット中は野菜を多めに、炭水化物を控えめにしましょう。朝食にサラダと卵、昼食は鶏胸肉と野菜、夕食は魚と野菜を中心に。間食はナッツやヨーグルトを選び、水分も十分に摂りましょう。${dailyData ? `今日の摂取カロリー: ${currentCalories}kcal、目標カロリー${Math.round(targetCalories)}kcalとの差: ${calorieDiff}kcal、タンパク質${Math.round(currentProtein)}g、脂質${Math.round(currentFat)}g、炭水化物${Math.round(currentCarbs)}g` : ''}1日の目標カロリー${Math.round(targetCalories)}kcalを意識して、食事の量と質をバランスよく調整してください。食事の時間をゆっくりとり、よく噛んで食べることで満腹感を得やすくなります。水分補給も忘れずに、1日1.5L以上の水を飲むことを心がけましょう。`;
+      exerciseSummary = "ウォーキングや軽い筋トレで代謝を上げましょう。毎日30分の運動を習慣に。継続可能な運動習慣を作り、楽しみながら健康を維持しましょう。";
+      exerciseDetail = "ウォーキングや軽い筋トレで代謝を上げましょう。毎日30分のウォーキング、週3回の筋トレ（スクワット、プッシュアップ、プランク）を習慣に。階段を使う、一駅分歩くなど、日常生活でも運動量を増やしましょう。有酸素運動で脂肪燃焼を促進し、筋トレで基礎代謝を維持することが重要です。また、運動前後のストレッチを忘れずに行い、怪我の予防をしましょう。運動の強度は会話ができる程度を目安にし、無理のない範囲で継続することが大切です。";
     } else if (userProfile.goal_type === 'bulk-up') {
-      mealSummary = "筋肉をつけるためにタンパク質を多めに摂りましょう。プロテインも活用して。";
-      mealDetail = `筋肉をつけるためにタンパク質を多めに摂りましょう。朝食にプロテインシェイク、昼食は鶏胸肉や牛肉、夕食は魚や豆腐を中心に。間食にナッツやチーズ、運動後はプロテインを摂取。炭水化物も適度に摂ってエネルギーを確保しましょう。${dailyData ? `今日の摂取カロリー: ${currentCalories}kcal、目標カロリー${Math.round(targetCalories)}kcalとの差: ${calorieDiff}kcal、タンパク質${Math.round(currentProtein)}g、脂質${Math.round(currentFat)}g、炭水化物${Math.round(currentCarbs)}g` : ''}1日3食に加えて、運動前後の栄養補給も重要です。`;
-      exerciseSummary = "筋トレを中心に、有酸素運動も取り入れましょう。週4回のトレーニングを目標に。";
-      exerciseDetail = "筋トレを中心に、有酸素運動も取り入れましょう。週4回の筋トレ（胸、背中、脚、肩をローテーション）、各部位8-12回×3セット。有酸素運動は週2回30分程度。十分な休息と栄養補給で筋肉の成長をサポートしましょう。プログレッシブオーバーロードを意識して、徐々に負荷を上げていくことが重要です。";
+      mealSummary = "筋肉をつけるためにタンパク質を多めに摂りましょう。プロテインも活用して、バランスの良い栄養摂取を目指しましょう。";
+      mealDetail = `筋肉をつけるためにタンパク質を多めに摂りましょう。朝食にプロテインシェイク、昼食は鶏胸肉や牛肉、夕食は魚や豆腐を中心に。間食にナッツやチーズ、運動後はプロテインを摂取。炭水化物も適度に摂ってエネルギーを確保しましょう。${dailyData ? `今日の摂取カロリー: ${currentCalories}kcal、目標カロリー${Math.round(targetCalories)}kcalとの差: ${calorieDiff}kcal、タンパク質${Math.round(currentProtein)}g、脂質${Math.round(currentFat)}g、炭水化物${Math.round(currentCarbs)}g` : ''}1日3食に加えて、運動前後の栄養補給も重要です。食事の時間をゆっくりとり、よく噛んで食べることで満腹感を得やすくなります。水分補給も忘れずに、1日1.5L以上の水を飲むことを心がけましょう。`;
+      exerciseSummary = "筋トレを中心に、有酸素運動も取り入れましょう。週4回のトレーニングを目標に。継続可能な運動習慣を作り、楽しみながら健康を維持しましょう。";
+      exerciseDetail = "筋トレを中心に、有酸素運動も取り入れましょう。週4回の筋トレ（胸、背中、脚、肩をローテーション）、各部位8-12回×3セット。有酸素運動は週2回30分程度。十分な休息と栄養補給で筋肉の成長をサポートしましょう。プログレッシブオーバーロードを意識して、徐々に負荷を上げていくことが重要です。また、運動前後のストレッチを忘れずに行い、怪我の予防をしましょう。運動の強度は会話ができる程度を目安にし、無理のない範囲で継続することが大切です。";
     } else {
-      mealSummary = "バランスの良い食事で健康を維持しましょう。多様な食材を取り入れて。";
-      mealDetail = `バランスの良い食事で健康を維持しましょう。野菜、タンパク質、炭水化物をバランスよく摂取。朝食はしっかりと、昼食は適度に、夕食は軽めに。間食は果物やナッツを選び、水分補給も忘れずに。${dailyData ? `今日の摂取カロリー: ${currentCalories}kcal、目標カロリー${Math.round(targetCalories)}kcalとの差: ${calorieDiff}kcal、タンパク質${Math.round(currentProtein)}g、脂質${Math.round(currentFat)}g、炭水化物${Math.round(currentCarbs)}g` : ''}1日の栄養バランスを意識して、多様な食材を取り入れることが重要です。`;
-      exerciseSummary = "週3回程度の運動で体力を維持しましょう。楽しめる運動を見つけて。";
-      exerciseDetail = "週3回程度の運動で体力を維持しましょう。ウォーキング、ジョギング、サイクリングなどの有酸素運動を30分程度。筋トレも週2回取り入れて、全身の筋肉をバランスよく鍛えましょう。継続可能な運動習慣を作り、楽しみながら健康を維持することが大切です。";
+      mealSummary = "バランスの良い食事で健康を維持しましょう。多様な食材を取り入れて、バランスの良い栄養摂取を目指しましょう。";
+      mealDetail = `バランスの良い食事で健康を維持しましょう。野菜、タンパク質、炭水化物をバランスよく摂取。朝食はしっかりと、昼食は適度に、夕食は軽めに。間食は果物やナッツを選び、水分補給も忘れずに。${dailyData ? `今日の摂取カロリー: ${currentCalories}kcal、目標カロリー${Math.round(targetCalories)}kcalとの差: ${calorieDiff}kcal、タンパク質${Math.round(currentProtein)}g、脂質${Math.round(currentFat)}g、炭水化物${Math.round(currentCarbs)}g` : ''}1日の栄養バランスを意識して、多様な食材を取り入れることが重要です。食事の時間をゆっくりとり、よく噛んで食べることで満腹感を得やすくなります。水分補給も忘れずに、1日1.5L以上の水を飲むことを心がけましょう。`;
+      exerciseSummary = "週3回程度の運動で体力を維持しましょう。楽しめる運動を見つけて。継続可能な運動習慣を作り、楽しみながら健康を維持しましょう。";
+      exerciseDetail = "週3回程度の運動で体力を維持しましょう。ウォーキング、ジョギング、サイクリングなどの有酸素運動を30分程度。筋トレも週2回取り入れて、全身の筋肉をバランスよく鍛えましょう。継続可能な運動習慣を作り、楽しみながら健康を維持することが大切です。また、運動前後のストレッチを忘れずに行い、怪我の予防をしましょう。運動の強度は会話ができる程度を目安にし、無理のない範囲で継続することが大切です。";
     }
 
     // 食事の好みがある場合は考慮
@@ -105,7 +105,7 @@ async function callGeminiAPI(prompt: string, retryCount = 0): Promise<any> {
     const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒に延長（高品質なアドバイス生成のため）
 
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: {
@@ -194,26 +194,61 @@ async function callGeminiAPI(prompt: string, retryCount = 0): Promise<any> {
         // 不足しているフィールドにデフォルト値を設定
         missingFields.forEach(field => {
           if (field === 'meal_summary') {
-            adviceData[field] = "今日も健康的な食事を心がけましょう。野菜とタンパク質を意識して。";
+            adviceData[field] = "今日も健康的な食事を心がけましょう。野菜とタンパク質を意識して、バランスの良い栄養摂取を目指しましょう。";
           } else if (field === 'meal_detail') {
-            adviceData[field] = "今日も健康的な食事を心がけましょう。野菜、タンパク質、炭水化物をバランスよく摂取。朝食はしっかりと、昼食は適度に、夕食は軽めに。間食は果物やナッツを選び、水分補給も忘れずに。";
+            adviceData[field] = "今日も健康的な食事を心がけましょう。野菜、タンパク質、炭水化物をバランスよく摂取。朝食はしっかりと、昼食は適度に、夕食は軽めに。間食は果物やナッツを選び、水分補給も忘れずに。食事の時間をゆっくりとり、よく噛んで食べることで満腹感を得やすくなります。水分補給も忘れずに、1日1.5L以上の水を飲むことを心がけましょう。";
           } else if (field === 'exercise_summary') {
-            adviceData[field] = "適度な運動を取り入れてください。ウォーキングから始めてみましょう。";
+            adviceData[field] = "適度な運動を取り入れてください。ウォーキングから始めてみましょう。継続可能な運動習慣を作り、楽しみながら健康を維持しましょう。";
           } else if (field === 'exercise_detail') {
-            adviceData[field] = "適度な運動を取り入れてください。ウォーキング、ジョギング、サイクリングなどの有酸素運動を30分程度。筋トレも週2回取り入れて、全身の筋肉をバランスよく鍛えましょう。";
+            adviceData[field] = "適度な運動を取り入れてください。ウォーキング、ジョギング、サイクリングなどの有酸素運動を30分程度。筋トレも週2回取り入れて、全身の筋肉をバランスよく鍛えましょう。また、運動前後のストレッチを忘れずに行い、怪我の予防をしましょう。運動の強度は会話ができる程度を目安にし、無理のない範囲で継続することが大切です。";
           }
         });
       }
       
-      // 文字数チェックと修正（改善版）
-      if (adviceData.meal_summary && adviceData.meal_summary.length < 40) {
-        console.log('食事要約が短すぎます。修正します。');
-        adviceData.meal_summary = adviceData.meal_summary + "具体的な食材や調理法を意識して、栄養バランスを整えましょう。";
+      // 文字数チェックと修正（指定された文字数制限）
+      if (adviceData.meal_summary) {
+        const mealSummaryLength = adviceData.meal_summary.length;
+        if (mealSummaryLength < 40) {
+          console.log('食事要約が短すぎます。修正します。');
+          adviceData.meal_summary = adviceData.meal_summary + "具体的な食材や調理法を意識して、栄養バランスを整えましょう。";
+        } else if (mealSummaryLength > 60) {
+          console.log('食事要約が長すぎます。短縮します。');
+          adviceData.meal_summary = adviceData.meal_summary.substring(0, 60);
+        }
       }
       
-      if (adviceData.exercise_summary && adviceData.exercise_summary.length < 40) {
-        console.log('運動要約が短すぎます。修正します。');
-        adviceData.exercise_summary = adviceData.exercise_summary + "継続可能な運動習慣を作り、楽しみながら健康を維持しましょう。";
+      if (adviceData.exercise_summary) {
+        const exerciseSummaryLength = adviceData.exercise_summary.length;
+        if (exerciseSummaryLength < 40) {
+          console.log('運動要約が短すぎます。修正します。');
+          adviceData.exercise_summary = adviceData.exercise_summary + "継続可能な運動習慣を作り、楽しみながら健康を維持しましょう。";
+        } else if (exerciseSummaryLength > 60) {
+          console.log('運動要約が長すぎます。短縮します。');
+          adviceData.exercise_summary = adviceData.exercise_summary.substring(0, 60);
+        }
+      }
+      
+      // 詳細文の文字数チェックと修正
+      if (adviceData.meal_detail) {
+        const mealDetailLength = adviceData.meal_detail.length;
+        if (mealDetailLength < 160) {
+          console.log('食事詳細が短すぎます。修正します。');
+          adviceData.meal_detail = adviceData.meal_detail + "また、食事の時間をゆっくりとり、よく噛んで食べることで満腹感を得やすくなります。水分補給も忘れずに、1日1.5L以上の水を飲むことを心がけましょう。食材の選び方や調理法も工夫して、栄養価を高めながら美味しく食べることを心がけましょう。";
+        } else if (mealDetailLength > 200) {
+          console.log('食事詳細が長すぎます。短縮します。');
+          adviceData.meal_detail = adviceData.meal_detail.substring(0, 200);
+        }
+      }
+      
+      if (adviceData.exercise_detail) {
+        const exerciseDetailLength = adviceData.exercise_detail.length;
+        if (exerciseDetailLength < 160) {
+          console.log('運動詳細が短すぎます。修正します。');
+          adviceData.exercise_detail = adviceData.exercise_detail + "また、運動前後のストレッチを忘れずに行い、怪我の予防をしましょう。運動の強度は会話ができる程度を目安にし、無理のない範囲で継続することが大切です。運動の種類もバリエーションを増やして、飽きずに続けられるようにしましょう。";
+        } else if (exerciseDetailLength > 200) {
+          console.log('運動詳細が長すぎます。短縮します。');
+          adviceData.exercise_detail = adviceData.exercise_detail.substring(0, 200);
+        }
       }
       
       console.log('最終的なアドバイスデータ:', adviceData);
@@ -286,29 +321,35 @@ export async function POST(request: NextRequest) {
 以下のJSON形式で出力してください：
 {
   "meal_summary": "食事アドバイスの要約（40-60文字、具体的で魅力的な表現）",
-  "meal_detail": "食事アドバイスの詳細（100-300文字、具体的で実行しやすい内容）",
+  "meal_detail": "食事アドバイスの詳細（160-200文字、具体的で実行しやすい内容）",
   "exercise_summary": "運動アドバイスの要約（40-60文字、具体的で魅力的な表現）",
-  "exercise_detail": "運動アドバイスの詳細（100-300文字、具体的で実行しやすい内容）"
+  "exercise_detail": "運動アドバイスの詳細（160-200文字、具体的で実行しやすい内容）"
 }
 
 ユーザー情報: ${userProfile.username}, ${userProfile.gender}, ${userProfile.height_cm}cm, ${userProfile.initial_weight_kg}kg→${userProfile.target_weight_kg}kg, 目標:${userProfile.goal_type}
 ${foodPreferencesText ? `${foodPreferencesText}` : ''}
 ${dailyData ? `今日の摂取状況: カロリー${dailyData.total_calories || 0}kcal, タンパク質${Math.round(dailyData.total_protein || 0)}g, 脂質${Math.round(dailyData.total_fat || 0)}g, 炭水化物${Math.round(dailyData.total_carbs || 0)}g` : ''}
 
-【重要】以下の数値を必ず参照してアドバイスを生成してください：
-- 目標カロリー: ${Math.round(targetCalories)}kcal
+【絶対に守るべき数値（間違えてはいけません）】:
+- 理想カロリー: ${Math.round(targetCalories)}kcal
 - 今日の摂取カロリー: ${dailyData?.total_calories || 0}kcal
 - 今日のタンパク質: ${Math.round(dailyData?.total_protein || 0)}g
 - 今日の脂質: ${Math.round(dailyData?.total_fat || 0)}g
 - 今日の炭水化物: ${Math.round(dailyData?.total_carbs || 0)}g
 
+【禁止事項】:
+- 上記で指定した数値以外のカロリー数値を使用してはいけません
+- 間違った数値を絶対に使用してはいけません
+- 目標カロリーは必ず${Math.round(targetCalories)}kcalとして参照してください
+- 今日の摂取カロリーは必ず${dailyData?.total_calories || 0}kcalとして参照してください
+
 アドバイスのポイント:
 - 食事: 今日の摂取データ（${dailyData?.total_calories || 0}kcal）を踏まえて、目標カロリー${Math.round(targetCalories)}kcalに向けた具体的な食材やメニューを提案
 - 運動: 今日の摂取カロリー（${dailyData?.total_calories || 0}kcal）と目標カロリー${Math.round(targetCalories)}kcalの差を考慮した適切な運動強度を提案
 - 要約は40-60文字で、毎回異なる表現を使用
-- 詳細は100-300文字で、具体的で実行しやすい内容
+- 詳細は160-200文字で、具体的で実行しやすい内容
 - 今日の摂取データがある場合は、それを踏まえた具体的なアドバイス
-- 上記で指定した正確な数値を使用してアドバイスを提供
+- 上記で指定した正確な数値のみを使用してアドバイスを提供
 - 数値は整数で表示
 - 今日のPFCバランスを考慮したアドバイス`;
 
@@ -318,85 +359,57 @@ ${dailyData ? `今日の摂取状況: カロリー${dailyData.total_calories || 
       // Gemini APIを呼び出し（高精度版）
       const result = await callGeminiAPI(prompt);
       
-      // 目標カロリーの検証と修正（改善版）
+      // 目標カロリーの検証と修正（強化版）
       const correctTargetCalories = Math.round(targetCalories);
-      const currentCalories = dailyData?.total_calories || 0;
+      const actualCalories = dailyData?.total_calories || 0;
       
-      // 間違った目標カロリーを検出して修正（改善版）
-      const wrongCaloriePatterns = [
-        /(\d{3,4})kcal/g,  // 3-4桁の数値+kcal
-        /目標カロリー(\d{3,4})/g,  // 目標カロリー+3-4桁の数値
-        /(\d{3,4})カロリー/g,  // 3-4桁の数値+カロリー
-        /(\d{3,4})を目標に/g,  // 3-4桁の数値+を目標に
-        /(\d{3,4})の消費/g,  // 3-4桁の数値+の消費
-        /約(\d{3,4})kcal/g  // 約+3-4桁の数値+kcal
-      ];
-      
+      // 数値の自動修正機能（強化版）
       ['meal_summary', 'meal_detail', 'exercise_summary', 'exercise_detail'].forEach(field => {
         if (result[field]) {
           let text = result[field];
           let hasCorrection = false;
           
-          wrongCaloriePatterns.forEach(pattern => {
-            const matches = text.match(pattern);
-            if (matches) {
-              matches.forEach((match: string) => {
-                const numberMatch = match.match(/\d{3,4}/);
-                if (numberMatch) {
-                  const wrongNumber = parseInt(numberMatch[0]);
-                  // 正しい目標カロリーと大きく異なる場合（±300kcal以上）は修正
-                  if (Math.abs(wrongNumber - correctTargetCalories) > 300) {
-                    console.log(`間違った目標カロリーを検出: ${wrongNumber}kcal → ${correctTargetCalories}kcal`);
-                    text = text.replace(match, match.replace(wrongNumber.toString(), correctTargetCalories.toString()));
-                    hasCorrection = true;
-                  }
-                }
-              });
-            }
-          });
-          
-          if (hasCorrection) {
-            result[field] = text;
-            console.log(`フィールド ${field} の目標カロリーを修正しました`);
-          }
-        }
-      });
-      
-      // 今日の摂取カロリーの検証と修正（改善版）
-      ['meal_summary', 'meal_detail', 'exercise_summary', 'exercise_detail'].forEach(field => {
-        if (result[field]) {
-          let text = result[field];
-          let hasCorrection = false;
-          
-          // 今日の摂取カロリーの間違った表現を検出
-          const wrongCurrentCaloriePatterns = [
-            /今日の摂取カロリーが(\d{3,4})/g,  // 今日の摂取カロリーが+3-4桁の数値
-            /摂取カロリー(\d{3,4})/g,  // 摂取カロリー+3-4桁の数値
-            /(\d{3,4})と高め/g,  // 3-4桁の数値+と高め
-            /(\d{3,4})と低め/g   // 3-4桁の数値+と低め
+          // 目標カロリーの誤りを修正（より多くのパターンに対応）
+          const targetCaloriePatterns = [
+            { pattern: /(\d{3,4})kcal.*目標/, replacement: `${correctTargetCalories}kcal` },
+            { pattern: /目標.*(\d{3,4})kcal/, replacement: `${correctTargetCalories}kcal` },
+            { pattern: /(\d{3,4})kcal.*目指/, replacement: `${correctTargetCalories}kcal` },
+            { pattern: /理想.*(\d{3,4})kcal/, replacement: `${correctTargetCalories}kcal` },
+            { pattern: /(\d{3,4})kcal.*理想/, replacement: `${correctTargetCalories}kcal` },
+            { pattern: /目標の(\d{3,4})kcal/, replacement: `目標の${correctTargetCalories}kcal` },
+            { pattern: /(\d{3,4})kcalを目標/, replacement: `${correctTargetCalories}kcalを目標` }
           ];
           
-          wrongCurrentCaloriePatterns.forEach(pattern => {
-            const matches = text.match(pattern);
-            if (matches) {
-              matches.forEach((match: string) => {
-                const numberMatch = match.match(/\d{3,4}/);
-                if (numberMatch) {
-                  const wrongNumber = parseInt(numberMatch[0]);
-                  // 正しい今日の摂取カロリーと大きく異なる場合（±300kcal以上）は修正
-                  if (Math.abs(wrongNumber - currentCalories) > 300) {
-                    console.log(`間違った今日の摂取カロリーを検出: ${wrongNumber}kcal → ${currentCalories}kcal`);
-                    text = text.replace(match, match.replace(wrongNumber.toString(), currentCalories.toString()));
-                    hasCorrection = true;
-                  }
-                }
-              });
+          targetCaloriePatterns.forEach(({ pattern, replacement }) => {
+            if (pattern.test(text)) {
+              console.log(`目標カロリーの誤りを検出、${correctTargetCalories}kcalに修正します`);
+              text = text.replace(pattern, replacement);
+              hasCorrection = true;
+            }
+          });
+          
+          // 今日の摂取カロリーの誤りを修正（より多くのパターンに対応）
+          const intakeCaloriePatterns = [
+            { pattern: /今日の摂取カロリー.*(\d{3,4})kcal/, replacement: `今日の摂取カロリー${actualCalories}kcal` },
+            { pattern: /摂取カロリー.*(\d{3,4})kcal/, replacement: `摂取カロリー${actualCalories}kcal` },
+            { pattern: /今日の摂取カロリーが(\d{3,4})/, replacement: `今日の摂取カロリーが${actualCalories}` },
+            { pattern: /摂取カロリーが(\d{3,4})/, replacement: `摂取カロリーが${actualCalories}` },
+            { pattern: /(\d{3,4})kcal.*摂取/, replacement: `${actualCalories}kcal` },
+            { pattern: /(\d{3,4})kcalと.*少ない/, replacement: `${actualCalories}kcalと少ない` },
+            { pattern: /(\d{3,4})kcalと.*多い/, replacement: `${actualCalories}kcalと多い` }
+          ];
+          
+          intakeCaloriePatterns.forEach(({ pattern, replacement }) => {
+            if (pattern.test(text)) {
+              console.log(`今日の摂取カロリーの誤りを検出、${actualCalories}kcalに修正します`);
+              text = text.replace(pattern, replacement);
+              hasCorrection = true;
             }
           });
           
           if (hasCorrection) {
+            console.log(`フィールド ${field} の数値を修正しました`);
             result[field] = text;
-            console.log(`フィールド ${field} の今日の摂取カロリーを修正しました`);
           }
         }
       });

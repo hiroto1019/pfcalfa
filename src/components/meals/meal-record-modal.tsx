@@ -8,6 +8,7 @@ import { useState, useRef, useEffect } from "react";
 import { analyzeImageNutrition, analyzeTextNutrition, GrokNutritionResponse } from "@/lib/grok";
 import { createClient } from "@/lib/supabase/client";
 import { findFoodByName } from "@/lib/food-database";
+import { Camera, FileText } from "lucide-react";
 
 interface Meal {
   id: string;
@@ -41,10 +42,17 @@ export function MealRecordModal() {
   const [textErrorMessage, setTextErrorMessage] = useState("");
   const [textInput, setTextInput] = useState("");
   const [analysisMethod, setAnalysisMethod] = useState<"image" | "text" | null>(null);
+  // 外部API検索機能
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedFood, setSelectedFood] = useState<any>(null);
+  
+  // 過去履歴機能
+  const [historyQuery, setHistoryQuery] = useState("");
+  const [historyResults, setHistoryResults] = useState<any[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -56,7 +64,22 @@ export function MealRecordModal() {
     }
   }, [open]);
 
-  // リアルタイム検索のためのuseEffect
+  // 記録選択モーダルからのイベントをリッスン
+  useEffect(() => {
+    const handleOpenMealRecordModal = (event: CustomEvent) => {
+      setOpen(true);
+      if (event.detail?.method) {
+        setAnalysisMethod(event.detail.method);
+      }
+    };
+
+    window.addEventListener('openMealRecordModal', handleOpenMealRecordModal as EventListener);
+    return () => {
+      window.removeEventListener('openMealRecordModal', handleOpenMealRecordModal as EventListener);
+    };
+  }, []);
+
+  // 外部API検索機能
   useEffect(() => {
     const query = searchQuery.trim();
     if (!query) {
@@ -69,7 +92,7 @@ export function MealRecordModal() {
     const timeoutId = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const response = await fetch(`/api/food/search?q=${encodeURIComponent(query)}`);
+        const response = await fetch(`/api/food/external-search?q=${encodeURIComponent(query)}`);
         const data = await response.json();
         
         if (data.success) {
@@ -78,7 +101,7 @@ export function MealRecordModal() {
           setSearchResults([]);
         }
       } catch (error) {
-        console.error('食品検索エラー:', error);
+        console.error('外部API食品検索エラー:', error);
         setSearchResults([]);
       } finally {
         setIsSearching(false);
@@ -87,6 +110,32 @@ export function MealRecordModal() {
 
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
+
+  // 過去履歴読み込み機能
+  useEffect(() => {
+    if (showHistory) {
+      const loadHistory = async () => {
+        setIsLoadingHistory(true);
+        try {
+          const response = await fetch('/api/food/history?limit=20');
+          const data = await response.json();
+          
+          if (data.success) {
+            setHistoryResults(data.data);
+          } else {
+            setHistoryResults([]);
+          }
+        } catch (error) {
+          console.error('過去履歴読み込みエラー:', error);
+          setHistoryResults([]);
+        } finally {
+          setIsLoadingHistory(false);
+        }
+      };
+      
+      loadHistory();
+    }
+  }, [showHistory]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -318,14 +367,13 @@ export function MealRecordModal() {
     }
   };
 
-  // 検索結果から食品を選択
+  // 外部API検索機能
   const handleFoodSelect = (food: any) => {
     setSelectedFood(food);
     setSearchResults([]);
     setSearchQuery(food.name);
   };
 
-  // 選択した食品を適用
   const handleApplyFood = () => {
     if (!selectedFood) return;
     
@@ -348,15 +396,49 @@ export function MealRecordModal() {
     setIsCorrectedByUser(true);
   };
 
+  // 過去履歴から選択
+  const handleHistorySelect = (meal: any) => {
+    setFormData({
+      food_name: meal.food_name,
+      calories: meal.calories.toString(),
+      protein: meal.protein.toString(),
+      fat: meal.fat.toString(),
+      carbs: meal.carbs.toString()
+    });
+    setNutritionData({
+      food_name: meal.food_name,
+      calories: meal.calories,
+      protein: meal.protein,
+      fat: meal.fat,
+      carbs: meal.carbs
+    });
+    setHistoryResults([]);
+    setHistoryQuery("");
+    setShowHistory(false);
+    setIsCorrectedByUser(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('ユーザーが見つかりません');
+      console.log('食事記録保存開始');
+      
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        console.error('認証エラー:', authError);
+        throw new Error(`認証エラー: ${authError.message}`);
+      }
+      
+      if (!user) {
+        console.error('ユーザーが見つかりません');
+        throw new Error('ユーザーが見つかりません');
+      }
 
-      console.log('食事記録保存開始:', {
+      console.log('ユーザーID:', user.id);
+
+      const mealData = {
         user_id: user.id,
         food_name: formData.food_name,
         calories: parseFloat(formData.calories),
@@ -364,21 +446,15 @@ export function MealRecordModal() {
         fat: parseFloat(formData.fat),
         carbs: parseFloat(formData.carbs),
         is_corrected_by_user: isCorrectedByUser
-      });
+      };
 
-      const { data, error } = await supabase.from('meals').insert({
-        user_id: user.id,
-        food_name: formData.food_name,
-        calories: parseFloat(formData.calories),
-        protein: parseFloat(formData.protein),
-        fat: parseFloat(formData.fat),
-        carbs: parseFloat(formData.carbs),
-        is_corrected_by_user: isCorrectedByUser
-      }).select();
+      console.log('保存する食事データ:', mealData);
+
+      const { data, error } = await supabase.from('meals').insert(mealData).select();
 
       if (error) {
         console.error('食事記録保存エラー:', error);
-        throw error;
+        throw new Error(`食事記録の保存に失敗しました: ${error.message}`);
       }
 
       console.log('食事記録保存成功:', data);
@@ -501,6 +577,9 @@ export function MealRecordModal() {
       setNutritionData(null);
       setSearchQuery("");
       setSelectedFood(null);
+      setHistoryQuery("");
+      setHistoryResults([]);
+      setShowHistory(false);
       setTextInput("");
       setIsCorrectedByUser(false);
       setAnalysisMethod(null);
@@ -514,7 +593,7 @@ export function MealRecordModal() {
       
     } catch (error) {
       console.error('食事記録エラー:', error);
-      alert('食事記録の保存に失敗しました。');
+      alert(error instanceof Error ? error.message : '食事記録の保存に失敗しました。');
     } finally {
       setIsSubmitting(false);
     }
@@ -547,21 +626,11 @@ export function MealRecordModal() {
     );
   };
 
-  const renderImageAnalysis = () => {
+    const renderImageAnalysis = () => {
     if (analysisMethod !== "image") return null;
-
+    
       return (
         <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">画像解析</h3>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => setAnalysisMethod(null)}
-          >
-            戻る
-          </Button>
-        </div>
           <div>
             <Label htmlFor="meal-image">食事の画像をアップロード</Label>
             <Input 
@@ -608,16 +677,6 @@ export function MealRecordModal() {
     
       return (
         <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">テキスト解析</h3>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => setAnalysisMethod(null)}
-          >
-            戻る
-          </Button>
-        </div>
           <div>
             <Label htmlFor="meal-text">食事の内容を入力</Label>
             <Textarea 
@@ -705,77 +764,149 @@ export function MealRecordModal() {
     return (
       <form onSubmit={handleSubmit} className="space-y-4 mt-6">
         <div className="grid grid-cols-1 gap-4">
-          <div>
-            <Label htmlFor="food_name">食品名</Label>
-            <div className="space-y-2">
+          {/* 食品検索と過去履歴ボタン */}
+          <div className="space-y-2">
+            <Label>食品検索</Label>
+            <div className="flex gap-2">
               <Input
-                id="food_name"
-                name="food_name"
-                value={formData.food_name}
-                onChange={handleInputChange}
-                required
-                className="text-sm"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="検索したい食品名を入力"
+                className="text-sm flex-1"
               />
-              <div className="space-y-2">
-                <Input
-                  placeholder="食品を検索..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                {isSearching && (
-                  <div className="text-sm text-gray-500">検索中...</div>
-                )}
+            </div>
+            
+            {/* 過去履歴ボタン */}
+            <div className="flex space-x-2">
+              <Button
+                type="button"
+                variant={showHistory ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowHistory(!showHistory)}
+              >
+                過去履歴
+              </Button>
+            </div>
+            
+            {/* 検索結果表示 */}
+            {searchResults.length > 0 && (
+              <div className="border rounded-lg p-2 max-h-32 overflow-y-auto mt-2">
+                {searchResults.map((food, index) => (
+                  <div
+                    key={index}
+                    className="p-2 hover:bg-gray-100 cursor-pointer text-sm"
+                    onClick={() => handleFoodSelect(food)}
+                  >
+                    <div className="font-medium">{food.name || food.food_name}</div>
+                    <div className="text-gray-600">
+                      {food.calories}kcal (P:{food.protein}g, F:{food.fat}g, C:{food.carbs}g)
+                    </div>
+                    {food.source && (
+                      <div className="text-xs text-blue-600 mt-1">
+                        出典: {food.source}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
-              {searchResults.length > 0 && (
-                <div className="border rounded-lg p-2 max-h-32 overflow-y-auto">
-                  {searchResults.map((food, index) => (
-                    <div
-                      key={index}
-                      className="p-2 hover:bg-gray-100 cursor-pointer text-sm"
-                      onClick={() => handleFoodSelect(food)}
-                    >
-                      <div className="font-medium">{food.name}</div>
-                      <div className="text-gray-600">
-                        {food.calories}kcal (P:{food.protein}g, F:{food.fat}g, C:{food.carbs}g)
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {selectedFood && (
-                <div className="border rounded-lg p-3 bg-blue-50">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <div className="font-medium text-blue-900">{selectedFood.name}</div>
-                      <div className="text-sm text-blue-700">
-                        {selectedFood.calories}kcal (P:{selectedFood.protein}g, F:{selectedFood.fat}g, C:{selectedFood.carbs}g)
-                      </div>
-                    </div>
-                    <Button 
-                      type="button" 
-                      onClick={handleApplyFood}
-                      size="sm"
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      適用
-                    </Button>
+            )}
+            
+            {/* 検索結果が0件の場合のメッセージ */}
+            {searchQuery.trim() && !isSearching && searchResults.length === 0 && (
+              <div className="border rounded-lg p-3 bg-gray-50 mt-2">
+                <div className="text-center text-gray-600">
+                  <div className="text-sm font-medium mb-1">検索結果が見つかりませんでした</div>
+                  <div className="text-xs text-gray-500">
+                    「{searchQuery}」に一致する食品が見つかりませんでした。<br />
+                    別のキーワードで検索するか、手動で栄養情報を入力してください。
                   </div>
                 </div>
-              )}
-              {isCorrectedByUser && (
-                <Button 
-                  type="button" 
-                  onClick={handleFoodNameCorrection}
-                  disabled={isAnalyzing}
-                  size="sm"
-                  className="mt-1"
-                >
-                  {isAnalyzing ? "再解析中..." : "再解析"}
-                </Button>
-              )}
-            </div>
+              </div>
+            )}
+            
+            {/* 選択された食品の表示 */}
+            {selectedFood && (
+              <div className="border rounded-lg p-3 bg-blue-50 mt-2">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="font-medium text-blue-900">{selectedFood.name || selectedFood.food_name}</div>
+                    <div className="text-sm text-blue-700">
+                      {selectedFood.calories}kcal (P:{selectedFood.protein}g, F:{selectedFood.fat}g, C:{selectedFood.carbs}g)
+                    </div>
+                    {selectedFood.source && (
+                      <div className="text-xs text-blue-600 mt-1">
+                        出典: {selectedFood.source}
+                      </div>
+                    )}
+                  </div>
+                  <Button 
+                    type="button" 
+                    onClick={handleApplyFood}
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    適用
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {showHistory && (
+              // 過去履歴一覧表示
+              <div className="space-y-2">
+                <div className="text-sm text-gray-600 mb-2">過去に登録した食品一覧</div>
+                {isLoadingHistory && (
+                  <div className="text-sm text-gray-500">過去履歴を読み込み中...</div>
+                )}
+                {historyResults.length > 0 && (
+                  <div className="border rounded-lg p-2 max-h-32 overflow-y-auto">
+                    {historyResults.map((meal, index) => (
+                      <div
+                        key={index}
+                        className="p-2 hover:bg-gray-100 cursor-pointer text-sm"
+                        onClick={() => handleHistorySelect(meal)}
+                      >
+                        <div className="font-medium">{meal.food_name}</div>
+                        <div className="text-gray-600">
+                          {meal.calories}kcal (P:{meal.protein}g, F:{meal.fat}g, C:{meal.carbs}g)
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {new Date(meal.created_at).toLocaleDateString('ja-JP')}に登録
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <div>
+            <Label htmlFor="food_name">食品名</Label>
+            <Input
+              id="food_name"
+              name="food_name"
+              value={formData.food_name}
+              onChange={handleInputChange}
+              required
+              className="text-sm"
+              placeholder="食品名を入力"
+            />
+            
+            {isCorrectedByUser && (
+              <Button 
+                type="button" 
+                onClick={handleFoodNameCorrection}
+                disabled={isAnalyzing}
+                size="sm"
+                className="mt-1"
+              >
+                {isAnalyzing ? "再解析中..." : "再解析"}
+              </Button>
+            )}
           </div>
         </div>
+        
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label htmlFor="calories">カロリー (kcal)</Label>
@@ -802,6 +933,7 @@ export function MealRecordModal() {
             />
           </div>
         </div>
+        
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label htmlFor="fat">脂質 (g)</Label>
@@ -828,28 +960,31 @@ export function MealRecordModal() {
             />
           </div>
         </div>
-
-
       </form>
     );
   };
 
   return (
     <>
-      <div className="fixed bottom-8 right-8">
-        <Button 
-          size="lg" 
-          className="rounded-full w-16 h-16 text-2xl shadow-lg" 
-          onClick={() => setOpen(true)}
-        >
-          +
-        </Button>
-      </div>
       
       <div ref={modalRef} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
         <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden">
           <div className="flex justify-between items-center p-6 border-b border-gray-200 rounded-t-lg">
-            <h2 className="text-xl font-bold">食事の記録</h2>
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              {analysisMethod === 'image' ? (
+                <>
+                  <Camera className="w-6 h-6" />
+                  画像解析
+                </>
+              ) : analysisMethod === 'text' ? (
+                <>
+                  <FileText className="w-6 h-6" />
+                  テキスト解析
+                </>
+              ) : (
+                '食事の記録'
+              )}
+            </h2>
             <Button 
               variant="ghost" 
               size="sm" 
@@ -886,12 +1021,27 @@ export function MealRecordModal() {
           {/* 登録ボタン（解析方法が選択されている場合のみ表示） */}
           {analysisMethod && (
             <div className="border-t border-gray-200 p-6 bg-white rounded-b-lg">
-              <div className="flex justify-end gap-2">
+              <div className="flex gap-3 justify-end">
+                <Button 
+                  type="button"
+                  variant="outline"
+                  disabled={isSubmitting}
+                  className="w-16 h-9"
+                  onClick={() => {
+                    // 記録方法を選択モーダルに戻る
+                    const event = new CustomEvent('openRecordSelectionModal');
+                    window.dispatchEvent(event);
+                    // 現在のモーダルを閉じる
+                    setOpen(false);
+                  }}
+                >
+                  戻る
+                </Button>
                 <Button 
                   type="button" 
                   onClick={handleSubmit}
                   disabled={!isFormComplete || isSubmitting}
-                  className="w-full sm:w-auto"
+                  className="w-16 h-9"
                 >
                   {isSubmitting ? "登録中..." : "登録"}
                 </Button>
