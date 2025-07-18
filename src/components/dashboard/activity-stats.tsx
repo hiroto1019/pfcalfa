@@ -5,6 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createClient } from "@/lib/supabase/client";
 
+interface ActivityLog {
+  id: string;
+  user_id: string;
+  date: string;
+  activity_level: number;
+  notes?: string;
+  created_at: string;
+}
+
 interface ActivityStats {
   totalDays: number;
   averageLevel: number;
@@ -58,16 +67,17 @@ export function ActivityStats() {
         .order('date', { ascending: false });
 
       if (activityLogs && activityLogs.length > 0) {
-        const totalDays = activityLogs.length;
-        const totalLevel = activityLogs.reduce((sum, log) => sum + log.activity_level, 0);
+        const typedActivityLogs = activityLogs as ActivityLog[];
+        const totalDays = typedActivityLogs.length;
+        const totalLevel = typedActivityLogs.reduce((sum: number, log: ActivityLog) => sum + log.activity_level, 0);
         const averageLevel = totalLevel / totalDays;
 
         const levelDistribution: { [key: number]: number } = {};
-        activityLogs.forEach(log => {
+        typedActivityLogs.forEach((log: ActivityLog) => {
           levelDistribution[log.activity_level] = (levelDistribution[log.activity_level] || 0) + 1;
         });
 
-        const recentActivity = activityLogs.slice(0, 7).map(log => ({
+        const recentActivity = typedActivityLogs.slice(0, 7).map((log: ActivityLog) => ({
           date: log.date,
           level: log.activity_level,
           notes: log.notes
