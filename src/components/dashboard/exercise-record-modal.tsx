@@ -66,6 +66,8 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
   const [errorMessage, setErrorMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'manual' | 'analysis'>('manual');
   const [isRegisteredFromAnalysis, setIsRegisteredFromAnalysis] = useState(false);
+  const [showAnalysisModal, setShowAnalysisModal] = useState(false);
+  const [analysisData, setAnalysisData] = useState<any>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -128,17 +130,10 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
 
       if (data.success) {
         setAnalysisResult(data.data);
-        // 解析結果をフォームに反映
-        setFormData({
-          exercise_name: data.data.exercise_name,
-          duration_minutes: data.data.duration_minutes.toString(),
-          calories_burned: data.data.calories_burned.toString(),
-          exercise_type: data.data.exercise_type,
-          notes: data.data.notes || ''
-        });
-        setActiveTab('manual');
-        // AI解析からの登録フラグをリセット
-        setIsRegisteredFromAnalysis(false);
+        setAnalysisData(data.data);
+        setShowAnalysisModal(true);
+        // 手動入力タブには自動的に移動しない
+        // フォームデータも自動的に設定しない
       } else {
         setErrorMessage(data.error || '解析に失敗しました');
       }
@@ -155,12 +150,6 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
     
     if (!formData.exercise_name || !formData.duration_minutes || !formData.calories_burned || !formData.exercise_type) {
       alert('必須項目を入力してください');
-      return;
-    }
-
-    // AI解析からの登録フラグが立っている場合は重複登録を防ぐ
-    if (isRegisteredFromAnalysis) {
-      alert('この運動は既に登録済みです。新しい運動を記録する場合は、手動で入力してください。');
       return;
     }
 
@@ -205,11 +194,6 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
       const data = await response.json();
       console.log('運動記録作成成功:', data);
 
-      // AI解析からの登録の場合はフラグを立てる
-      if (analysisResult) {
-        setIsRegisteredFromAnalysis(true);
-      }
-
       // フォームをリセット
       setFormData({
         exercise_name: '',
@@ -221,7 +205,9 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
       setSelectedExercise(null);
       setAnalysisText('');
       setAnalysisResult(null);
+      setAnalysisData(null);
       setErrorMessage('');
+      setShowAnalysisModal(false);
 
       onExerciseAdded();
       onClose();
@@ -253,16 +239,190 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
     setSelectedExercise(null);
     setAnalysisText('');
     setAnalysisResult(null);
+    setAnalysisData(null);
     setErrorMessage('');
     setActiveTab('manual');
     setIsRegisteredFromAnalysis(false);
+    setShowAnalysisModal(false);
     onClose();
+  };
+
+  // 解析完了モーダルでの記録処理
+  const handleAnalysisRecord = async () => {
+    if (!analysisData) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const requestBody = {
+        exercise_name: analysisData.exercise_name,
+        duration_minutes: analysisData.duration_minutes,
+        calories_burned: analysisData.calories_burned,
+        exercise_type: analysisData.exercise_type,
+        notes: analysisData.notes || ''
+      };
+
+      console.log('AI解析結果から運動記録作成リクエスト:', requestBody);
+
+      const response = await fetch('/api/exercise', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('運動記録作成エラーレスポンス:', errorText);
+        
+        let errorMessage = '運動記録の作成に失敗しました';
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          console.error('エラーレスポンスのパース失敗:', e);
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      console.log('AI解析結果から運動記録作成成功:', data);
+
+      // フォームをリセット
+      setFormData({
+        exercise_name: '',
+        duration_minutes: '',
+        calories_burned: '',
+        exercise_type: '',
+        notes: ''
+      });
+      setSelectedExercise(null);
+      setAnalysisText('');
+      setAnalysisResult(null);
+      setAnalysisData(null);
+      setErrorMessage('');
+      setShowAnalysisModal(false);
+
+      onExerciseAdded();
+      onClose();
+
+    } catch (error) {
+      console.error('運動記録作成エラー:', error);
+      alert(error instanceof Error ? error.message : '運動記録の作成に失敗しました');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // 解析完了モーダルでの編集処理
+  const handleAnalysisEdit = () => {
+    if (!analysisData) return;
+
+    // 解析結果をフォームに反映
+    setFormData({
+      exercise_name: analysisData.exercise_name,
+      duration_minutes: analysisData.duration_minutes.toString(),
+      calories_burned: analysisData.calories_burned.toString(),
+      exercise_type: analysisData.exercise_type,
+      notes: analysisData.notes || ''
+    });
+
+    setShowAnalysisModal(false);
+    setActiveTab('manual');
+  };
+
+  // 解析完了モーダルでのキャンセル処理
+  const handleAnalysisCancel = () => {
+    setShowAnalysisModal(false);
+    setAnalysisData(null);
+    setAnalysisResult(null);
   };
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <>
+      {/* 解析完了モーダル */}
+      {showAnalysisModal && analysisData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-md p-6">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Activity className="w-8 h-8 text-green-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">解析完了</h3>
+              <p className="text-gray-600">運動内容の解析が完了しました</p>
+            </div>
+
+            {/* 解析結果の表示 */}
+            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">運動名</span>
+                  <span className="font-medium">{analysisData.exercise_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">運動時間</span>
+                  <span className="font-medium">{analysisData.duration_minutes}分</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">消費カロリー</span>
+                  <span className="font-medium text-orange-600">{analysisData.calories_burned}kcal</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">運動タイプ</span>
+                  <span className="font-medium">{analysisData.exercise_type}</span>
+                </div>
+                {analysisData.notes && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">補足</span>
+                    <span className="font-medium text-sm">{analysisData.notes}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ボタン群 */}
+            <div className="flex gap-3">
+              <Button
+                onClick={handleAnalysisCancel}
+                variant="outline"
+                className="flex-1"
+                disabled={isSubmitting}
+              >
+                キャンセル
+              </Button>
+              <Button
+                onClick={handleAnalysisEdit}
+                variant="outline"
+                className="flex-1"
+                disabled={isSubmitting}
+              >
+                編集
+              </Button>
+              <Button
+                onClick={handleAnalysisRecord}
+                className="flex-1 bg-green-600 hover:bg-green-700"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    記録中...
+                  </>
+                ) : (
+                  'この内容で記録'
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* メインの運動記録モーダル */}
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg w-full max-w-2xl h-[80vh] flex flex-col">
         {/* 固定ヘッダー */}
         <div className="flex-shrink-0 p-6 border-b border-gray-200">
@@ -485,59 +645,16 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
               )}
             </Button>
 
-            {/* 解析結果 */}
+            {/* 解析結果（簡易表示） */}
             {analysisResult && (
-              <Card className="bg-green-50 border-green-200">
+              <Card className="bg-blue-50 border-blue-200">
                 <CardHeader>
-                  <CardTitle className="text-lg text-green-800">解析完了</CardTitle>
+                  <CardTitle className="text-sm text-blue-900">解析完了</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-600">運動名</p>
-                      <p className="font-medium">{analysisResult.exercise_name}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">消費カロリー</p>
-                      <p className="font-medium text-orange-600">{analysisResult.calories_burned} kcal</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">運動時間</p>
-                      <p className="font-medium">{analysisResult.duration_minutes} 分</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">運動タイプ</p>
-                      <p className="font-medium">{analysisResult.exercise_type}</p>
-                    </div>
-                  </div>
-                  {analysisResult.notes && (
-                    <div>
-                      <p className="text-sm text-gray-600">補足</p>
-                      <p className="text-sm">{analysisResult.notes}</p>
-                    </div>
-                  )}
-                  <div className="p-3 bg-green-100 rounded-lg">
-                    <p className="text-sm text-green-800 font-medium mb-3">
-                      ✓ 解析が完了しました。このまま登録するか、手動入力タブで確認・編集できます。
-                    </p>
-                    <Button
-                      onClick={handleSubmit}
-                      disabled={isSubmitting}
-                      className="w-full bg-green-600 hover:bg-green-700"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          記録中...
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="h-4 w-4 mr-2" />
-                          この内容で記録
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                <CardContent className="pt-0 pb-3">
+                  <p className="text-sm text-blue-800">
+                    ✓ 解析が完了しました。解析完了モーダルで詳細を確認できます。
+                  </p>
                 </CardContent>
               </Card>
             )}
@@ -584,5 +701,6 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
         </div>
       </div>
     </div>
+    </>
   );
 } 
