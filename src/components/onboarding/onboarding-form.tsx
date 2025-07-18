@@ -111,7 +111,7 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
 
   return (
     <Card className="mx-4 max-w-md w-full">
-      <CardHeader>
+      <CardHeader className="text-center">
         <CardTitle>ようこそ！</CardTitle>
         <CardDescription>
           最適なカロリー計算のため、あなたのことを教えてください。

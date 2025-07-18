@@ -59,10 +59,8 @@ export default function DashboardPage() {
 
   if (showOnboarding && user) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
-        <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-2xl">
-           <OnboardingForm user={user} onboardingComplete={handleOnboardingComplete} />
-        </div>
+      <div className="flex justify-center items-center min-h-screen bg-gray-50">
+        <OnboardingForm user={user} onboardingComplete={handleOnboardingComplete} />
       </div>
     );
   }
