@@ -22,9 +22,12 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
   const [dailyData, setDailyData] = useState<any>(null);
   const [canUpdate, setCanUpdate] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [isDataReady, setIsDataReady] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const supabase = createClient();
   const lastProfileHash = useRef<string | null>(null);
   const lastDailyHash = useRef<string | null>(null);
+  const dataLoadAttempts = useRef(0);
 
   // ハッシュ生成関数
   const getHash = (obj: any) => JSON.stringify(obj ?? {});
@@ -40,12 +43,18 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
     if (userProfile) {
       const cache = localStorage.getItem(getAdviceKey());
       if (cache) {
-        setAdvice(JSON.parse(cache));
+        try {
+          const cachedAdvice = JSON.parse(cache);
+          setAdvice(cachedAdvice);
+        } catch (error) {
+          console.error('キャッシュの復元に失敗:', error);
+          localStorage.removeItem(getAdviceKey());
+        }
       }
     }
   }, [userProfile]);
 
-  // プロフィール・日次データ取得
+  // プロフィール・日次データ取得（改善版）
   useEffect(() => {
     loadUserData();
   }, []);
@@ -57,7 +66,7 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
       // 少し遅延させてからデータを再読み込み（DB更新を待つ）
       setTimeout(() => {
         loadUserData();
-      }, 500);
+      }, 1000); // 500msから1000msに延長
     };
 
     window.addEventListener('mealRecorded', handleMealRecorded);
@@ -68,15 +77,32 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
 
   const loadUserData = async () => {
     try {
+      dataLoadAttempts.current += 1;
+      console.log(`ユーザーデータ読み込み試行 ${dataLoadAttempts.current}回目`);
+
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: profile } = await supabase
+      if (!user) {
+        console.log('ユーザーが認証されていません');
+        return;
+      }
+
+      // プロフィールデータ取得
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
+
+      if (profileError) {
+        console.error('プロフィール取得エラー:', profileError);
+        if (dataLoadAttempts.current < 3) {
+          setTimeout(loadUserData, 1000);
+          return;
+        }
+      }
+
       if (profile) {
-        setUserProfile({
+        const userProfileData = {
           username: profile.username,
           gender: profile.gender,
           birth_date: profile.birth_date,
@@ -86,63 +112,131 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
           activity_level: profile.activity_level,
           goal_type: profile.goal_type,
           food_preferences: profile.food_preferences
-        });
+        };
+        setUserProfile(userProfileData);
+        console.log('プロフィールデータ設定完了:', userProfileData);
       }
+
+      // 今日の日付を取得（JST）
       const today = new Date();
       const jstOffset = 9 * 60; // JSTはUTC+9
       const jstDate = new Date(today.getTime() + jstOffset * 60000);
       const todayDate = jstDate.toISOString().split('T')[0];
       
-      const { data: dailySummary } = await supabase
+      // 日次データ取得
+      const { data: dailySummary, error: dailyError } = await supabase
         .from('daily_summaries')
         .select('*')
         .eq('user_id', user.id)
         .eq('date', todayDate)
         .single();
+
+      if (dailyError && dailyError.code !== 'PGRST116') { // PGRST116はデータが見つからないエラー
+        console.error('日次データ取得エラー:', dailyError);
+        if (dataLoadAttempts.current < 3) {
+          setTimeout(loadUserData, 1000);
+          return;
+        }
+      }
+
       if (dailySummary) {
         setDailyData(dailySummary);
+        console.log('日次データ設定完了:', dailySummary);
+      } else {
+        // データがない場合は空のオブジェクトを設定
+        setDailyData({
+          total_calories: 0,
+          total_protein: 0,
+          total_fat: 0,
+          total_carbs: 0
+        });
+        console.log('日次データなし、デフォルト値を設定');
       }
+
+      // データ読み込み完了フラグを設定
+      setIsDataReady(true);
+      dataLoadAttempts.current = 0; // リセット
+
     } catch (error) {
       console.error('ユーザーデータ読み込みエラー:', error);
+      if (dataLoadAttempts.current < 3) {
+        setTimeout(loadUserData, 1000);
+      } else {
+        setIsDataReady(true); // エラーでもフラグを設定
+      }
     }
   };
 
   // プロフィール・日次データの変更検知
   useEffect(() => {
+    if (!isDataReady) return; // データが準備できていない場合はスキップ
+
     const profileHash = getHash(userProfile);
     const dailyHash = getHash(dailyData);
+    
     if (lastProfileHash.current === null && lastDailyHash.current === null) {
       lastProfileHash.current = profileHash;
       lastDailyHash.current = dailyHash;
       setCanUpdate(false);
+      // 初回データ読み込み完了時に自動でアドバイスを取得
+      if (userProfile) {
+        fetchAdvice();
+      }
       return;
     }
+    
     if (profileHash !== lastProfileHash.current || dailyHash !== lastDailyHash.current) {
       setCanUpdate(true);
     } else {
       setCanUpdate(false);
     }
-  }, [userProfile, dailyData]);
+  }, [userProfile, dailyData, isDataReady]);
 
   const fetchAdvice = async () => {
-    if (!userProfile) return;
+    if (!userProfile || !isDataReady) {
+      console.log('プロフィールまたはデータが準備できていません');
+      return;
+    }
+
     setIsLoading(true);
+    setRetryCount(prev => prev + 1);
+
     try {
+      console.log('AIアドバイス取得開始:', { userProfile, dailyData });
       const adviceData = await getAiAdvice(userProfile, dailyData);
-      setAdvice(adviceData);
-      localStorage.setItem(getAdviceKey(), JSON.stringify(adviceData));
-      // 更新後はハッシュを最新に
-      lastProfileHash.current = getHash(userProfile);
-      lastDailyHash.current = getHash(dailyData);
-      setCanUpdate(false);
+      
+      if (adviceData) {
+        setAdvice(adviceData);
+        localStorage.setItem(getAdviceKey(), JSON.stringify(adviceData));
+        // 更新後はハッシュを最新に
+        lastProfileHash.current = getHash(userProfile);
+        lastDailyHash.current = getHash(dailyData);
+        setCanUpdate(false);
+        setRetryCount(0); // 成功時にリセット
+        console.log('AIアドバイス取得成功:', adviceData);
+      } else {
+        throw new Error('アドバイスデータが空です');
+      }
     } catch (error) {
       console.error('AIアドバイス取得エラー:', error);
+      
+      // リトライロジック（最大3回）
+      if (retryCount < 3) {
+        console.log(`${retryCount}回目のリトライを実行します...`);
+        setTimeout(() => {
+          fetchAdvice();
+        }, 2000 * (retryCount + 1)); // 指数バックオフ
+        return;
+      }
+
+      // 最終的なフォールバック
       setAdvice({
         meal_summary: "データの読み込みに失敗しました。",
         meal_detail: "データの読み込みに失敗しました。しばらく時間をおいて再度お試しください。",
         exercise_summary: "現在アドバイスを取得できません。",
         exercise_detail: "現在アドバイスを取得できません。しばらく時間をおいて再度お試しください。"
       });
+      setRetryCount(0); // リセット
     } finally {
       setIsLoading(false);
     }
@@ -165,7 +259,7 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
               variant="outline"
               size="sm" 
               onClick={fetchAdvice}
-              disabled={isLoading || !canUpdate}
+              disabled={isLoading || !canUpdate || !isDataReady}
               className="text-xs h-6 px-2"
             >
               {canUpdate ? "更新" : "最新"}
@@ -186,7 +280,7 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
             variant={canUpdate ? "default" : "outline"}
             size="sm" 
             onClick={fetchAdvice}
-            disabled={isLoading || !canUpdate}
+            disabled={isLoading || !canUpdate || !isDataReady}
           >
             {isLoading ? "更新中..." : canUpdate ? "更新" : "最新"}
           </Button>
@@ -196,6 +290,11 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
           {isLoading ? (
             <div className="text-center py-4">
               <p>AIアドバイスを生成中...</p>
+              {retryCount > 0 && (
+                <p className="text-sm text-gray-500 mt-2">
+                  {retryCount}回目の試行中...
+                </p>
+              )}
             </div>
           ) : advice ? (
             <>
@@ -209,7 +308,6 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
                         {advice.meal_detail}
                       </div>
                     ) : (
-                      // 要約表示: 全ての文字を表示（40-60文字程度の簡潔な要約）
                       advice.meal_summary
                     )}
                   </p>
@@ -222,7 +320,6 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
                         {advice.exercise_detail}
                       </div>
                     ) : (
-                      // 要約表示: 全ての文字を表示（40-60文字程度の簡潔な要約）
                       advice.exercise_summary
                     )}
                   </p>
