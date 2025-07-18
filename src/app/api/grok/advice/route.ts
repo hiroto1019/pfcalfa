@@ -295,17 +295,23 @@ export async function POST(request: NextRequest) {
 ${foodPreferencesText ? `${foodPreferencesText}` : ''}
 ${dailyData ? `今日の摂取状況: カロリー${dailyData.total_calories || 0}kcal, タンパク質${Math.round(dailyData.total_protein || 0)}g, 脂質${Math.round(dailyData.total_fat || 0)}g, 炭水化物${Math.round(dailyData.total_carbs || 0)}g` : ''}
 
-重要: 目標カロリーは${Math.round(targetCalories)}kcalです。この数値を必ず使用してください。他の数値を計算したり、異なる数値を表示してはいけません。
+【重要】目標カロリーは${Math.round(targetCalories)}kcalです。この数値を必ず使用してください。
+【禁止事項】
+- 他の数値を計算したり、異なる数値を表示してはいけません
+- 432kcalなどの間違った数値を絶対に使用してはいけません
+- 目標カロリーは${Math.round(targetCalories)}kcalのみを使用してください
 
 アドバイスのポイント:
-- 食事: 今日の摂取データを踏まえて、不足している栄養素を補う具体的な食材やメニューを提案
-- 運動: 今日の摂取カロリーと目標カロリーの差を考慮した適切な運動強度を提案
+- 食事: 今日の摂取データ（${dailyData?.total_calories || 0}kcal）を踏まえて、目標カロリー${Math.round(targetCalories)}kcalに向けた具体的な食材やメニューを提案
+- 運動: 今日の摂取カロリー（${dailyData?.total_calories || 0}kcal）と目標カロリー${Math.round(targetCalories)}kcalの差を考慮した適切な運動強度を提案
 - 要約は40-60文字で、毎回異なる表現を使用
 - 詳細は100-300文字で、具体的で実行しやすい内容
 - 今日の摂取データがある場合は、それを踏まえた具体的なアドバイス
 - 目標カロリー${Math.round(targetCalories)}kcalを基準としたアドバイスを提供
 - 数値は整数で表示
-- 今日のPFCバランス（タンパク質${Math.round(dailyData?.total_protein || 0)}g、脂質${Math.round(dailyData?.total_fat || 0)}g、炭水化物${Math.round(dailyData?.total_carbs || 0)}g）を考慮したアドバイス`;
+- 今日のPFCバランス（タンパク質${Math.round(dailyData?.total_protein || 0)}g、脂質${Math.round(dailyData?.total_fat || 0)}g、炭水化物${Math.round(dailyData?.total_carbs || 0)}g）を考慮したアドバイス
+
+【最終確認】目標カロリーは${Math.round(targetCalories)}kcalです。他の数値は使用しないでください。`;
 
     console.log('GEMINI_API_KEY設定確認:', process.env.GEMINI_API_KEY ? '設定済み' : '未設定');
     
@@ -313,14 +319,18 @@ ${dailyData ? `今日の摂取状況: カロリー${dailyData.total_calories || 
       // Gemini APIを呼び出し（高精度版）
       const result = await callGeminiAPI(prompt);
       
-      // 目標カロリーの検証と修正（新機能）
+      // 目標カロリーの検証と修正（強化版）
       const correctTargetCalories = Math.round(targetCalories);
+      const currentCalories = dailyData?.total_calories || 0;
       
-      // 間違った目標カロリーを検出して修正
+      // 間違った目標カロリーを検出して修正（強化版）
       const wrongCaloriePatterns = [
         /(\d{3,4})kcal/g,  // 3-4桁の数値+kcal
         /目標カロリー(\d{3,4})/g,  // 目標カロリー+3-4桁の数値
-        /(\d{3,4})カロリー/g  // 3-4桁の数値+カロリー
+        /(\d{3,4})カロリー/g,  // 3-4桁の数値+カロリー
+        /(\d{3,4})を目標に/g,  // 3-4桁の数値+を目標に
+        /(\d{3,4})の消費/g,  // 3-4桁の数値+の消費
+        /約(\d{3,4})kcal/g  // 約+3-4桁の数値+kcal
       ];
       
       ['meal_summary', 'meal_detail', 'exercise_summary', 'exercise_detail'].forEach(field => {
@@ -349,6 +359,45 @@ ${dailyData ? `今日の摂取状況: カロリー${dailyData.total_calories || 
           if (hasCorrection) {
             result[field] = text;
             console.log(`フィールド ${field} の目標カロリーを修正しました`);
+          }
+        }
+      });
+      
+      // 今日の摂取カロリーの検証と修正（新機能）
+      ['meal_summary', 'meal_detail', 'exercise_summary', 'exercise_detail'].forEach(field => {
+        if (result[field]) {
+          let text = result[field];
+          let hasCorrection = false;
+          
+          // 今日の摂取カロリーの間違った表現を検出
+          const wrongCurrentCaloriePatterns = [
+            /今日の摂取カロリーが(\d{3,4})/g,  // 今日の摂取カロリーが+3-4桁の数値
+            /摂取カロリー(\d{3,4})/g,  // 摂取カロリー+3-4桁の数値
+            /(\d{3,4})と高め/g,  // 3-4桁の数値+と高め
+            /(\d{3,4})と低め/g   // 3-4桁の数値+と低め
+          ];
+          
+          wrongCurrentCaloriePatterns.forEach(pattern => {
+            const matches = text.match(pattern);
+            if (matches) {
+              matches.forEach((match: string) => {
+                const numberMatch = match.match(/\d{3,4}/);
+                if (numberMatch) {
+                  const wrongNumber = parseInt(numberMatch[0]);
+                  // 正しい今日の摂取カロリーと大きく異なる場合（±200kcal以上）は修正
+                  if (Math.abs(wrongNumber - currentCalories) > 200) {
+                    console.log(`間違った今日の摂取カロリーを検出: ${wrongNumber}kcal → ${currentCalories}kcal`);
+                    text = text.replace(match, match.replace(wrongNumber.toString(), currentCalories.toString()));
+                    hasCorrection = true;
+                  }
+                }
+              });
+            }
+          });
+          
+          if (hasCorrection) {
+            result[field] = text;
+            console.log(`フィールド ${field} の今日の摂取カロリーを修正しました`);
           }
         }
       });
