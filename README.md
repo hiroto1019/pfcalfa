@@ -213,3 +213,4 @@ MIT License
 - 画像・テキスト解析機能
 - ダッシュボード機能
 - 認証機能
+# Force deploy
