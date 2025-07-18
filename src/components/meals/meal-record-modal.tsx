@@ -539,12 +539,16 @@ export function MealRecordModal() {
           {nutritionData && (
             <div className="border rounded-lg p-4 bg-gray-50">
               <h3 className="font-semibold mb-2">解析結果</h3>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>食品名: {nutritionData.food_name}</div>
-                <div>カロリー: {nutritionData.calories}kcal</div>
-                <div>タンパク質: {nutritionData.protein}g</div>
-                <div>脂質: {nutritionData.fat}g</div>
-                <div>炭水化物: {nutritionData.carbs}g</div>
+              <div className="space-y-2 text-sm">
+                <div className="break-words">
+                  <span className="font-medium">食品名:</span> {nutritionData.food_name}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>カロリー: {nutritionData.calories}kcal</div>
+                  <div>タンパク質: {nutritionData.protein}g</div>
+                  <div>脂質: {nutritionData.fat}g</div>
+                  <div>炭水化物: {nutritionData.carbs}g</div>
+                </div>
               </div>
               <div className="mt-3 pt-3 border-t border-gray-200">
                 <p className="text-xs text-gray-600">
@@ -691,9 +695,9 @@ export function MealRecordModal() {
         </Button>
       </div>
       
-      <div ref={modalRef} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
-        <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-          <div className="flex justify-between items-center mb-4">
+      <div ref={modalRef} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
+        <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-[90vh] flex flex-col">
+          <div className="flex justify-between items-center p-6 border-b border-gray-200">
             <h2 className="text-xl font-bold">食事の記録</h2>
             <Button 
               variant="ghost" 
@@ -719,7 +723,7 @@ export function MealRecordModal() {
             </Button>
           </div>
           
-          <div className="py-4">
+          <div className="flex-1 overflow-y-auto p-6">
             {renderAnalysisOptions()}
             {renderImageAnalysis()}
             {renderTextAnalysis()}
