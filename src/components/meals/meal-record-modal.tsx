@@ -32,6 +32,7 @@ export function MealRecordModal() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [selectedFood, setSelectedFood] = useState<any>(null);
 
   useEffect(() => {
     if (open) {
@@ -42,6 +43,38 @@ export function MealRecordModal() {
       modalRef.current?.classList.remove('block');
     }
   }, [open]);
+
+  // リアルタイム検索のためのuseEffect
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (!query) {
+      setSearchResults([]);
+      setSelectedFood(null);
+      return;
+    }
+
+    // デバウンス処理（300ms待機）
+    const timeoutId = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const response = await fetch(`/api/food/search?q=${encodeURIComponent(query)}`);
+        const data = await response.json();
+        
+        if (data.success) {
+          setSearchResults(data.data);
+        } else {
+          setSearchResults([]);
+        }
+      } catch (error) {
+        console.error('食品検索エラー:', error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -273,46 +306,32 @@ export function MealRecordModal() {
     }
   };
 
-  // 食品検索機能
-  const handleFoodSearch = async () => {
-    const query = searchQuery.trim();
-    if (!query) return;
-
-    setIsSearching(true);
-    try {
-      const response = await fetch(`/api/food/search?q=${encodeURIComponent(query)}`);
-      const data = await response.json();
-      
-      if (data.success) {
-        setSearchResults(data.data);
-      } else {
-        setSearchResults([]);
-      }
-    } catch (error) {
-      console.error('食品検索エラー:', error);
-      setSearchResults([]);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
   // 検索結果から食品を選択
   const handleFoodSelect = (food: any) => {
+    setSelectedFood(food);
+    setSearchResults([]);
+    setSearchQuery(food.name);
+  };
+
+  // 選択した食品を適用
+  const handleApplyFood = () => {
+    if (!selectedFood) return;
+    
     setFormData({
-      food_name: food.name,
-      calories: food.calories.toString(),
-      protein: food.protein.toString(),
-      fat: food.fat.toString(),
-      carbs: food.carbs.toString()
+      food_name: selectedFood.name,
+      calories: selectedFood.calories.toString(),
+      protein: selectedFood.protein.toString(),
+      fat: selectedFood.fat.toString(),
+      carbs: selectedFood.carbs.toString()
     });
     setNutritionData({
-      food_name: food.name,
-      calories: food.calories,
-      protein: food.protein,
-      fat: food.fat,
-      carbs: food.carbs
+      food_name: selectedFood.name,
+      calories: selectedFood.calories,
+      protein: selectedFood.protein,
+      fat: selectedFood.fat,
+      carbs: selectedFood.carbs
     });
-    setSearchResults([]);
+    setSelectedFood(null);
     setSearchQuery("");
     setIsCorrectedByUser(true);
   };
@@ -467,6 +486,8 @@ export function MealRecordModal() {
         carbs: ""
       });
       setNutritionData(null);
+      setSearchQuery("");
+      setSelectedFood(null);
       setTextInput("");
       setIsCorrectedByUser(false);
       setAnalysisMethod(null);
@@ -682,22 +703,15 @@ export function MealRecordModal() {
                 required
                 className="text-sm"
               />
-              <div className="flex gap-2">
+              <div className="space-y-2">
                 <Input
                   placeholder="食品を検索..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleFoodSearch()}
                 />
-                <Button 
-                  type="button" 
-                  onClick={handleFoodSearch}
-                  disabled={isSearching || !searchQuery.trim()}
-                  size="sm"
-                  className={!searchQuery.trim() ? "opacity-50" : ""}
-                >
-                  {isSearching ? "検索中..." : "検索"}
-                </Button>
+                {isSearching && (
+                  <div className="text-sm text-gray-500">検索中...</div>
+                )}
               </div>
               {searchResults.length > 0 && (
                 <div className="border rounded-lg p-2 max-h-32 overflow-y-auto">
@@ -713,6 +727,26 @@ export function MealRecordModal() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+              {selectedFood && (
+                <div className="border rounded-lg p-3 bg-blue-50">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="font-medium text-blue-900">{selectedFood.name}</div>
+                      <div className="text-sm text-blue-700">
+                        {selectedFood.calories}kcal (P:{selectedFood.protein}g, F:{selectedFood.fat}g, C:{selectedFood.carbs}g)
+                      </div>
+                    </div>
+                    <Button 
+                      type="button" 
+                      onClick={handleApplyFood}
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      適用
+                    </Button>
+                  </div>
                 </div>
               )}
               {isCorrectedByUser && (
@@ -818,6 +852,8 @@ export function MealRecordModal() {
                   fat: "",
                   carbs: ""
                 });
+                setSearchQuery("");
+                setSelectedFood(null);
                 setIsCorrectedByUser(false);
                 setImageErrorMessage("");
                 setTextErrorMessage("");
