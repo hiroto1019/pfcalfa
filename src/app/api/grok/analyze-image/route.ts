@@ -130,7 +130,7 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
     const timeoutId = setTimeout(() => controller.abort(), 8000); // 15秒から8秒に短縮（10秒以内対応）
 
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: {
@@ -151,11 +151,11 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
             }
           ],
           generationConfig: {
-            temperature: 0.01, // さらに低い温度で一貫性を向上
-            maxOutputTokens: 100, // さらに制限
-            topP: 0.5,
-            topK: 10,
-            candidateCount: 1 // 候補数を1に制限
+            temperature: 0.1, // 精度を保つため少し上げる
+            maxOutputTokens: 150, // 精度を保つため少し増やす
+            topP: 0.8,
+            topK: 20,
+            candidateCount: 1
           }
         }),
         signal: controller.signal
