@@ -338,10 +338,39 @@ export async function searchFoodFromMEXT(query: string): Promise<ExternalFoodIte
 
     // クエリに基づいてフィルタリング（部分一致検索）
     const normalizedQuery = query.toLowerCase().trim();
-    const filteredFoods = mextDatabase.filter(food => 
-      food.name.toLowerCase().includes(normalizedQuery) ||
-      normalizedQuery.includes(food.name.toLowerCase())
-    );
+    const filteredFoods = mextDatabase.filter(food => {
+      const foodName = food.name.toLowerCase();
+      
+      // 完全一致
+      if (foodName === normalizedQuery) {
+        return true;
+      }
+      
+      // 部分一致（クエリが食品名に含まれる）
+      if (foodName.includes(normalizedQuery)) {
+        return true;
+      }
+      
+      // 部分一致（食品名がクエリに含まれる）
+      if (normalizedQuery.includes(foodName)) {
+        return true;
+      }
+      
+      // 単語レベルでの部分一致
+      const queryWords = normalizedQuery.split(/[\s　]+/);
+      const foodWords = foodName.split(/[\s　]+/);
+      
+      for (const queryWord of queryWords) {
+        if (queryWord.length < 2) continue; // 1文字の単語は除外
+        for (const foodWord of foodWords) {
+          if (foodWord.includes(queryWord) || queryWord.includes(foodWord)) {
+            return true;
+          }
+        }
+      }
+      
+      return false;
+    });
 
     console.log(`MEXT検索結果: "${query}" -> ${filteredFoods.length}件`);
     return filteredFoods;
@@ -369,30 +398,44 @@ export async function searchFoodFromEdamam(query: string): Promise<ExternalFoodI
 // 複数のAPIから統合検索（MEXTとスクレイピングのみ）
 export async function searchFoodFromMultipleSources(query: string): Promise<ExternalFoodItem[]> {
   try {
-    const [mextResults, realSiteResults] = await Promise.allSettled([
-      searchFoodFromMEXT(query),
-      searchFoodFromRealSites(query)
-    ]);
-
-    const allResults: ExternalFoodItem[] = [];
-
-    // 成功した結果を統合
-    if (mextResults.status === 'fulfilled') {
-      allResults.push(...mextResults.value);
+    console.log(`統合検索開始: "${query}"`);
+    
+    // MEXTデータベースから検索（常に実行）
+    const mextResults = await searchFoodFromMEXT(query);
+    console.log(`MEXT検索結果: ${mextResults.length}件`);
+    
+    // 外部サイト検索（エラーが発生しても続行）
+    let realSiteResults: ExternalFoodItem[] = [];
+    try {
+      realSiteResults = await searchFoodFromRealSites(query);
+      console.log(`外部サイト検索結果: ${realSiteResults.length}件`);
+    } catch (error) {
+      console.error('外部サイト検索エラー（続行）:', error);
     }
-    if (realSiteResults.status === 'fulfilled') {
-      allResults.push(...realSiteResults.value);
-    }
+
+    const allResults: ExternalFoodItem[] = [
+      ...mextResults,
+      ...realSiteResults
+    ];
 
     // 重複を除去（名前で比較）
     const uniqueResults = allResults.filter((food, index, self) => 
       index === self.findIndex(f => f.name.toLowerCase() === food.name.toLowerCase())
     );
 
+    console.log(`統合検索結果: ${uniqueResults.length}件`);
     return uniqueResults;
   } catch (error) {
     console.error('統合検索エラー:', error);
-    return [];
+    // エラーの場合でもMEXTデータベースから検索を試行
+    try {
+      const mextResults = await searchFoodFromMEXT(query);
+      console.log(`エラー時のMEXT検索結果: ${mextResults.length}件`);
+      return mextResults;
+    } catch (mextError) {
+      console.error('MEXT検索も失敗:', mextError);
+      return [];
+    }
   }
 }
 
