@@ -31,6 +31,7 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
   const dataLoadAttempts = useRef(0);
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const forceUpdateRef = useRef(false);
+  const isFirstLoad = useRef(true);
 
   // ハッシュ生成関数（最適化版）
   const getHash = (obj: any) => {
@@ -82,17 +83,18 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
 
   // キャッシュから復元（改善版）
   useEffect(() => {
-    if (userProfile && !forceUpdateRef.current) {
+    if (userProfile && !forceUpdateRef.current && isFirstLoad.current) {
       const cache = localStorage.getItem(getAdviceKey());
       if (cache) {
         try {
           const cachedAdvice = JSON.parse(cache);
-          // キャッシュの有効期限をチェック（30分に短縮）
+          // キャッシュの有効期限をチェック（20分に短縮）
           const cacheAge = Date.now() - (cachedAdvice.timestamp || 0);
-          if (cacheAge < 30 * 60 * 1000) { // 30分以内
+          if (cacheAge < 20 * 60 * 1000) { // 20分以内
             setAdvice(cachedAdvice.data || cachedAdvice);
             setLastUpdateTime(cachedAdvice.timestamp || Date.now());
             console.log('キャッシュからアドバイスを復元');
+            isFirstLoad.current = false;
           } else {
             localStorage.removeItem(getAdviceKey());
           }
@@ -267,11 +269,11 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
     try {
       console.log('AIアドバイス取得開始:', { userProfile, dailyData });
       
-      // 6秒タイムアウトに短縮
+      // 5秒タイムアウトに短縮
       const timeoutPromise = new Promise((_, reject) => {
         fetchTimeoutRef.current = setTimeout(() => {
           reject(new Error('タイムアウト'));
-        }, 6000);
+        }, 5000);
       });
 
       const advicePromise = getAiAdvice(userProfile, dailyData);
@@ -297,6 +299,7 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
         lastDailyHash.current = getHash(dailyData);
         setCanUpdate(false);
         setRetryCount(0);
+        isFirstLoad.current = false;
         console.log('AIアドバイス取得成功:', adviceData);
       } else {
         throw new Error('アドバイスデータが空です');
@@ -310,21 +313,21 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
         fetchTimeoutRef.current = null;
       }
       
-      // リトライロジック（最大2回に削減）
-      if (retryCount < 2) {
+      // リトライロジック（最大1回に削減）
+      if (retryCount < 1) {
         console.log(`${retryCount}回目のリトライを実行します...`);
         setTimeout(() => {
           fetchAdvice();
-        }, 1000 * (retryCount + 1)); // 指数バックオフ: 1秒、2秒
+        }, 500 * (retryCount + 1)); // 指数バックオフ: 0.5秒
         return;
       }
 
       // 最終的なフォールバック（改善版）
       const fallbackAdvice = {
-        meal_summary: "データの読み込みに失敗しました。",
-        meal_detail: "データの読み込みに失敗しました。しばらく時間をおいて再度お試しください。\n\n一般的なアドバイス: バランスの良い食事と適度な運動を心がけましょう。",
-        exercise_summary: "現在アドバイスを取得できません。",
-        exercise_detail: "現在アドバイスを取得できません。しばらく時間をおいて再度お試しください。\n\n一般的なアドバイス: ウォーキングや軽い筋トレを習慣にしましょう。"
+        meal_summary: "データの読み込みに失敗しました。しばらく時間をおいて再度お試しください。",
+        meal_detail: "データの読み込みに失敗しました。しばらく時間をおいて再度お試しください。一般的なアドバイス: バランスの良い食事と適度な運動を心がけましょう。",
+        exercise_summary: "現在アドバイスを取得できません。ウォーキングから始めてみましょう。",
+        exercise_detail: "現在アドバイスを取得できません。しばらく時間をおいて再度お試しください。一般的なアドバイス: ウォーキングや軽い筋トレを習慣にしましょう。"
       };
       
       setAdvice(fallbackAdvice);

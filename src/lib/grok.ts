@@ -127,9 +127,9 @@ export async function analyzeTextNutrition(text: string): Promise<GrokNutritionR
 // AIアドバイスを取得（高速化版）
 export async function getAiAdvice(userProfile: UserProfile, dailyData?: any): Promise<GrokAdviceResponse> {
   try {
-    // 6秒タイムアウトに短縮
+    // 5秒タイムアウトに短縮
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
     const response = await fetch('/api/grok/advice', {
       method: 'POST',
@@ -181,11 +181,11 @@ export async function getAiAdvice(userProfile: UserProfile, dailyData?: any): Pr
       // 不足フィールドにデフォルト値を設定
       missingFields.forEach(field => {
         if (field === 'meal_summary') {
-          data[field] = "今日も健康的な食事を心がけましょう。";
+          data[field] = "今日も健康的な食事を心がけましょう。野菜とタンパク質を意識して。";
         } else if (field === 'meal_detail') {
           data[field] = "今日も健康的な食事を心がけましょう。野菜、タンパク質、炭水化物をバランスよく摂取。朝食はしっかりと、昼食は適度に、夕食は軽めに。間食は果物やナッツを選び、水分補給も忘れずに。";
         } else if (field === 'exercise_summary') {
-          data[field] = "適度な運動を取り入れてください。";
+          data[field] = "適度な運動を取り入れてください。ウォーキングから始めてみましょう。";
         } else if (field === 'exercise_detail') {
           data[field] = "適度な運動を取り入れてください。ウォーキング、ジョギング、サイクリングなどの有酸素運動を30分程度。筋トレも週2回取り入れて、全身の筋肉をバランスよく鍛えましょう。";
         }
