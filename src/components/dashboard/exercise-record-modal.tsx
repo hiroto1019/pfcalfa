@@ -604,59 +604,136 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
           </div>
         ) : (
           <div className="space-y-6">
-            {/* AI解析セクション */}
-            <div>
-              <Label htmlFor="analysisText" className="text-sm font-medium">
-                運動内容を入力してください
-              </Label>
-              <Textarea
-                id="analysisText"
-                placeholder="例: 30分ランニング、腕立て伏せ20回を3セット、ヨガ1時間..."
-                value={analysisText}
-                onChange={(e) => setAnalysisText(e.target.value)}
-                className="mt-2 min-h-[100px]"
-                disabled={isAnalyzing}
-              />
-            </div>
+            {showAnalysisModal && analysisData ? (
+              <>
+                {/* 解析完了画面 */}
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Activity className="w-8 h-8 text-green-600" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">解析完了</h3>
+                  <p className="text-gray-600">運動内容の解析が完了しました</p>
+                </div>
 
-            {/* エラーメッセージ */}
-            {errorMessage && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-600">{errorMessage}</p>
-              </div>
-            )}
+                {/* 解析結果の表示 */}
+                <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">運動名</span>
+                      <span className="font-medium">{analysisData.exercise_name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">運動時間</span>
+                      <span className="font-medium">{analysisData.duration_minutes}分</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">消費カロリー</span>
+                      <span className="font-medium text-orange-600">{analysisData.calories_burned}kcal</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">運動タイプ</span>
+                      <span className="font-medium">{analysisData.exercise_type}</span>
+                    </div>
+                    {analysisData.notes && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">補足</span>
+                        <span className="font-medium text-sm">{analysisData.notes}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
-            {/* 解析ボタン */}
-            <Button
-              onClick={handleAnalyze}
-              disabled={isAnalyzing || !analysisText.trim()}
-              className="w-full bg-orange-600 hover:bg-orange-700"
-            >
-              {isAnalyzing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  解析中...
-                </>
-              ) : (
-                <>
-                  <Zap className="h-4 w-4 mr-2" />
-                  運動を解析
-                </>
-              )}
-            </Button>
+                {/* ボタン群 */}
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleAnalysisCancel}
+                    variant="outline"
+                    className="flex-1"
+                    disabled={isSubmitting}
+                  >
+                    キャンセル
+                  </Button>
+                  <Button
+                    onClick={handleAnalysisEdit}
+                    variant="outline"
+                    className="flex-1"
+                    disabled={isSubmitting}
+                  >
+                    編集
+                  </Button>
+                  <Button
+                    onClick={handleAnalysisRecord}
+                    className="flex-1 bg-green-600 hover:bg-green-700"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        記録中...
+                      </>
+                    ) : (
+                      'この内容で記録'
+                    )}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* AI解析セクション */}
+                <div>
+                  <Label htmlFor="analysisText" className="text-sm font-medium">
+                    運動内容を入力してください
+                  </Label>
+                  <Textarea
+                    id="analysisText"
+                    placeholder="例: 30分ランニング、腕立て伏せ20回を3セット、ヨガ1時間..."
+                    value={analysisText}
+                    onChange={(e) => setAnalysisText(e.target.value)}
+                    className="mt-2 min-h-[100px]"
+                    disabled={isAnalyzing}
+                  />
+                </div>
 
-            {/* 解析結果（簡易表示） */}
-            {analysisResult && (
-              <Card className="bg-blue-50 border-blue-200">
-                <CardHeader>
-                  <CardTitle className="text-sm text-blue-900">解析完了</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0 pb-3">
-                  <p className="text-sm text-blue-800">
-                    ✓ 解析が完了しました。解析完了モーダルで詳細を確認できます。
-                  </p>
-                </CardContent>
-              </Card>
+                {/* エラーメッセージ */}
+                {errorMessage && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-600">{errorMessage}</p>
+                  </div>
+                )}
+
+                {/* 解析ボタン */}
+                <Button
+                  onClick={handleAnalyze}
+                  disabled={isAnalyzing || !analysisText.trim()}
+                  className="w-full bg-orange-600 hover:bg-orange-700"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      解析中...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="h-4 w-4 mr-2" />
+                      運動を解析
+                    </>
+                  )}
+                </Button>
+
+                {/* 解析結果（簡易表示） */}
+                {analysisResult && (
+                  <Card className="bg-blue-50 border-blue-200">
+                    <CardHeader>
+                      <CardTitle className="text-sm text-blue-900">解析完了</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0 pb-3">
+                      <p className="text-sm text-blue-800">
+                        ✓ 解析が完了しました。詳細を確認できます。
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
             )}
           </div>
         )}
