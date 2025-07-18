@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // 栄養データの検証と補正関数（最適化版）
-function validateAndCorrectNutritionData(data: any, originalText: string) {
+async function validateAndCorrectNutritionData(data: any, originalText: string) {
   const corrected = { ...data };
   
   // 数値フィールドの検証と補正（一括処理）
@@ -14,6 +14,25 @@ function validateAndCorrectNutritionData(data: any, originalText: string) {
   // 食品名の検証
   if (!corrected.food_name || typeof corrected.food_name !== 'string') {
     corrected.food_name = originalText || '食品（詳細不明）';
+  }
+  
+  // カロリーが0の場合、食品データベースから検索
+  if (corrected.calories === 0) {
+    try {
+      const { findFoodByName } = await import('../../../../../lib/food-database');
+      const foodData = findFoodByName(corrected.food_name);
+      if (foodData) {
+        Object.assign(corrected, {
+          calories: foodData.calories,
+          protein: foodData.protein,
+          fat: foodData.fat,
+          carbs: foodData.carbs
+        });
+        console.log(`食品データベースから検索: ${foodData.name} -> ${foodData.calories}kcal`);
+      }
+    } catch (error) {
+      console.log('食品データベースの読み込みに失敗:', error);
+    }
   }
   
   // カロリーが0だが他の栄養素がある場合の補正
@@ -169,7 +188,7 @@ async function callGeminiAPI(text: string, retryCount = 0): Promise<any> {
       }
       
       // 解析結果の妥当性チェックと補正
-      const correctedData = validateAndCorrectNutritionData(nutritionData, text);
+      const correctedData = await validateAndCorrectNutritionData(nutritionData, text);
       console.log('補正後の解析結果:', correctedData);
       
       // キャッシュに保存

@@ -1,36 +1,175 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PFC Alfa - 食事管理アプリ
 
-## Getting Started
+PFC Alfaは、AIを活用した食事管理アプリケーションです。画像解析とテキスト解析により、食事の栄養成分を自動で分析し、PFC（タンパク質・脂質・炭水化物）バランスを管理できます。
 
-First, run the development server:
+## 主な機能
 
+### 🍽️ 食事記録
+- **画像解析**: 食事の写真を撮影して栄養成分を自動分析
+- **テキスト解析**: 食品名を入力して栄養成分を取得
+- **食品データベース検索**: 包括的な食品データベースから栄養成分を検索
+- **手動入力**: 栄養成分を手動で入力・修正
+
+### 📊 ダッシュボード
+- 日別の栄養摂取量の可視化
+- PFCバランスの円グラフ表示
+- 体重推移のグラフ表示
+- AIによる食事アドバイス
+
+### 🎯 目標管理
+- 個人の目標に基づく理想カロリー計算
+- 体重目標の設定と管理
+- 活動レベルの設定
+
+## 技術スタック
+
+- **フロントエンド**: Next.js 14, React, TypeScript
+- **UI**: Tailwind CSS, shadcn/ui
+- **AI**: Google Gemini API
+- **データベース**: Supabase (PostgreSQL)
+- **認証**: Supabase Auth
+
+## 食品データベース機能
+
+### 包括的な食品データベース
+- **100種類以上の食品**を収録
+- **カテゴリ別分類**: 主食、肉類、魚介類、野菜、果物、飲料、デザートなど
+- **詳細な栄養成分**: カロリー、タンパク質、脂質、炭水化物
+- **日本語対応**: 日本の食品を中心としたデータベース
+
+### 外部API連携
+- **USDA Food Database API**: アメリカの食品データベース
+- **楽天レシピAPI**: 日本のレシピ情報
+- **ブラウザ拡張機能連携**: Chrome拡張機能とのデータ共有
+
+### 検索機能
+- **食品名検索**: 部分一致による検索
+- **カテゴリ検索**: 食品カテゴリ別の検索
+- **栄養成分検索**: カロリー範囲や栄養成分による検索
+- **類似食品提案**: 検索結果が見つからない場合の類似食品提案
+
+## セットアップ
+
+### 1. リポジトリのクローン
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/your-username/pfcalfa.git
+cd pfcalfa
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. 依存関係のインストール
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. 環境変数の設定
+`.env.local`ファイルを作成し、以下の環境変数を設定：
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+# Gemini API
+GEMINI_API_KEY=your_gemini_api_key_here
 
-## Learn More
+# 楽天API（楽天レシピAPI）
+RAKUTEN_APP_ID=your_rakuten_app_id_here
 
-To learn more about Next.js, take a look at the following resources:
+# USDA Food Database API
+USDA_API_KEY=your_usda_api_key_here
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 4. データベースのセットアップ
+```bash
+# Supabase CLIのインストール
+npm install -g supabase
 
-## Deploy on Vercel
+# データベースのマイグレーション実行
+supabase db push
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 5. 開発サーバーの起動
+```bash
+npm run dev
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## API エンドポイント
+
+### 食品検索API
+```
+GET /api/food/search?q=食品名
+GET /api/food/search?category=カテゴリ名
+GET /api/food/search?minCalories=100&maxCalories=500
+POST /api/food/search
+```
+
+### 画像解析API
+```
+POST /api/grok/analyze-image
+```
+
+### テキスト解析API
+```
+POST /api/grok/analyze-text
+```
+
+### AIアドバイスAPI
+```
+POST /api/grok/advice
+```
+
+## 食品データベースの拡張
+
+### 新しい食品の追加
+`src/lib/food-database.ts`の`FOOD_DATABASE`オブジェクトに新しい食品を追加：
+
+```typescript
+'新しい食品名': { 
+  name: '新しい食品名', 
+  calories: 100, 
+  protein: 5, 
+  fat: 2, 
+  carbs: 15, 
+  category: FOOD_CATEGORIES.カテゴリ名, 
+  unit: '1個(100g)' 
+}
+```
+
+### 外部APIの追加
+`src/lib/external-apis.ts`に新しいAPI連携機能を追加できます。
+
+## デプロイ
+
+### Vercelでのデプロイ
+1. Vercelにプロジェクトを接続
+2. 環境変数を設定
+3. デプロイを実行
+
+### その他のプラットフォーム
+- Netlify
+- Railway
+- Heroku
+
+## ライセンス
+
+MIT License
+
+## 貢献
+
+プルリクエストやイシューの報告を歓迎します。
+
+## 更新履歴
+
+### v2.0.0 (最新)
+- 包括的な食品データベースの追加
+- 外部API連携機能の実装
+- 食品検索機能の追加
+- ブラウザ拡張機能連携の準備
+- UI/UXの大幅改善
+
+### v1.0.0
+- 基本的な食事記録機能
+- 画像・テキスト解析機能
+- ダッシュボード機能
+- 認証機能

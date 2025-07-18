@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useState, useRef, useEffect } from "react";
 import { analyzeImageNutrition, analyzeTextNutrition, GrokNutritionResponse } from "@/lib/grok";
 import { createClient } from "@/lib/supabase/client";
+import { findFoodByName } from "@/lib/food-database";
 
 export function MealRecordModal() {
   const [open, setOpen] = useState(false);
@@ -28,6 +29,9 @@ export function MealRecordModal() {
   const [textErrorMessage, setTextErrorMessage] = useState("");
   const [textInput, setTextInput] = useState("");
   const [analysisMethod, setAnalysisMethod] = useState<"image" | "text" | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -230,6 +234,28 @@ export function MealRecordModal() {
 
     setIsAnalyzing(true);
     try {
+      // まず食品データベースから検索
+      const foodData = findFoodByName(formData.food_name);
+      if (foodData) {
+        setNutritionData({
+          food_name: foodData.name,
+          calories: foodData.calories,
+          protein: foodData.protein,
+          fat: foodData.fat,
+          carbs: foodData.carbs
+        });
+        setFormData(prev => ({
+          ...prev,
+          calories: foodData.calories.toString(),
+          protein: foodData.protein.toString(),
+          fat: foodData.fat.toString(),
+          carbs: foodData.carbs.toString()
+        }));
+        setIsCorrectedByUser(false);
+        return;
+      }
+
+      // データベースにない場合はAI解析
       const result = await analyzeTextNutrition(formData.food_name);
       setNutritionData(result);
       setFormData(prev => ({
@@ -245,6 +271,50 @@ export function MealRecordModal() {
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  // 食品検索機能
+  const handleFoodSearch = async () => {
+    const query = searchQuery.trim();
+    if (!query) return;
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(`/api/food/search?q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setSearchResults(data.data);
+      } else {
+        setSearchResults([]);
+      }
+    } catch (error) {
+      console.error('食品検索エラー:', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // 検索結果から食品を選択
+  const handleFoodSelect = (food: any) => {
+    setFormData({
+      food_name: food.name,
+      calories: food.calories.toString(),
+      protein: food.protein.toString(),
+      fat: food.fat.toString(),
+      carbs: food.carbs.toString()
+    });
+    setNutritionData({
+      food_name: food.name,
+      calories: food.calories,
+      protein: food.protein,
+      fat: food.fat,
+      carbs: food.carbs
+    });
+    setSearchResults([]);
+    setSearchQuery("");
+    setIsCorrectedByUser(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -541,9 +611,12 @@ export function MealRecordModal() {
               <h3 className="font-semibold mb-2">解析結果</h3>
               <div className="space-y-2 text-sm">
                 <div className="break-words">
-                  <span className="font-medium">食品名:</span> {nutritionData.food_name}
+                  <span className="font-medium">食品名:</span> 
+                  <div className="mt-1 text-gray-700 break-all">
+                    {nutritionData.food_name}
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2 mt-3">
                   <div>カロリー: {nutritionData.calories}kcal</div>
                   <div>タンパク質: {nutritionData.protein}g</div>
                   <div>脂質: {nutritionData.fat}g</div>
@@ -597,28 +670,65 @@ export function MealRecordModal() {
 
     return (
       <form onSubmit={handleSubmit} className="space-y-4 mt-6">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <div>
             <Label htmlFor="food_name">食品名</Label>
-            <Input
-              id="food_name"
-              name="food_name"
-              value={formData.food_name}
-              onChange={handleInputChange}
-              required
-            />
-            {isCorrectedByUser && (
-              <Button 
-                type="button" 
-                onClick={handleFoodNameCorrection}
-                disabled={isAnalyzing}
-                size="sm"
-                className="mt-1"
-              >
-                {isAnalyzing ? "再解析中..." : "再解析"}
-              </Button>
-            )}
+            <div className="space-y-2">
+              <Input
+                id="food_name"
+                name="food_name"
+                value={formData.food_name}
+                onChange={handleInputChange}
+                required
+                className="text-sm"
+              />
+              <div className="flex gap-2">
+                <Input
+                  placeholder="食品を検索..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleFoodSearch()}
+                />
+                <Button 
+                  type="button" 
+                  onClick={handleFoodSearch}
+                  disabled={isSearching}
+                  size="sm"
+                >
+                  {isSearching ? "検索中..." : "検索"}
+                </Button>
+              </div>
+              {searchResults.length > 0 && (
+                <div className="border rounded-lg p-2 max-h-32 overflow-y-auto">
+                  {searchResults.map((food, index) => (
+                    <div
+                      key={index}
+                      className="p-2 hover:bg-gray-100 cursor-pointer text-sm"
+                      onClick={() => handleFoodSelect(food)}
+                    >
+                      <div className="font-medium">{food.name}</div>
+                      <div className="text-gray-600">
+                        {food.calories}kcal (P:{food.protein}g, F:{food.fat}g, C:{food.carbs}g)
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {isCorrectedByUser && (
+                <Button 
+                  type="button" 
+                  onClick={handleFoodNameCorrection}
+                  disabled={isAnalyzing}
+                  size="sm"
+                  className="mt-1"
+                >
+                  {isAnalyzing ? "再解析中..." : "再解析"}
+                </Button>
+              )}
+            </div>
           </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <Label htmlFor="calories">カロリー (kcal)</Label>
             <Input
@@ -631,8 +741,6 @@ export function MealRecordModal() {
               step="0.1"
             />
           </div>
-        </div>
-        <div className="grid grid-cols-3 gap-4">
           <div>
             <Label htmlFor="protein">タンパク質 (g)</Label>
             <Input
@@ -645,6 +753,8 @@ export function MealRecordModal() {
               step="0.1"
             />
           </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <Label htmlFor="fat">脂質 (g)</Label>
             <Input
@@ -670,15 +780,8 @@ export function MealRecordModal() {
             />
           </div>
         </div>
-        <div className="flex justify-end gap-2 pt-4">
-          <Button 
-            type="submit" 
-            onClick={handleSubmit}
-            disabled={!isFormComplete || isSubmitting}
-          >
-            {isSubmitting ? "登録中..." : "登録"}
-          </Button>
-        </div>
+
+
       </form>
     );
   };
@@ -696,7 +799,7 @@ export function MealRecordModal() {
       </div>
       
       <div ref={modalRef} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
-        <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-[90vh] flex flex-col">
+        <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-[85vh] flex flex-col">
           <div className="flex justify-between items-center p-6 border-b border-gray-200">
             <h2 className="text-xl font-bold">食事の記録</h2>
             <Button 
@@ -728,6 +831,20 @@ export function MealRecordModal() {
             {renderImageAnalysis()}
             {renderTextAnalysis()}
             {renderForm()}
+          </div>
+          
+          {/* 登録ボタンを常に表示 */}
+          <div className="border-t border-gray-200 p-6 bg-white">
+            <div className="flex justify-end gap-2">
+              <Button 
+                type="button" 
+                onClick={handleSubmit}
+                disabled={!isFormComplete || isSubmitting}
+                className="w-full sm:w-auto"
+              >
+                {isSubmitting ? "登録中..." : "登録"}
+              </Button>
+            </div>
           </div>
           
         </div>

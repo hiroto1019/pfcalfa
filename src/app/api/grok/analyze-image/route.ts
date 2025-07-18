@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
 
 // 栄養データの検証と補正関数（改善版）
-function validateAndCorrectNutritionData(data: any) {
+async function validateAndCorrectNutritionData(data: any) {
   const corrected = { ...data };
   
   // 数値フィールドの検証と補正（一括処理）
@@ -17,53 +17,22 @@ function validateAndCorrectNutritionData(data: any) {
     corrected.food_name = '食品（詳細不明）';
   }
   
-  // 食品名からカロリーを推定するデータベース
-  const foodCalories = {
-    // 主食
-    'ご飯': { calories: 250, protein: 5, fat: 0, carbs: 55 },
-    '白米': { calories: 250, protein: 5, fat: 0, carbs: 55 },
-    'パン': { calories: 150, protein: 5, fat: 2, carbs: 28 },
-    'うどん': { calories: 200, protein: 6, fat: 1, carbs: 40 },
-    'そば': { calories: 180, protein: 8, fat: 1, carbs: 35 },
-    'パスタ': { calories: 200, protein: 7, fat: 1, carbs: 40 },
-    
-    // 肉類
-    '鶏肉': { calories: 165, protein: 25, fat: 3, carbs: 0 },
-    '豚肉': { calories: 200, protein: 20, fat: 12, carbs: 0 },
-    '牛肉': { calories: 250, protein: 25, fat: 15, carbs: 0 },
-    '魚': { calories: 120, protein: 20, fat: 4, carbs: 0 },
-    '卵': { calories: 80, protein: 7, fat: 6, carbs: 1 },
-    
-    // 野菜・サラダ
-    'サラダ': { calories: 80, protein: 3, fat: 2, carbs: 15 },
-    '野菜': { calories: 50, protein: 2, fat: 0, carbs: 10 },
-    
-    // 飲料
-    'ジュース': { calories: 100, protein: 0, fat: 0, carbs: 25 },
-    'コーヒー': { calories: 5, protein: 0, fat: 0, carbs: 1 },
-    'お茶': { calories: 0, protein: 0, fat: 0, carbs: 0 },
-    '牛乳': { calories: 120, protein: 8, fat: 5, carbs: 12 },
-    'お酒': { calories: 150, protein: 0, fat: 0, carbs: 10 },
-    'ビール': { calories: 150, protein: 0, fat: 0, carbs: 10 },
-    
-    // デザート
-    'ケーキ': { calories: 300, protein: 5, fat: 15, carbs: 40 },
-    'アイス': { calories: 200, protein: 3, fat: 10, carbs: 25 },
-    'チョコレート': { calories: 250, protein: 3, fat: 15, carbs: 30 },
-    
-    // スープ
-    'スープ': { calories: 150, protein: 8, fat: 5, carbs: 20 },
-    '味噌汁': { calories: 100, protein: 5, fat: 3, carbs: 15 }
-  };
-  
   // カロリーが0の場合、食品名から推定を試行
   if (corrected.calories === 0) {
-    for (const [keyword, values] of Object.entries(foodCalories)) {
-      if (corrected.food_name.includes(keyword)) {
-        Object.assign(corrected, values);
-        console.log(`食品名からカロリーを推定: ${keyword} -> ${values.calories}kcal`);
-        break;
+    try {
+      const { findFoodByName } = await import('../../../../../lib/food-database');
+      const foodData = findFoodByName(corrected.food_name);
+      if (foodData) {
+        Object.assign(corrected, {
+          calories: foodData.calories,
+          protein: foodData.protein,
+          fat: foodData.fat,
+          carbs: foodData.carbs
+        });
+        console.log(`食品データベースから検索: ${foodData.name} -> ${foodData.calories}kcal`);
       }
+    } catch (error) {
+      console.log('食品データベースの読み込みに失敗:', error);
     }
   }
   
@@ -353,7 +322,7 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
         }
         
         // 解析結果の妥当性チェックと補正
-        const correctedData = validateAndCorrectNutritionData(nutritionData);
+        const correctedData = await validateAndCorrectNutritionData(nutritionData);
         console.log('補正後の解析結果:', correctedData);
         
       // キャッシュを無効化
