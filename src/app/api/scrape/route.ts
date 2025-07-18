@@ -386,6 +386,28 @@ function extractDataFromHTML(html: string, hostname: string, originalUrl: string
         console.log('.calorie:', $('.calorie').length);
         console.log('.kcal:', $('.kcal').length);
         console.log('[class*="recipe"]:', $('[class*="recipe"]').length);
+        
+        // 1文字でもヒットするように、より包括的な検索を試行
+        console.log('包括的検索を試行中...');
+        $('a[href*="/recipe/"]').each((index, element) => {
+          const $el = $(element);
+          const title = $el.text().trim();
+          if (title && title.length > 2 && title.length < 100) {
+            const estimatedCalories = estimateCaloriesFromTitle(title);
+            if (estimatedCalories > 0) {
+              results.push({
+                name: title,
+                calories: estimatedCalories,
+                protein: Math.floor(estimatedCalories * 0.15),
+                fat: Math.floor(estimatedCalories * 0.25),
+                carbs: Math.floor(estimatedCalories * 0.6),
+                unit: '1人前',
+                source: 'クックパッド（包括的検索）',
+                url: originalUrl
+              });
+            }
+          }
+        });
       }
       
       // 楽天レシピの場合の詳細デバッグ
@@ -401,6 +423,28 @@ function extractDataFromHTML(html: string, hostname: string, originalUrl: string
         console.log('.calorie:', $('.calorie').length);
         console.log('.kcal:', $('.kcal').length);
         console.log('[class*="recipe"]:', $('[class*="recipe"]').length);
+        
+        // 1文字でもヒットするように、より包括的な検索を試行
+        console.log('包括的検索を試行中...');
+        $('a[href*="/recipe/"]').each((index, element) => {
+          const $el = $(element);
+          const title = $el.text().trim();
+          if (title && title.length > 2 && title.length < 100) {
+            const estimatedCalories = estimateCaloriesFromTitle(title);
+            if (estimatedCalories > 0) {
+              results.push({
+                name: title,
+                calories: estimatedCalories,
+                protein: Math.floor(estimatedCalories * 0.15),
+                fat: Math.floor(estimatedCalories * 0.25),
+                carbs: Math.floor(estimatedCalories * 0.6),
+                unit: '1人前',
+                source: '楽天レシピ（包括的検索）',
+                url: originalUrl
+              });
+            }
+          }
+        });
       }
     }
 

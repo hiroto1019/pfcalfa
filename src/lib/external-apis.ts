@@ -133,41 +133,79 @@ async function searchFromSlism(query: string): Promise<ExternalFoodItem[]> {
 // 楽天レシピから検索（実際のスクレイピング版）
 async function searchFromRakuten(query: string): Promise<ExternalFoodItem[]> {
   try {
-    // 楽天レシピの検索ページをスクレイピング
-    const searchUrl = `https://recipe.rakuten.co.jp/search/${encodeURIComponent(query)}/`;
-    
     const baseUrl = getBaseUrl();
-    const fullUrl = `${baseUrl}/api/scrape?url=${encodeURIComponent(searchUrl)}`;
-    console.log(`楽天レシピ検索URL: ${fullUrl}`);
+    let allResults: ExternalFoodItem[] = [];
     
-    const response = await fetch(fullUrl);
-    console.log(`楽天レシピ検索レスポンスステータス: ${response.status}`);
+    // 1文字でもヒットするように、複数のURLを試行
+    const urlsToTry = [
+      // 検索結果ページ
+      `https://recipe.rakuten.co.jp/search/${encodeURIComponent(query)}/`,
+      // 人気レシピページ（1文字でも関連する料理が表示される可能性）
+      'https://recipe.rakuten.co.jp/',
+      // カテゴリーページ
+      'https://recipe.rakuten.co.jp/category/',
+      // 新着レシピページ
+      'https://recipe.rakuten.co.jp/recipe/'
+    ];
     
-    if (!response.ok) {
-      console.error(`楽天レシピ検索エラー: ${response.status} - ${response.statusText}`);
-      const errorText = await response.text();
-      console.error('楽天レシピ検索エラー詳細:', errorText);
-      throw new Error(`楽天レシピ検索エラー: ${response.status}`);
-    }
+    for (const url of urlsToTry) {
+      try {
+        const fullUrl = `${baseUrl}/api/scrape?url=${encodeURIComponent(url)}`;
+        console.log(`楽天レシピ検索URL: ${fullUrl}`);
+        
+        const response = await fetch(fullUrl);
+        console.log(`楽天レシピ検索レスポンスステータス: ${response.status}`);
+        
+        if (!response.ok) {
+          console.error(`楽天レシピ検索エラー: ${response.status} - ${response.statusText}`);
+          continue; // 次のURLを試行
+        }
 
-    const data = await response.json();
-    console.log('楽天レシピ検索レスポンス:', JSON.stringify(data, null, 2));
-    
-    if (data.success && data.data && data.data.length > 0) {
-      console.log(`楽天レシピから${data.data.length}件のレシピを取得`);
-      return data.data.map((item: any) => ({
-        name: item.name,
-        calories: item.calories,
-        protein: item.protein,
-        fat: item.fat,
-        carbs: item.carbs,
-        unit: item.unit,
-        source: item.source
-      }));
-    } else {
-      console.log('楽天レシピからデータを取得できませんでした');
-      return [];
+        const data = await response.json();
+        console.log('楽天レシピ検索レスポンス:', JSON.stringify(data, null, 2));
+        
+        if (data.success && data.data && data.data.length > 0) {
+          console.log(`楽天レシピから${data.data.length}件のレシピを取得`);
+          
+          // クエリに基づいてフィルタリング（1文字でも部分一致）
+          const filteredData = data.data.filter((item: any) => {
+            if (!item.name) return false;
+            const itemName = item.name.toLowerCase();
+            const queryLower = query.toLowerCase();
+            
+            // 1文字でも部分一致するものを含める
+            return itemName.includes(queryLower) || queryLower.includes(itemName);
+          });
+          
+          if (filteredData.length > 0) {
+            allResults.push(...filteredData.map((item: any) => ({
+              name: item.name,
+              calories: item.calories,
+              protein: item.protein,
+              fat: item.fat,
+              carbs: item.carbs,
+              unit: item.unit,
+              source: item.source
+            })));
+            
+            // 十分な結果が得られたら終了
+            if (allResults.length >= 10) break;
+          }
+        }
+      } catch (error) {
+        console.error(`楽天レシピ検索エラー (${url}):`, error);
+        continue; // 次のURLを試行
+      }
     }
+    
+    // 重複を除去
+    const uniqueResults = allResults.filter((item, index, self) => 
+      index === self.findIndex(t => t.name === item.name)
+    );
+    
+    console.log(`楽天レシピ最終結果: ${uniqueResults.length}件`);
+    return uniqueResults;
+    
   } catch (error) {
     console.error('楽天レシピ検索エラー:', error);
     return [];
@@ -177,41 +215,81 @@ async function searchFromRakuten(query: string): Promise<ExternalFoodItem[]> {
 // クックパッドから検索（実際のスクレイピング版）
 async function searchFromCookpad(query: string): Promise<ExternalFoodItem[]> {
   try {
-    // クックパッドの検索ページをスクレイピング
-    const searchUrl = `https://cookpad.com/search/${encodeURIComponent(query)}`;
-    
     const baseUrl = getBaseUrl();
-    const fullUrl = `${baseUrl}/api/scrape?url=${encodeURIComponent(searchUrl)}`;
-    console.log(`クックパッド検索URL: ${fullUrl}`);
+    let allResults: ExternalFoodItem[] = [];
     
-    const response = await fetch(fullUrl);
-    console.log(`クックパッド検索レスポンスステータス: ${response.status}`);
+    // 1文字でもヒットするように、複数のURLを試行
+    const urlsToTry = [
+      // 検索結果ページ
+      `https://cookpad.com/search/${encodeURIComponent(query)}`,
+      // トップページ（人気レシピが表示される）
+      'https://cookpad.com/',
+      // 新着レシピページ
+      'https://cookpad.com/recipe/',
+      // カテゴリーページ
+      'https://cookpad.com/category/',
+      // ランキングページ
+      'https://cookpad.com/ranking/'
+    ];
     
-    if (!response.ok) {
-      console.error(`クックパッド検索エラー: ${response.status} - ${response.statusText}`);
-      const errorText = await response.text();
-      console.error('クックパッド検索エラー詳細:', errorText);
-      throw new Error(`クックパッド検索エラー: ${response.status}`);
+    for (const url of urlsToTry) {
+      try {
+        const fullUrl = `${baseUrl}/api/scrape?url=${encodeURIComponent(url)}`;
+        console.log(`クックパッド検索URL: ${fullUrl}`);
+        
+        const response = await fetch(fullUrl);
+        console.log(`クックパッド検索レスポンスステータス: ${response.status}`);
+        
+        if (!response.ok) {
+          console.error(`クックパッド検索エラー: ${response.status} - ${response.statusText}`);
+          continue; // 次のURLを試行
+        }
+        
+        const data = await response.json();
+        console.log('クックパッド検索レスポンス:', JSON.stringify(data, null, 2));
+        
+        if (data.success && data.data && data.data.length > 0) {
+          console.log(`クックパッドから${data.data.length}件のレシピを取得`);
+          
+          // クエリに基づいてフィルタリング（1文字でも部分一致）
+          const filteredData = data.data.filter((item: any) => {
+            if (!item.name) return false;
+            const itemName = item.name.toLowerCase();
+            const queryLower = query.toLowerCase();
+            
+            // 1文字でも部分一致するものを含める
+            return itemName.includes(queryLower) || queryLower.includes(itemName);
+          });
+          
+          if (filteredData.length > 0) {
+            allResults.push(...filteredData.map((item: any) => ({
+              name: item.name,
+              calories: item.calories,
+              protein: item.protein,
+              fat: item.fat,
+              carbs: item.carbs,
+              unit: item.unit,
+              source: item.source
+            })));
+            
+            // 十分な結果が得られたら終了
+            if (allResults.length >= 10) break;
+          }
+        }
+      } catch (error) {
+        console.error(`クックパッド検索エラー (${url}):`, error);
+        continue; // 次のURLを試行
+      }
     }
     
-    const data = await response.json();
-    console.log('クックパッド検索レスポンス:', JSON.stringify(data, null, 2));
+    // 重複を除去
+    const uniqueResults = allResults.filter((item, index, self) => 
+      index === self.findIndex(t => t.name === item.name)
+    );
     
-    if (data.success && data.data && data.data.length > 0) {
-      console.log(`クックパッドから${data.data.length}件のレシピを取得`);
-      return data.data.map((item: any) => ({
-        name: item.name,
-        calories: item.calories,
-        protein: item.protein,
-        fat: item.fat,
-        carbs: item.carbs,
-        unit: item.unit,
-        source: item.source
-      }));
-    } else {
-      console.log('クックパッドからデータを取得できませんでした');
-      return [];
-    }
+    console.log(`クックパッド最終結果: ${uniqueResults.length}件`);
+    return uniqueResults;
+    
   } catch (error) {
     console.error('クックパッド検索エラー:', error);
     return [];
@@ -352,7 +430,7 @@ export async function searchFoodFromMEXT(query: string): Promise<ExternalFoodIte
       { name: '豆乳', calories: 80, protein: 7, fat: 4, carbs: 6, unit: '1杯(200ml)', source: 'MEXT' }
     ];
 
-    // クエリに基づいてフィルタリング（部分一致検索）
+    // クエリに基づいてフィルタリング（1文字でも部分一致検索）
     const normalizedQuery = query.toLowerCase().trim();
     const filteredFoods = mextDatabase.filter(food => {
       const foodName = food.name.toLowerCase();
@@ -372,16 +450,24 @@ export async function searchFoodFromMEXT(query: string): Promise<ExternalFoodIte
         return true;
       }
       
-      // 単語レベルでの部分一致
+      // 1文字でも部分一致（1文字の単語も含める）
       const queryWords = normalizedQuery.split(/[\s　]+/);
       const foodWords = foodName.split(/[\s　]+/);
       
       for (const queryWord of queryWords) {
-        if (queryWord.length < 2) continue; // 1文字の単語は除外
+        // 1文字の単語も含める
         for (const foodWord of foodWords) {
           if (foodWord.includes(queryWord) || queryWord.includes(foodWord)) {
             return true;
           }
+        }
+      }
+      
+      // 文字レベルでの部分一致（1文字でも）
+      for (let i = 0; i < normalizedQuery.length; i++) {
+        const char = normalizedQuery[i];
+        if (foodName.includes(char)) {
+          return true;
         }
       }
       
