@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { analyzeTextNutrition } from '@/lib/grok';
 
-// 運動解析専用の関数（Gemini-2.0-flash使用）
-async function analyzeExerciseText(exerciseText: string) {
+// 運動解析専用のGemini API呼び出し関数
+async function callGeminiExerciseAPI(exerciseText: string, retryCount = 0): Promise<any> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('Gemini APIキーが設定されていません');
+  }
+
   const exercisePrompt = `
 以下の運動内容から詳細な消費カロリーを推定してください。
 運動内容: ${exerciseText}
@@ -36,18 +40,132 @@ async function analyzeExerciseText(exerciseText: string) {
 - テニス: 250-350kcal
 - バスケットボール: 300-450kcal
 - サッカー: 350-500kcal
-`;
+- ベンチプレス: 100-200kcal（セット数と重量に応じて調整）
+- スクワット: 150-250kcal
+- デッドリフト: 200-300kcal
+- プッシュアップ: 100-150kcal
+- プランク: 50-100kcal
+
+必ず運動内容から適切なカロリーを推定し、0kcalにならないよう設定してください。`;
 
   try {
-    const result = await analyzeTextNutrition(exercisePrompt);
+    console.log(`運動解析Gemini API呼び出し開始: "${exerciseText}"`);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: exercisePrompt
+            }]
+          }],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 200,
+            topP: 0.8,
+            topK: 20,
+            candidateCount: 1
+          }
+        }),
+        signal: controller.signal
+      }
+    );
+
+    clearTimeout(timeoutId);
+    console.log('運動解析Gemini API応答ステータス:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('運動解析Gemini APIエラー詳細:', errorText);
+      
+      if (response.status === 503 && retryCount < 1) {
+        const delay = 1000;
+        console.log(`${delay}ms後にリトライします...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return callGeminiExerciseAPI(exerciseText, retryCount + 1);
+      }
+      
+      throw new Error(`運動解析Gemini API呼び出しに失敗しました: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('運動解析Gemini API応答データ:', data);
+    
+    if (!data.candidates || data.candidates.length === 0) {
+      throw new Error('運動解析Gemini APIから有効な応答が返されませんでした');
+    }
+
+    const content = data.candidates[0]?.content?.parts?.[0]?.text;
+    if (!content) {
+      throw new Error('運動解析Gemini APIからの応答が不正です');
+    }
+
+    console.log('運動解析Gemini API応答内容:', content);
+
+    // JSONレスポンスを抽出
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.log('JSONレスポンスが見つかりません。内容:', content);
+      throw new Error('運動解析Gemini APIからJSONレスポンスが返されませんでした');
+    }
+
+    const exerciseData = JSON.parse(jsonMatch[0]);
+    console.log('運動解析結果:', exerciseData);
+    
+    // 必須フィールドの検証
+    const requiredFields = ['exercise_name', 'calories_burned', 'duration_minutes', 'exercise_type', 'notes'];
+    const missingFields = requiredFields.filter(field => !(field in exerciseData));
+    
+    if (missingFields.length > 0) {
+      console.log('必須フィールドが不足:', missingFields);
+      missingFields.forEach(field => {
+        if (field === 'exercise_name') {
+          exerciseData[field] = exerciseText;
+        } else if (field === 'calories_burned') {
+          exerciseData[field] = estimateCaloriesFromText(exerciseText);
+        } else if (field === 'duration_minutes') {
+          exerciseData[field] = 30;
+        } else if (field === 'exercise_type') {
+          exerciseData[field] = 'strength';
+        } else if (field === 'notes') {
+          exerciseData[field] = `AI解析: ${exerciseText}`;
+        }
+      });
+    }
+    
+    return exerciseData;
+
+  } catch (error: any) {
+    console.error('運動解析Gemini API呼び出しエラー:', error);
+    
+    if (error.name === 'AbortError') {
+      throw new Error('運動解析がタイムアウトしました。再度お試しください。');
+    }
+    
+    throw error;
+  }
+}
+
+// 運動解析専用の関数（Gemini-2.0-flash使用）
+async function analyzeExerciseText(exerciseText: string) {
+  try {
+    const result = await callGeminiExerciseAPI(exerciseText);
     
     // 結果を運動解析用に変換
     const exerciseResult = {
-      exercise_name: result.food_name || exerciseText,
-      calories_burned: result.calories || 0,
-      duration_minutes: result.protein || 30, // 一時的にproteinフィールドを使用
-      exercise_type: result.fat ? 'cardio' : 'strength', // 一時的にfatフィールドを使用
-      notes: `AI解析: ${exerciseText}`
+      exercise_name: result.exercise_name || exerciseText,
+      calories_burned: result.calories_burned || 0,
+      duration_minutes: result.duration_minutes || 30,
+      exercise_type: result.exercise_type || 'strength',
+      notes: result.notes || `AI解析: ${exerciseText}`
     };
     
     console.log('運動解析結果:', exerciseResult);
@@ -60,7 +178,7 @@ async function analyzeExerciseText(exerciseText: string) {
       exercise_name: exerciseText,
       calories_burned: estimateCaloriesFromText(exerciseText),
       duration_minutes: 30,
-      exercise_type: 'cardio',
+      exercise_type: 'strength',
       notes: `AI解析失敗、手動推定: ${exerciseText}`
     };
     
@@ -97,7 +215,21 @@ function estimateCaloriesFromText(exerciseText: string): number {
     'ローイング': 350, '漕ぐ': 350,
     'ステップ': 250, 'ステッパー': 250,
     '腹筋': 150, '腕立て': 150, 'スクワット': 200,
-    'プランク': 100, 'バーピー': 300
+    'プランク': 100, 'バーピー': 300,
+    'ベンチプレス': 150, 'ベンチ': 150, 'プレス': 150,
+    'デッドリフト': 250, 'デッド': 250,
+    'プッシュアップ': 120, '腕立て伏せ': 120,
+    'チンニング': 200, '懸垂': 200, 'プルアップ': 200,
+    'ショルダープレス': 180, 'オーバーヘッドプレス': 180,
+    'ラットプルダウン': 160, 'ラット': 160,
+    'レッグプレス': 220, 'レッグ': 220,
+    'カーフレイズ': 100, 'カーフ': 100,
+    'サイドレイズ': 120, 'ラテラルレイズ': 120,
+    'フロントレイズ': 120, 'フロント': 120,
+    'リアレイズ': 120, 'リア': 120,
+    'バーベルカール': 120, 'カール': 120,
+    'トライセップス': 120, 'トライ': 120,
+    'ディップス': 150, 'ディップ': 150
   };
 
   // 運動時間の推定
@@ -109,6 +241,34 @@ function estimateCaloriesFromText(exerciseText: string): number {
       duration = time * 60;
     } else {
       duration = time;
+    }
+  }
+
+  // ベンチプレスの重量と回数に応じたカロリー計算
+  if (lowerText.includes('ベンチプレス') || lowerText.includes('ベンチ') || lowerText.includes('プレス')) {
+    const weightMatch = exerciseText.match(/(\d+)\s*(キロ|kg|kg)/);
+    const repsMatch = exerciseText.match(/(\d+)\s*(回|rep)/);
+    
+    if (weightMatch && repsMatch) {
+      const weight = parseInt(weightMatch[1]);
+      const reps = parseInt(repsMatch[1]);
+      
+      // 重量と回数に応じたカロリー計算
+      let calories = 0;
+      if (weight >= 100) {
+        calories = 15 + (weight - 100) * 0.2; // 100kg以上は重量に応じて増加
+      } else if (weight >= 80) {
+        calories = 12 + (weight - 80) * 0.15;
+      } else if (weight >= 60) {
+        calories = 10 + (weight - 60) * 0.1;
+      } else {
+        calories = 8 + weight * 0.05;
+      }
+      
+      // 回数に応じて調整
+      calories = calories * reps * 0.8; // 1回あたりのカロリー × 回数 × 効率
+      
+      return Math.round(Math.max(calories, 50)); // 最低50kcal
     }
   }
 
