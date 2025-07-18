@@ -24,11 +24,13 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
   const [showDetails, setShowDetails] = useState(false);
   const [isDataReady, setIsDataReady] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [lastUpdateTime, setLastUpdateTime] = useState<number>(0);
   const supabase = createClient();
   const lastProfileHash = useRef<string | null>(null);
   const lastDailyHash = useRef<string | null>(null);
   const dataLoadAttempts = useRef(0);
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const forceUpdateRef = useRef(false);
 
   // ハッシュ生成関数（最適化版）
   const getHash = (obj: any) => {
@@ -38,7 +40,10 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
       username: obj.username,
       goal_type: obj.goal_type,
       activity_level: obj.activity_level,
-      total_calories: obj.total_calories || 0
+      total_calories: obj.total_calories || 0,
+      total_protein: obj.total_protein || 0,
+      total_fat: obj.total_fat || 0,
+      total_carbs: obj.total_carbs || 0
     } : obj;
     return JSON.stringify(keyFields);
   };
@@ -47,7 +52,7 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
   const getAdviceKey = () => {
     if (!userProfile) return "ai-advice-default";
     const targetCalories = calculateTargetCalories(userProfile);
-    const calorieRange = dailyData ? Math.floor((dailyData.total_calories || 0) / 200) * 200 : 0;
+    const calorieRange = dailyData ? Math.floor((dailyData.total_calories || 0) / 100) * 100 : 0;
     return `ai-advice-${userProfile.username}-${userProfile.goal_type}-${calorieRange}-${Math.round(targetCalories / 100) * 100}`;
   };
 
@@ -75,17 +80,18 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
     return targetCalories;
   };
 
-  // キャッシュから復元（最適化版）
+  // キャッシュから復元（改善版）
   useEffect(() => {
-    if (userProfile) {
+    if (userProfile && !forceUpdateRef.current) {
       const cache = localStorage.getItem(getAdviceKey());
       if (cache) {
         try {
           const cachedAdvice = JSON.parse(cache);
-          // キャッシュの有効期限をチェック（1時間）
+          // キャッシュの有効期限をチェック（30分に短縮）
           const cacheAge = Date.now() - (cachedAdvice.timestamp || 0);
-          if (cacheAge < 60 * 60 * 1000) { // 1時間以内
+          if (cacheAge < 30 * 60 * 1000) { // 30分以内
             setAdvice(cachedAdvice.data || cachedAdvice);
+            setLastUpdateTime(cachedAdvice.timestamp || Date.now());
             console.log('キャッシュからアドバイスを復元');
           } else {
             localStorage.removeItem(getAdviceKey());
@@ -103,14 +109,16 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
     loadUserData();
   }, []);
 
-  // 食事記録イベントをリッスン（最適化版）
+  // 食事記録イベントをリッスン（改善版）
   useEffect(() => {
     const handleMealRecorded = () => {
       console.log('AIアドバイス - 食事記録イベントを受信');
+      // 強制更新フラグを設定
+      forceUpdateRef.current = true;
       // 遅延を短縮（高速化）
       setTimeout(() => {
         loadUserData();
-      }, 500); // 1000msから500msに短縮
+      }, 500);
     };
 
     window.addEventListener('mealRecorded', handleMealRecorded);
@@ -154,8 +162,8 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
 
       if (profileResult.error) {
         console.error('プロフィール取得エラー:', profileResult.error);
-        if (dataLoadAttempts.current < 2) { // 3回から2回に削減
-          setTimeout(loadUserData, 500); // 1000msから500msに短縮
+        if (dataLoadAttempts.current < 2) {
+          setTimeout(loadUserData, 500);
           return;
         }
       }
@@ -210,7 +218,7 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
     }
   };
 
-  // プロフィール・日次データの変更検知（最適化版）
+  // プロフィール・日次データの変更検知（改善版）
   useEffect(() => {
     if (!isDataReady) return;
 
@@ -225,6 +233,13 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
       if (userProfile) {
         fetchAdvice();
       }
+      return;
+    }
+    
+    // 強制更新フラグが設定されている場合は更新可能にする
+    if (forceUpdateRef.current) {
+      setCanUpdate(true);
+      forceUpdateRef.current = false;
       return;
     }
     
@@ -252,11 +267,11 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
     try {
       console.log('AIアドバイス取得開始:', { userProfile, dailyData });
       
-      // 8秒タイムアウトを設定
+      // 6秒タイムアウトに短縮
       const timeoutPromise = new Promise((_, reject) => {
         fetchTimeoutRef.current = setTimeout(() => {
           reject(new Error('タイムアウト'));
-        }, 8000);
+        }, 6000);
       });
 
       const advicePromise = getAiAdvice(userProfile, dailyData);
@@ -271,10 +286,12 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
       
       if (adviceData) {
         setAdvice(adviceData);
+        const currentTime = Date.now();
+        setLastUpdateTime(currentTime);
         // キャッシュにタイムスタンプ付きで保存
         localStorage.setItem(getAdviceKey(), JSON.stringify({
           data: adviceData,
-          timestamp: Date.now()
+          timestamp: currentTime
         }));
         lastProfileHash.current = getHash(userProfile);
         lastDailyHash.current = getHash(dailyData);
@@ -343,10 +360,10 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
               variant="outline"
               size="sm" 
               onClick={fetchAdvice}
-              disabled={isLoading || !canUpdate || !isDataReady}
+              disabled={isLoading || !isDataReady}
               className="text-xs h-6 px-2"
             >
-              {canUpdate ? "更新" : "最新"}
+              {isLoading ? "更新中" : "更新"}
             </Button>
           </div>
         ) : (
@@ -364,7 +381,7 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
             variant={canUpdate ? "default" : "outline"}
             size="sm" 
             onClick={fetchAdvice}
-            disabled={isLoading || !canUpdate || !isDataReady}
+            disabled={isLoading || !isDataReady}
           >
             {isLoading ? "更新中..." : canUpdate ? "更新" : "最新"}
           </Button>
@@ -420,7 +437,9 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
                 </Button>
               </div>
               
-              <div className="text-xs text-gray-400 mt-2">※前回生成したアドバイスを表示中</div>
+              <div className="text-xs text-gray-400 mt-2">
+                ※{lastUpdateTime ? new Date(lastUpdateTime).toLocaleTimeString('ja-JP') : '不明'}に生成
+              </div>
             </>
           ) : (
             <div className="text-center py-4">

@@ -124,12 +124,12 @@ export async function analyzeTextNutrition(text: string): Promise<GrokNutritionR
   }
 }
 
-// AIアドバイスを取得（最適化版）
+// AIアドバイスを取得（高速化版）
 export async function getAiAdvice(userProfile: UserProfile, dailyData?: any): Promise<GrokAdviceResponse> {
   try {
-    // 8秒タイムアウトを設定
+    // 6秒タイムアウトに短縮
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
 
     const response = await fetch('/api/grok/advice', {
       method: 'POST',
@@ -183,11 +183,11 @@ export async function getAiAdvice(userProfile: UserProfile, dailyData?: any): Pr
         if (field === 'meal_summary') {
           data[field] = "今日も健康的な食事を心がけましょう。";
         } else if (field === 'meal_detail') {
-          data[field] = "今日も健康的な食事を心がけましょう。\n\n具体的には、野菜、タンパク質、炭水化物をバランスよく摂取。朝食はしっかりと、昼食は適度に、夕食は軽めに。間食は果物やナッツを選び、水分補給も忘れずに。";
+          data[field] = "今日も健康的な食事を心がけましょう。野菜、タンパク質、炭水化物をバランスよく摂取。朝食はしっかりと、昼食は適度に、夕食は軽めに。間食は果物やナッツを選び、水分補給も忘れずに。";
         } else if (field === 'exercise_summary') {
           data[field] = "適度な運動を取り入れてください。";
         } else if (field === 'exercise_detail') {
-          data[field] = "適度な運動を取り入れてください。\n\nウォーキング、ジョギング、サイクリングなどの有酸素運動を30分程度。筋トレも週2回取り入れて、全身の筋肉をバランスよく鍛えましょう。";
+          data[field] = "適度な運動を取り入れてください。ウォーキング、ジョギング、サイクリングなどの有酸素運動を30分程度。筋トレも週2回取り入れて、全身の筋肉をバランスよく鍛えましょう。";
         }
       });
     }
