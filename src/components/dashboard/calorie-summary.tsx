@@ -70,9 +70,18 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
       }, 500);
     };
 
+    const handleMealDeleted = () => {
+      console.log('カロリーサマリー - 食事削除イベントを受信');
+      setTimeout(() => {
+        loadCalorieData();
+      }, 500);
+    };
+
     window.addEventListener('mealRecorded', handleMealRecorded);
+    window.addEventListener('mealDeleted', handleMealDeleted);
     return () => {
       window.removeEventListener('mealRecorded', handleMealRecorded);
+      window.removeEventListener('mealDeleted', handleMealDeleted);
     };
   }, []);
 
@@ -86,9 +95,18 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
       }, 500);
     };
 
+    const handleExerciseDeleted = () => {
+      console.log('カロリーサマリー - 運動削除イベントを受信');
+      setTimeout(() => {
+        loadCalorieData();
+      }, 500);
+    };
+
     window.addEventListener('exerciseRecorded', handleExerciseRecorded);
+    window.addEventListener('exerciseDeleted', handleExerciseDeleted);
     return () => {
       window.removeEventListener('exerciseRecorded', handleExerciseRecorded);
+      window.removeEventListener('exerciseDeleted', handleExerciseDeleted);
     };
   }, []);
 

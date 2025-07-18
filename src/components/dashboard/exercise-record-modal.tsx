@@ -65,6 +65,7 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'manual' | 'analysis'>('manual');
+  const [isRegisteredFromAnalysis, setIsRegisteredFromAnalysis] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -136,6 +137,8 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
           notes: data.data.notes || ''
         });
         setActiveTab('manual');
+        // AI解析からの登録フラグをリセット
+        setIsRegisteredFromAnalysis(false);
       } else {
         setErrorMessage(data.error || '解析に失敗しました');
       }
@@ -152,6 +155,12 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
     
     if (!formData.exercise_name || !formData.duration_minutes || !formData.calories_burned || !formData.exercise_type) {
       alert('必須項目を入力してください');
+      return;
+    }
+
+    // AI解析からの登録フラグが立っている場合は重複登録を防ぐ
+    if (isRegisteredFromAnalysis) {
+      alert('この運動は既に登録済みです。新しい運動を記録する場合は、手動で入力してください。');
       return;
     }
 
@@ -195,6 +204,11 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
 
       const data = await response.json();
       console.log('運動記録作成成功:', data);
+
+      // AI解析からの登録の場合はフラグを立てる
+      if (analysisResult) {
+        setIsRegisteredFromAnalysis(true);
+      }
 
       // フォームをリセット
       setFormData({
@@ -241,6 +255,7 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
     setAnalysisResult(null);
     setErrorMessage('');
     setActiveTab('manual');
+    setIsRegisteredFromAnalysis(false);
     onClose();
   };
 
@@ -502,9 +517,26 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
                     </div>
                   )}
                   <div className="p-3 bg-green-100 rounded-lg">
-                    <p className="text-sm text-green-800 font-medium">
-                      ✓ 解析が完了しました。手動入力タブで確認・編集できます。
+                    <p className="text-sm text-green-800 font-medium mb-3">
+                      ✓ 解析が完了しました。このまま登録するか、手動入力タブで確認・編集できます。
                     </p>
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={isSubmitting}
+                      className="w-full bg-green-600 hover:bg-green-700"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          記録中...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4 mr-2" />
+                          この内容で記録
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
