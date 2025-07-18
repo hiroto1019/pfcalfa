@@ -18,7 +18,7 @@ function getBaseUrl(): string {
   } else {
     // サーバーサイド
     return process.env.NODE_ENV === 'production' 
-      ? (process.env.NEXT_PUBLIC_BASE_URL || 'https://your-domain.com') // 本番環境のドメインに変更
+      ? (process.env.NEXT_PUBLIC_BASE_URL || 'https://pfcalfa.vercel.app') // 実際の本番環境のドメイン
       : 'http://localhost:3000';
   }
 }
@@ -137,13 +137,17 @@ async function searchFromRakuten(query: string): Promise<ExternalFoodItem[]> {
     const searchUrl = `https://recipe.rakuten.co.jp/search/${encodeURIComponent(query)}/`;
     
     const baseUrl = getBaseUrl();
+    console.log(`楽天レシピ検索URL: ${baseUrl}/api/scrape?url=${encodeURIComponent(searchUrl)}`);
+    
     const response = await fetch(`${baseUrl}/api/scrape?url=${encodeURIComponent(searchUrl)}`);
     
     if (!response.ok) {
+      console.error(`楽天レシピ検索エラー: ${response.status} - ${response.statusText}`);
       throw new Error(`楽天レシピ検索エラー: ${response.status}`);
     }
 
     const data = await response.json();
+    console.log('楽天レシピ検索レスポンス:', data);
     
     if (data.success && data.data && data.data.length > 0) {
       console.log(`楽天レシピから${data.data.length}件のレシピを取得`);
@@ -173,13 +177,17 @@ async function searchFromCookpad(query: string): Promise<ExternalFoodItem[]> {
     const searchUrl = `https://cookpad.com/search/${encodeURIComponent(query)}`;
     
     const baseUrl = getBaseUrl();
+    console.log(`クックパッド検索URL: ${baseUrl}/api/scrape?url=${encodeURIComponent(searchUrl)}`);
+    
     const response = await fetch(`${baseUrl}/api/scrape?url=${encodeURIComponent(searchUrl)}`);
     
     if (!response.ok) {
+      console.error(`クックパッド検索エラー: ${response.status} - ${response.statusText}`);
       throw new Error(`クックパッド検索エラー: ${response.status}`);
     }
     
     const data = await response.json();
+    console.log('クックパッド検索レスポンス:', data);
     
     if (data.success && data.data && data.data.length > 0) {
       console.log(`クックパッドから${data.data.length}件のレシピを取得`);
@@ -273,6 +281,53 @@ export async function searchFoodFromMEXT(query: string): Promise<ExternalFoodIte
       { name: 'マシュマロ', calories: 320, protein: 2, fat: 0, carbs: 80, unit: '100g', source: 'MEXT' },
       { name: 'プリン', calories: 150, protein: 4, fat: 6, carbs: 20, unit: '1個', source: 'MEXT' },
       { name: 'シュークリーム', calories: 250, protein: 5, fat: 12, carbs: 30, unit: '1個', source: 'MEXT' },
+      { name: 'アイス', calories: 200, protein: 3, fat: 10, carbs: 25, unit: '1個', source: 'MEXT' },
+      { name: 'お菓子', calories: 150, protein: 2, fat: 8, carbs: 18, unit: '1個', source: 'MEXT' },
+      { name: 'スナック', calories: 120, protein: 2, fat: 6, carbs: 15, unit: '1袋', source: 'MEXT' },
+      { name: 'キャンディ', calories: 80, protein: 0, fat: 0, carbs: 20, unit: '1個', source: 'MEXT' },
+      { name: 'グミ', calories: 100, protein: 1, fat: 0, carbs: 25, unit: '1袋', source: 'MEXT' },
+      { name: 'ラムネ', calories: 60, protein: 0, fat: 0, carbs: 15, unit: '1個', source: 'MEXT' },
+      { name: 'あめ', calories: 70, protein: 0, fat: 0, carbs: 18, unit: '1個', source: 'MEXT' },
+      { name: 'ドーナツ', calories: 300, protein: 4, fat: 15, carbs: 40, unit: '1個', source: 'MEXT' },
+      { name: 'パンケーキ', calories: 250, protein: 6, fat: 8, carbs: 40, unit: '1枚', source: 'MEXT' },
+      { name: 'ワッフル', calories: 280, protein: 5, fat: 12, carbs: 38, unit: '1枚', source: 'MEXT' },
+      { name: 'タルト', calories: 350, protein: 6, fat: 18, carbs: 45, unit: '1切れ', source: 'MEXT' },
+      { name: 'モンブラン', calories: 320, protein: 5, fat: 16, carbs: 42, unit: '1個', source: 'MEXT' },
+      { name: 'ティラミス', calories: 380, protein: 7, fat: 20, carbs: 48, unit: '1切れ', source: 'MEXT' },
+      { name: 'チーズケーキ', calories: 340, protein: 8, fat: 18, carbs: 40, unit: '1切れ', source: 'MEXT' },
+      { name: 'ショートケーキ', calories: 360, protein: 6, fat: 16, carbs: 46, unit: '1切れ', source: 'MEXT' },
+      { name: 'ロールケーキ', calories: 280, protein: 5, fat: 12, carbs: 38, unit: '1切れ', source: 'MEXT' },
+      { name: 'パイ', calories: 320, protein: 4, fat: 18, carbs: 36, unit: '1切れ', source: 'MEXT' },
+      { name: 'クレープ', calories: 220, protein: 4, fat: 8, carbs: 32, unit: '1枚', source: 'MEXT' },
+      { name: 'まんじゅう', calories: 180, protein: 3, fat: 2, carbs: 38, unit: '1個', source: 'MEXT' },
+      { name: 'だんご', calories: 160, protein: 3, fat: 1, carbs: 35, unit: '1串', source: 'MEXT' },
+      { name: 'おはぎ', calories: 200, protein: 4, fat: 3, carbs: 40, unit: '1個', source: 'MEXT' },
+      { name: '大福', calories: 190, protein: 3, fat: 2, carbs: 39, unit: '1個', source: 'MEXT' },
+      { name: 'わらびもち', calories: 120, protein: 2, fat: 0, carbs: 28, unit: '1個', source: 'MEXT' },
+      { name: 'ようかん', calories: 170, protein: 2, fat: 1, carbs: 37, unit: '1切れ', source: 'MEXT' },
+      { name: 'あんみつ', calories: 250, protein: 4, fat: 2, carbs: 52, unit: '1杯', source: 'MEXT' },
+      { name: 'かき氷', calories: 80, protein: 1, fat: 0, carbs: 20, unit: '1杯', source: 'MEXT' },
+      { name: 'みつまめ', calories: 140, protein: 2, fat: 0, carbs: 32, unit: '1杯', source: 'MEXT' },
+      { name: 'あんず', calories: 50, protein: 1, fat: 0, carbs: 12, unit: '1個', source: 'MEXT' },
+      { name: 'ぶどう', calories: 60, protein: 1, fat: 0, carbs: 15, unit: '1房', source: 'MEXT' },
+      { name: 'メロン', calories: 40, protein: 1, fat: 0, carbs: 10, unit: '1切れ', source: 'MEXT' },
+      { name: 'スイカ', calories: 35, protein: 1, fat: 0, carbs: 8, unit: '1切れ', source: 'MEXT' },
+      { name: 'パイナップル', calories: 45, protein: 1, fat: 0, carbs: 11, unit: '1切れ', source: 'MEXT' },
+      { name: 'キウイ', calories: 55, protein: 1, fat: 0, carbs: 13, unit: '1個', source: 'MEXT' },
+      { name: 'オレンジ', calories: 50, protein: 1, fat: 0, carbs: 12, unit: '1個', source: 'MEXT' },
+      { name: 'レモン', calories: 20, protein: 1, fat: 0, carbs: 5, unit: '1個', source: 'MEXT' },
+      { name: 'グレープフルーツ', calories: 40, protein: 1, fat: 0, carbs: 10, unit: '1個', source: 'MEXT' },
+      { name: 'もも', calories: 45, protein: 1, fat: 0, carbs: 11, unit: '1個', source: 'MEXT' },
+      { name: 'なし', calories: 50, protein: 1, fat: 0, carbs: 12, unit: '1個', source: 'MEXT' },
+      { name: '柿', calories: 60, protein: 1, fat: 0, carbs: 14, unit: '1個', source: 'MEXT' },
+      { name: '栗', calories: 80, protein: 2, fat: 1, carbs: 18, unit: '1個', source: 'MEXT' },
+      { name: 'くるみ', calories: 180, protein: 4, fat: 18, carbs: 4, unit: '10粒', source: 'MEXT' },
+      { name: 'アーモンド', calories: 160, protein: 6, fat: 14, carbs: 6, unit: '10粒', source: 'MEXT' },
+      { name: 'ピスタチオ', calories: 170, protein: 6, fat: 15, carbs: 5, unit: '10粒', source: 'MEXT' },
+      { name: 'カシューナッツ', calories: 180, protein: 5, fat: 16, carbs: 6, unit: '10粒', source: 'MEXT' },
+      { name: 'ピーナッツ', calories: 150, protein: 7, fat: 13, carbs: 5, unit: '10粒', source: 'MEXT' },
+      { name: 'ひまわりの種', calories: 140, protein: 5, fat: 12, carbs: 4, unit: '10粒', source: 'MEXT' },
+      { name: 'かぼちゃの種', calories: 130, protein: 4, fat: 11, carbs: 5, unit: '10粒', source: 'MEXT' },
       
       // 飲料
       { name: 'コーヒー', calories: 5, protein: 0, fat: 0, carbs: 1, unit: '1杯(200ml)', source: 'MEXT' },

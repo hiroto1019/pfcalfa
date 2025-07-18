@@ -331,6 +331,9 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
 
     setShowAnalysisModal(false);
     setActiveTab('manual');
+    // 解析データをクリアして重複登録を防ぐ
+    setAnalysisData(null);
+    setAnalysisResult(null);
   };
 
   // 解析完了モーダルでのキャンセル処理
