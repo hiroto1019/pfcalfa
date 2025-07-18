@@ -190,14 +190,22 @@ export async function searchFromRakuten(query: string): Promise<ExternalFoodItem
         if (data.success && data.data && data.data.length > 0) {
           console.log(`楽天レシピから${data.data.length}件のレシピを取得`);
           
-          // クエリに基づいてフィルタリング（1文字でも部分一致）
+          // クエリに基づいてフィルタリング（より柔軟な検索）
           const filteredData = data.data.filter((item: any) => {
             if (!item.name) return false;
             const itemName = item.name.toLowerCase();
             const queryLower = query.toLowerCase();
-            
-            // 1文字でも部分一致するものを含める
-            return itemName.includes(queryLower) || queryLower.includes(itemName);
+            const hasDirectMatch = itemName.includes(queryLower) || queryLower.includes(itemName);
+            const isFoodLike = !itemName.includes('記事') &&
+                              !itemName.includes('探す') &&
+                              !itemName.includes('top') &&
+                              !itemName.includes('pickup') &&
+                              !itemName.includes('新着') &&
+                              !itemName.includes('人気') &&
+                              !itemName.includes('ランキング') &&
+                              itemName.length > 2 &&
+                              itemName.length < 50;
+            return hasDirectMatch || (isFoodLike && queryLower.length <= 3);
           });
           
           if (filteredData.length > 0) {
@@ -288,14 +296,22 @@ export async function searchFromCookpad(query: string): Promise<ExternalFoodItem
         if (data.success && data.data && data.data.length > 0) {
           console.log(`クックパッドから${data.data.length}件のレシピを取得`);
           
-          // クエリに基づいてフィルタリング（1文字でも部分一致）
+          // クエリに基づいてフィルタリング（より柔軟な検索）
           const filteredData = data.data.filter((item: any) => {
             if (!item.name) return false;
             const itemName = item.name.toLowerCase();
             const queryLower = query.toLowerCase();
-            
-            // 1文字でも部分一致するものを含める
-            return itemName.includes(queryLower) || queryLower.includes(itemName);
+            const hasDirectMatch = itemName.includes(queryLower) || queryLower.includes(itemName);
+            const isFoodLike = !itemName.includes('記事') &&
+                              !itemName.includes('探す') &&
+                              !itemName.includes('top') &&
+                              !itemName.includes('pickup') &&
+                              !itemName.includes('新着') &&
+                              !itemName.includes('人気') &&
+                              !itemName.includes('ランキング') &&
+                              itemName.length > 2 &&
+                              itemName.length < 50;
+            return hasDirectMatch || (isFoodLike && queryLower.length <= 3);
           });
           
           if (filteredData.length > 0) {
@@ -377,12 +393,22 @@ export async function searchFromFoodDB(query: string): Promise<ExternalFoodItem[
         if (data.success && data.data && data.data.length > 0) {
           console.log(`FoodDBから${data.data.length}件の食品を取得`);
           
-          // クエリに基づいてフィルタリング
+          // クエリに基づいてフィルタリング（より柔軟な検索）
           const filteredData = data.data.filter((item: any) => {
             if (!item.name) return false;
             const itemName = item.name.toLowerCase();
             const queryLower = query.toLowerCase();
-            return itemName.includes(queryLower) || queryLower.includes(itemName);
+            const hasDirectMatch = itemName.includes(queryLower) || queryLower.includes(itemName);
+            const isFoodLike = !itemName.includes('記事') &&
+                              !itemName.includes('探す') &&
+                              !itemName.includes('top') &&
+                              !itemName.includes('pickup') &&
+                              !itemName.includes('新着') &&
+                              !itemName.includes('人気') &&
+                              !itemName.includes('ランキング') &&
+                              itemName.length > 2 &&
+                              itemName.length < 50;
+            return hasDirectMatch || (isFoodLike && queryLower.length <= 3);
           });
           
           if (filteredData.length > 0) {
@@ -465,12 +491,22 @@ export async function searchFromRakutenMarket(query: string): Promise<ExternalFo
         if (data.success && data.data && data.data.length > 0) {
           console.log(`楽天市場から${data.data.length}件の商品を取得`);
           
-          // クエリに基づいてフィルタリング
+          // クエリに基づいてフィルタリング（より柔軟な検索）
           const filteredData = data.data.filter((item: any) => {
             if (!item.name) return false;
             const itemName = item.name.toLowerCase();
             const queryLower = query.toLowerCase();
-            return itemName.includes(queryLower) || queryLower.includes(itemName);
+            const hasDirectMatch = itemName.includes(queryLower) || queryLower.includes(itemName);
+            const isFoodLike = !itemName.includes('記事') &&
+                              !itemName.includes('探す') &&
+                              !itemName.includes('top') &&
+                              !itemName.includes('pickup') &&
+                              !itemName.includes('新着') &&
+                              !itemName.includes('人気') &&
+                              !itemName.includes('ランキング') &&
+                              itemName.length > 2 &&
+                              itemName.length < 50;
+            return hasDirectMatch || (isFoodLike && queryLower.length <= 3);
           });
           
           if (filteredData.length > 0) {
