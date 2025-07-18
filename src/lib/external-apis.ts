@@ -137,17 +137,21 @@ async function searchFromRakuten(query: string): Promise<ExternalFoodItem[]> {
     const searchUrl = `https://recipe.rakuten.co.jp/search/${encodeURIComponent(query)}/`;
     
     const baseUrl = getBaseUrl();
-    console.log(`楽天レシピ検索URL: ${baseUrl}/api/scrape?url=${encodeURIComponent(searchUrl)}`);
+    const fullUrl = `${baseUrl}/api/scrape?url=${encodeURIComponent(searchUrl)}`;
+    console.log(`楽天レシピ検索URL: ${fullUrl}`);
     
-    const response = await fetch(`${baseUrl}/api/scrape?url=${encodeURIComponent(searchUrl)}`);
+    const response = await fetch(fullUrl);
+    console.log(`楽天レシピ検索レスポンスステータス: ${response.status}`);
     
     if (!response.ok) {
       console.error(`楽天レシピ検索エラー: ${response.status} - ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('楽天レシピ検索エラー詳細:', errorText);
       throw new Error(`楽天レシピ検索エラー: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('楽天レシピ検索レスポンス:', data);
+    console.log('楽天レシピ検索レスポンス:', JSON.stringify(data, null, 2));
     
     if (data.success && data.data && data.data.length > 0) {
       console.log(`楽天レシピから${data.data.length}件のレシピを取得`);
@@ -177,17 +181,21 @@ async function searchFromCookpad(query: string): Promise<ExternalFoodItem[]> {
     const searchUrl = `https://cookpad.com/search/${encodeURIComponent(query)}`;
     
     const baseUrl = getBaseUrl();
-    console.log(`クックパッド検索URL: ${baseUrl}/api/scrape?url=${encodeURIComponent(searchUrl)}`);
+    const fullUrl = `${baseUrl}/api/scrape?url=${encodeURIComponent(searchUrl)}`;
+    console.log(`クックパッド検索URL: ${fullUrl}`);
     
-    const response = await fetch(`${baseUrl}/api/scrape?url=${encodeURIComponent(searchUrl)}`);
+    const response = await fetch(fullUrl);
+    console.log(`クックパッド検索レスポンスステータス: ${response.status}`);
     
     if (!response.ok) {
       console.error(`クックパッド検索エラー: ${response.status} - ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('クックパッド検索エラー詳細:', errorText);
       throw new Error(`クックパッド検索エラー: ${response.status}`);
     }
     
     const data = await response.json();
-    console.log('クックパッド検索レスポンス:', data);
+    console.log('クックパッド検索レスポンス:', JSON.stringify(data, null, 2));
     
     if (data.success && data.data && data.data.length > 0) {
       console.log(`クックパッドから${data.data.length}件のレシピを取得`);
@@ -403,36 +411,33 @@ export async function searchFoodFromEdamam(query: string): Promise<ExternalFoodI
 }
 */
 
-// 複数のAPIから統合検索（MEXTとスクレイピングのみ）
+// 複数のAPIから統合検索（スクレイピング優先）
 export async function searchFoodFromMultipleSources(query: string): Promise<ExternalFoodItem[]> {
   try {
     console.log(`統合検索開始: "${query}"`);
     
-    // MEXTデータベースから検索（常に実行）
-    const mextResults = await searchFoodFromMEXT(query);
-    console.log(`MEXT検索結果: ${mextResults.length}件`);
-    
-    // 外部サイト検索（エラーが発生しても続行）
+    // 外部サイト検索を優先（スクレイピング）
     let realSiteResults: ExternalFoodItem[] = [];
     try {
+      console.log('外部サイト検索を開始...');
       realSiteResults = await searchFoodFromRealSites(query);
       console.log(`外部サイト検索結果: ${realSiteResults.length}件`);
+      
+      // 外部サイトで結果が見つかった場合は、それを優先して返す
+      if (realSiteResults.length > 0) {
+        console.log('外部サイトから結果を取得しました。MEXT検索はスキップします。');
+        return realSiteResults;
+      }
     } catch (error) {
-      console.error('外部サイト検索エラー（続行）:', error);
+      console.error('外部サイト検索エラー:', error);
     }
 
-    const allResults: ExternalFoodItem[] = [
-      ...mextResults,
-      ...realSiteResults
-    ];
+    // 外部サイトで結果が見つからない場合のみMEXTデータベースから検索
+    console.log('外部サイトで結果が見つからないため、MEXTデータベースから検索します。');
+    const mextResults = await searchFoodFromMEXT(query);
+    console.log(`MEXT検索結果: ${mextResults.length}件`);
 
-    // 重複を除去（名前で比較）
-    const uniqueResults = allResults.filter((food, index, self) => 
-      index === self.findIndex(f => f.name.toLowerCase() === food.name.toLowerCase())
-    );
-
-    console.log(`統合検索結果: ${uniqueResults.length}件`);
-    return uniqueResults;
+    return mextResults;
   } catch (error) {
     console.error('統合検索エラー:', error);
     // エラーの場合でもMEXTデータベースから検索を試行

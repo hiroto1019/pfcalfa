@@ -124,199 +124,216 @@ function extractDataFromHTML(html: string, hostname: string, originalUrl: string
   const results: any[] = [];
 
   try {
-         if (hostname.includes('cookpad.com')) {
-       // クックパッドのレシピ検索結果を解析（複数のセレクタを試行）
-       const cookpadSelectors = [
-         '.recipe-preview',
-         '.recipe-card',
-         '.recipe-item',
-         '.search_result',
-         '.recipe'
-       ];
+    if (hostname.includes('cookpad.com')) {
+      console.log('クックパッドのスクレイピング開始');
+      
+      // より柔軟なアプローチ：recipeを含むクラスを持つ要素をすべて検索
+      $('[class*="recipe"]').each((index, element) => {
+        const $el = $(element);
+        
+        // タイトルの取得（より包括的なセレクタ）
+        const titleSelectors = [
+          '.recipe-title', '.title', 'h3', 'h4', '.recipe_name', '.name',
+          '.recipe-title a', '.title a', 'h3 a', 'h4 a',
+          '.recipe_name a', '.name a', 'a[href*="/recipe/"]',
+          '.recipe-title-text', '.recipe-name', '.recipe-name-text',
+          'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'
+        ];
+        
+        let title = '';
+        for (const titleSelector of titleSelectors) {
+          title = $el.find(titleSelector).first().text().trim();
+          if (title && title.length > 2 && title.length < 100) break;
+        }
+        
+        // カロリーの取得（より包括的なセレクタ）
+        const calorieSelectors = [
+          '.calorie', '.kcal', '.nutrition', '.recipe-info .calorie', '.energy',
+          '.recipe-calorie', '.recipe_kcal', '.recipe-kcal',
+          '.nutrition-info', '.nutrition_info', '.recipe-nutrition',
+          '.calorie-info', '.calorie_info', '.energy-info',
+          '[class*="calorie"]', '[class*="kcal"]', '[class*="nutrition"]',
+          '[class*="energy"]', 'span', 'div'
+        ];
+        
+        let caloriesText = '';
+        for (const calorieSelector of calorieSelectors) {
+          caloriesText = $el.find(calorieSelector).text().trim();
+          if (caloriesText && caloriesText.match(/\d+/)) break;
+        }
+        
+        if (title && caloriesText) {
+          // カロリー数値を抽出（より柔軟な正規表現）
+          const calorieMatch = caloriesText.match(/(\d+)/);
+          const calories = calorieMatch ? parseInt(calorieMatch[1]) : 0;
+          
+          if (calories > 0 && calories < 2000) { // 妥当な範囲のカロリーのみ
+            // 重複チェック
+            const existingIndex = results.findIndex(r => r.name === title);
+            if (existingIndex === -1) {
+              results.push({
+                name: title,
+                calories: calories,
+                protein: Math.floor(calories * 0.15), // 推定値
+                fat: Math.floor(calories * 0.25), // 推定値
+                carbs: Math.floor(calories * 0.6), // 推定値
+                unit: '1人前',
+                source: 'クックパッド',
+                url: originalUrl
+              });
+            }
+          }
+        }
+      });
 
-       for (const selector of cookpadSelectors) {
-         $(selector).each((index, element) => {
-           const $el = $(element);
-           
-           // タイトルの取得（複数のセレクタを試行）
-           const titleSelectors = ['.recipe-title', '.title', 'h3', 'h4', '.recipe_name', '.name'];
-           let title = '';
-           for (const titleSelector of titleSelectors) {
-             title = $el.find(titleSelector).text().trim();
-             if (title) break;
-           }
-           
-           // カロリーの取得（複数のセレクタを試行）
-           const calorieSelectors = ['.calorie', '.kcal', '.nutrition', '.recipe-info .calorie', '.energy'];
-           let caloriesText = '';
-           for (const calorieSelector of calorieSelectors) {
-             caloriesText = $el.find(calorieSelector).text().trim();
-             if (caloriesText) break;
-           }
-           
-           if (title && caloriesText) {
-             // カロリー数値を抽出（より柔軟な正規表現）
-             const calorieMatch = caloriesText.match(/(\d+)/);
-             const calories = calorieMatch ? parseInt(calorieMatch[1]) : 0;
-             
-             if (calories > 0 && calories < 2000) { // 妥当な範囲のカロリーのみ
-               results.push({
-                 name: title,
-                 calories: calories,
-                 protein: Math.floor(calories * 0.15), // 推定値
-                 fat: Math.floor(calories * 0.25), // 推定値
-                 carbs: Math.floor(calories * 0.6), // 推定値
-                 unit: '1人前',
-                 source: 'クックパッド',
-                 url: originalUrl
-               });
-             }
-           }
-         });
-         
-         if (results.length > 0) break; // 結果が見つかったら終了
-       }
+      // カロリーが見つからない場合は、タイトルから推定
+      if (results.length === 0) {
+        console.log('カロリー情報が見つからないため、タイトルから推定を開始');
+        
+        $('[class*="recipe"]').each((index, element) => {
+          const $el = $(element);
+          
+          const titleSelectors = [
+            '.recipe-title', '.title', 'h3', 'h4', '.recipe_name', '.name',
+            '.recipe-title a', '.title a', 'h3 a', 'h4 a',
+            '.recipe_name a', '.name a', 'a[href*="/recipe/"]',
+            '.recipe-title-text', '.recipe-name', '.recipe-name-text',
+            'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'
+          ];
+          
+          let title = '';
+          for (const titleSelector of titleSelectors) {
+            title = $el.find(titleSelector).first().text().trim();
+            if (title && title.length > 2 && title.length < 100) break;
+          }
+          
+          if (title) {
+            // 料理名から推定カロリーを計算
+            const estimatedCalories = estimateCaloriesFromTitle(title);
+            if (estimatedCalories > 0) {
+              // 重複チェック
+              const existingIndex = results.findIndex(r => r.name === title);
+              if (existingIndex === -1) {
+                results.push({
+                  name: title,
+                  calories: estimatedCalories,
+                  protein: Math.floor(estimatedCalories * 0.15),
+                  fat: Math.floor(estimatedCalories * 0.25),
+                  carbs: Math.floor(estimatedCalories * 0.6),
+                  unit: '1人前',
+                  source: 'クックパッド（推定）',
+                  url: originalUrl
+                });
+              }
+            }
+          }
+        });
+      }
 
-       // カロリーが見つからない場合は、タイトルから推定
-       if (results.length === 0) {
-         const titleSelectors = [
-           '.recipe-title', '.title', 'h3', 'h4', '.recipe_name', '.name',
-           '.recipe-title a', '.title a', 'h3 a', 'h4 a',
-           '.recipe_name a', '.name a', 'a[href*="/recipe/"]'
-         ];
-         
-         $(cookpadSelectors[0]).each((index, element) => {
-           const $el = $(element);
-           let title = '';
-           for (const titleSelector of titleSelectors) {
-             title = $el.find(titleSelector).text().trim();
-             if (title) break;
-           }
-           
-           if (title) {
-             // 料理名から推定カロリーを計算
-             const estimatedCalories = estimateCaloriesFromTitle(title);
-             if (estimatedCalories > 0) {
-               results.push({
-                 name: title,
-                 calories: estimatedCalories,
-                 protein: Math.floor(estimatedCalories * 0.15),
-                 fat: Math.floor(estimatedCalories * 0.25),
-                 carbs: Math.floor(estimatedCalories * 0.6),
-                 unit: '1人前',
-                 source: 'クックパッド（推定）',
-                 url: originalUrl
-               });
-             }
-           }
-         });
-       }
+    } else if (hostname.includes('rakuten.co.jp')) {
+      console.log('楽天レシピのスクレイピング開始');
+      
+      // 楽天レシピの検索結果を解析（より柔軟なアプローチ）
+      $('[class*="recipe"]').each((index, element) => {
+        const $el = $(element);
+        
+        // タイトルの取得（より包括的なセレクタ）
+        const titleSelectors = [
+          '.recipe-title', '.title', 'h3', 'h4', '.recipe_name', '.name',
+          '.recipe-title a', '.title a', 'h3 a', 'h4 a',
+          '.recipe_name a', '.name a', 'a[href*="/recipe/"]',
+          '.recipe_title', '.recipe-title-text', '.recipe-name',
+          'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'
+        ];
+        
+        let title = '';
+        for (const titleSelector of titleSelectors) {
+          title = $el.find(titleSelector).first().text().trim();
+          if (title && title.length > 2 && title.length < 100) break;
+        }
+        
+        // カロリーの取得（より包括的なセレクタ）
+        const calorieSelectors = [
+          '.calorie', '.kcal', '.nutrition-info', '.energy', '.nutrition',
+          '.recipe-calorie', '.recipe_kcal', '.recipe-kcal',
+          '.nutrition-info', '.nutrition_info', '.recipe-nutrition',
+          '.calorie-info', '.calorie_info', '.energy-info',
+          '[class*="calorie"]', '[class*="kcal"]', '[class*="nutrition"]',
+          '[class*="energy"]', 'span', 'div'
+        ];
+        
+        let caloriesText = '';
+        for (const calorieSelector of calorieSelectors) {
+          caloriesText = $el.find(calorieSelector).text().trim();
+          if (caloriesText && caloriesText.match(/\d+/)) break;
+        }
+        
+        if (title && caloriesText) {
+          const calorieMatch = caloriesText.match(/(\d+)/);
+          const calories = calorieMatch ? parseInt(calorieMatch[1]) : 0;
+          
+          if (calories > 0 && calories < 2000) { // 妥当な範囲のカロリーのみ
+            // 重複チェック
+            const existingIndex = results.findIndex(r => r.name === title);
+            if (existingIndex === -1) {
+              results.push({
+                name: title,
+                calories: calories,
+                protein: Math.floor(calories * 0.15),
+                fat: Math.floor(calories * 0.25),
+                carbs: Math.floor(calories * 0.6),
+                unit: '1人前',
+                source: '楽天レシピ',
+                url: originalUrl
+              });
+            }
+          }
+        }
+      });
 
-         } else if (hostname.includes('rakuten.co.jp')) {
-       // 楽天レシピの検索結果を解析（複数のセレクタを試行）
-       const rakutenSelectors = [
-         '.recipe-card',
-         '.recipe-item',
-         '.recipe-preview',
-         '.search_result',
-         '.recipe',
-         '.recipe_list',
-         '.recipe-list',
-         '.recipe_list_item',
-         '.recipe-list-item',
-         '.recipe_card',
-         '.recipe-card',
-         '.recipe_item',
-         '.recipe-item',
-         '.recipe-preview-item'
-       ];
-
-       for (const selector of rakutenSelectors) {
-         $(selector).each((index, element) => {
-           const $el = $(element);
-           
-           // タイトルの取得（複数のセレクタを試行）
-           const titleSelectors = [
-             '.recipe-title', '.title', 'h3', 'h4', '.recipe_name', '.name',
-             '.recipe-title a', '.title a', 'h3 a', 'h4 a',
-             '.recipe_name a', '.name a', 'a[href*="/recipe/"]',
-             '.recipe_title', '.recipe-title-text', '.recipe-name'
-           ];
-           let title = '';
-           for (const titleSelector of titleSelectors) {
-             title = $el.find(titleSelector).text().trim();
-             if (title) break;
-           }
-           
-           // カロリーの取得（複数のセレクタを試行）
-           const calorieSelectors = [
-             '.calorie', '.kcal', '.nutrition-info', '.energy', '.nutrition',
-             '.recipe-calorie', '.recipe_kcal', '.recipe-kcal',
-             '.nutrition-info', '.nutrition_info', '.recipe-nutrition',
-             '.calorie-info', '.calorie_info', '.energy-info'
-           ];
-           let caloriesText = '';
-           for (const calorieSelector of calorieSelectors) {
-             caloriesText = $el.find(calorieSelector).text().trim();
-             if (caloriesText) break;
-           }
-           
-           if (title && caloriesText) {
-             const calorieMatch = caloriesText.match(/(\d+)/);
-             const calories = calorieMatch ? parseInt(calorieMatch[1]) : 0;
-             
-             if (calories > 0 && calories < 2000) { // 妥当な範囲のカロリーのみ
-               results.push({
-                 name: title,
-                 calories: calories,
-                 protein: Math.floor(calories * 0.15),
-                 fat: Math.floor(calories * 0.25),
-                 carbs: Math.floor(calories * 0.6),
-                 unit: '1人前',
-                 source: '楽天レシピ',
-                 url: originalUrl
-               });
-             }
-           }
-         });
-         
-         if (results.length > 0) break; // 結果が見つかったら終了
-       }
-
-       // カロリーが見つからない場合は、タイトルから推定
-       if (results.length === 0) {
-         const titleSelectors = [
-           '.recipe-title', '.title', 'h3', 'h4', '.recipe_name', '.name',
-           '.recipe-title a', '.title a', 'h3 a', 'h4 a',
-           '.recipe_name a', '.name a', 'a[href*="/recipe/"]'
-         ];
-         
-         $(rakutenSelectors[0]).each((index, element) => {
-           const $el = $(element);
-           let title = '';
-           for (const titleSelector of titleSelectors) {
-             title = $el.find(titleSelector).text().trim();
-             if (title) break;
-           }
-           
-           if (title) {
-             // 料理名から推定カロリーを計算（簡易版）
-             const estimatedCalories = estimateCaloriesFromTitle(title);
-             if (estimatedCalories > 0) {
-               results.push({
-                 name: title,
-                 calories: estimatedCalories,
-                 protein: Math.floor(estimatedCalories * 0.15),
-                 fat: Math.floor(estimatedCalories * 0.25),
-                 carbs: Math.floor(estimatedCalories * 0.6),
-                 unit: '1人前',
-                 source: '楽天レシピ（推定）',
-                 url: originalUrl
-               });
-             }
-           }
-         });
-       }
+      // カロリーが見つからない場合は、タイトルから推定
+      if (results.length === 0) {
+        console.log('カロリー情報が見つからないため、タイトルから推定を開始');
+        
+        $('[class*="recipe"]').each((index, element) => {
+          const $el = $(element);
+          
+          const titleSelectors = [
+            '.recipe-title', '.title', 'h3', 'h4', '.recipe_name', '.name',
+            '.recipe-title a', '.title a', 'h3 a', 'h4 a',
+            '.recipe_name a', '.name a', 'a[href*="/recipe/"]',
+            '.recipe_title', '.recipe-title-text', '.recipe-name',
+            'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'
+          ];
+          
+          let title = '';
+          for (const titleSelector of titleSelectors) {
+            title = $el.find(titleSelector).first().text().trim();
+            if (title && title.length > 2 && title.length < 100) break;
+          }
+          
+          if (title) {
+            // 料理名から推定カロリーを計算（簡易版）
+            const estimatedCalories = estimateCaloriesFromTitle(title);
+            if (estimatedCalories > 0) {
+              // 重複チェック
+              const existingIndex = results.findIndex(r => r.name === title);
+              if (existingIndex === -1) {
+                results.push({
+                  name: title,
+                  calories: estimatedCalories,
+                  protein: Math.floor(estimatedCalories * 0.15),
+                  fat: Math.floor(estimatedCalories * 0.25),
+                  carbs: Math.floor(estimatedCalories * 0.6),
+                  unit: '1人前',
+                  source: '楽天レシピ（推定）',
+                  url: originalUrl
+                });
+              }
+            }
+          }
+        });
+      }
 
     } else if (hostname.includes('slism.jp')) {
       // Slismのカロリー検索結果を解析
@@ -350,7 +367,41 @@ function extractDataFromHTML(html: string, hostname: string, originalUrl: string
     // 結果が0件の場合は、ページの構造をログ出力してデバッグ
     if (results.length === 0) {
       console.log('データが見つかりませんでした。ページ構造を確認:');
-      console.log('利用可能なクラス:', $('[class]').map((i, el) => $(el).attr('class')).get().slice(0, 10));
+      console.log('利用可能なクラス:', $('[class]').map((i, el) => $(el).attr('class')).get().slice(0, 20));
+      console.log('ページタイトル:', $('title').text());
+      console.log('h1タグ:', $('h1').text());
+      console.log('h2タグ:', $('h2').text());
+      console.log('h3タグ:', $('h3').text());
+      
+      // クックパッドの場合の詳細デバッグ
+      if (hostname.includes('cookpad.com')) {
+        console.log('クックパッド固有の要素:');
+        console.log('.recipe-preview:', $('.recipe-preview').length);
+        console.log('.recipe-card:', $('.recipe-card').length);
+        console.log('.recipe-item:', $('.recipe-item').length);
+        console.log('.search_result:', $('.search_result').length);
+        console.log('.recipe:', $('.recipe').length);
+        console.log('.recipe-title:', $('.recipe-title').length);
+        console.log('.title:', $('.title').length);
+        console.log('.calorie:', $('.calorie').length);
+        console.log('.kcal:', $('.kcal').length);
+        console.log('[class*="recipe"]:', $('[class*="recipe"]').length);
+      }
+      
+      // 楽天レシピの場合の詳細デバッグ
+      if (hostname.includes('rakuten.co.jp')) {
+        console.log('楽天レシピ固有の要素:');
+        console.log('.recipe-card:', $('.recipe-card').length);
+        console.log('.recipe-item:', $('.recipe-item').length);
+        console.log('.recipe-preview:', $('.recipe-preview').length);
+        console.log('.search_result:', $('.search_result').length);
+        console.log('.recipe:', $('.recipe').length);
+        console.log('.recipe-title:', $('.recipe-title').length);
+        console.log('.title:', $('.title').length);
+        console.log('.calorie:', $('.calorie').length);
+        console.log('.kcal:', $('.kcal').length);
+        console.log('[class*="recipe"]:', $('[class*="recipe"]').length);
+      }
     }
 
     return results;
