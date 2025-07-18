@@ -95,6 +95,8 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
             setLastUpdateTime(cachedAdvice.timestamp || Date.now());
             console.log('キャッシュからアドバイスを復元');
             isFirstLoad.current = false;
+            // キャッシュから復元した場合は更新可能にする
+            setCanUpdate(true);
           } else {
             localStorage.removeItem(getAdviceKey());
           }
@@ -230,11 +232,16 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
     if (lastProfileHash.current === null && lastDailyHash.current === null) {
       lastProfileHash.current = profileHash;
       lastDailyHash.current = dailyHash;
-      setCanUpdate(false);
-      // 初回データ読み込み完了時に自動でアドバイスを取得
-      if (userProfile) {
-        fetchAdvice();
+      
+      // キャッシュがない場合は更新可能にする（初回生成のため）
+      const cache = localStorage.getItem(getAdviceKey());
+      if (!cache) {
+        setCanUpdate(true);
+      } else {
+        setCanUpdate(false);
       }
+      
+      // 初回データ読み込み完了時は自動でアドバイスを取得しない（キャッシュから復元のみ）
       return;
     }
     
@@ -450,6 +457,11 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
           ) : (
             <div className="text-center py-4">
               <p className="text-gray-500">プロフィールを登録すると、パーソナライズされたアドバイスが表示されます。</p>
+              {userProfile && (
+                <div className="mt-2">
+                  <p className="text-sm text-gray-400">「更新」ボタンを押すと新しいアドバイスが生成されます。</p>
+                </div>
+              )}
             </div>
           )}
         </div>
