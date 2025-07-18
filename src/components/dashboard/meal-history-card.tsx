@@ -122,10 +122,6 @@ export function HistoryCard() {
 
   // 履歴削除機能
   const handleDelete = async (item: HistoryItem) => {
-    if (!confirm('この記録を削除しますか？')) {
-      return;
-    }
-
     setDeletingItems(prev => new Set(prev).add(item.id));
 
     try {
