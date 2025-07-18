@@ -295,11 +295,12 @@ export async function POST(request: NextRequest) {
 ${foodPreferencesText ? `${foodPreferencesText}` : ''}
 ${dailyData ? `今日の摂取状況: カロリー${dailyData.total_calories || 0}kcal, タンパク質${Math.round(dailyData.total_protein || 0)}g, 脂質${Math.round(dailyData.total_fat || 0)}g, 炭水化物${Math.round(dailyData.total_carbs || 0)}g` : ''}
 
-【重要】目標カロリーは${Math.round(targetCalories)}kcalです。この数値を必ず使用してください。
-【禁止事項】
-- 他の数値を計算したり、異なる数値を表示してはいけません
-- 432kcalなどの間違った数値を絶対に使用してはいけません
-- 目標カロリーは${Math.round(targetCalories)}kcalのみを使用してください
+【重要】以下の数値を必ず参照してアドバイスを生成してください：
+- 目標カロリー: ${Math.round(targetCalories)}kcal
+- 今日の摂取カロリー: ${dailyData?.total_calories || 0}kcal
+- 今日のタンパク質: ${Math.round(dailyData?.total_protein || 0)}g
+- 今日の脂質: ${Math.round(dailyData?.total_fat || 0)}g
+- 今日の炭水化物: ${Math.round(dailyData?.total_carbs || 0)}g
 
 アドバイスのポイント:
 - 食事: 今日の摂取データ（${dailyData?.total_calories || 0}kcal）を踏まえて、目標カロリー${Math.round(targetCalories)}kcalに向けた具体的な食材やメニューを提案
@@ -307,11 +308,9 @@ ${dailyData ? `今日の摂取状況: カロリー${dailyData.total_calories || 
 - 要約は40-60文字で、毎回異なる表現を使用
 - 詳細は100-300文字で、具体的で実行しやすい内容
 - 今日の摂取データがある場合は、それを踏まえた具体的なアドバイス
-- 目標カロリー${Math.round(targetCalories)}kcalを基準としたアドバイスを提供
+- 上記で指定した正確な数値を使用してアドバイスを提供
 - 数値は整数で表示
-- 今日のPFCバランス（タンパク質${Math.round(dailyData?.total_protein || 0)}g、脂質${Math.round(dailyData?.total_fat || 0)}g、炭水化物${Math.round(dailyData?.total_carbs || 0)}g）を考慮したアドバイス
-
-【最終確認】目標カロリーは${Math.round(targetCalories)}kcalです。他の数値は使用しないでください。`;
+- 今日のPFCバランスを考慮したアドバイス`;
 
     console.log('GEMINI_API_KEY設定確認:', process.env.GEMINI_API_KEY ? '設定済み' : '未設定');
     
@@ -319,11 +318,11 @@ ${dailyData ? `今日の摂取状況: カロリー${dailyData.total_calories || 
       // Gemini APIを呼び出し（高精度版）
       const result = await callGeminiAPI(prompt);
       
-      // 目標カロリーの検証と修正（強化版）
+      // 目標カロリーの検証と修正（改善版）
       const correctTargetCalories = Math.round(targetCalories);
       const currentCalories = dailyData?.total_calories || 0;
       
-      // 間違った目標カロリーを検出して修正（強化版）
+      // 間違った目標カロリーを検出して修正（改善版）
       const wrongCaloriePatterns = [
         /(\d{3,4})kcal/g,  // 3-4桁の数値+kcal
         /目標カロリー(\d{3,4})/g,  // 目標カロリー+3-4桁の数値
@@ -345,8 +344,8 @@ ${dailyData ? `今日の摂取状況: カロリー${dailyData.total_calories || 
                 const numberMatch = match.match(/\d{3,4}/);
                 if (numberMatch) {
                   const wrongNumber = parseInt(numberMatch[0]);
-                  // 正しい目標カロリーと大きく異なる場合（±200kcal以上）は修正
-                  if (Math.abs(wrongNumber - correctTargetCalories) > 200) {
+                  // 正しい目標カロリーと大きく異なる場合（±300kcal以上）は修正
+                  if (Math.abs(wrongNumber - correctTargetCalories) > 300) {
                     console.log(`間違った目標カロリーを検出: ${wrongNumber}kcal → ${correctTargetCalories}kcal`);
                     text = text.replace(match, match.replace(wrongNumber.toString(), correctTargetCalories.toString()));
                     hasCorrection = true;
@@ -363,7 +362,7 @@ ${dailyData ? `今日の摂取状況: カロリー${dailyData.total_calories || 
         }
       });
       
-      // 今日の摂取カロリーの検証と修正（新機能）
+      // 今日の摂取カロリーの検証と修正（改善版）
       ['meal_summary', 'meal_detail', 'exercise_summary', 'exercise_detail'].forEach(field => {
         if (result[field]) {
           let text = result[field];
@@ -384,8 +383,8 @@ ${dailyData ? `今日の摂取状況: カロリー${dailyData.total_calories || 
                 const numberMatch = match.match(/\d{3,4}/);
                 if (numberMatch) {
                   const wrongNumber = parseInt(numberMatch[0]);
-                  // 正しい今日の摂取カロリーと大きく異なる場合（±200kcal以上）は修正
-                  if (Math.abs(wrongNumber - currentCalories) > 200) {
+                  // 正しい今日の摂取カロリーと大きく異なる場合（±300kcal以上）は修正
+                  if (Math.abs(wrongNumber - currentCalories) > 300) {
                     console.log(`間違った今日の摂取カロリーを検出: ${wrongNumber}kcal → ${currentCalories}kcal`);
                     text = text.replace(match, match.replace(wrongNumber.toString(), currentCalories.toString()));
                     hasCorrection = true;
