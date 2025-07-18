@@ -183,20 +183,9 @@ export function HistoryCard() {
     if (item.type === 'meal') {
       const meal = item.data as Meal;
       return (
-        <div key={item.id} className="flex flex-col lg:flex-row lg:justify-between p-3 rounded-lg bg-blue-50 gap-3 border-l-4 border-blue-400 relative">
-          {/* 削除ボタン */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleDelete(item)}
-            disabled={isDeleting}
-            className="absolute top-2 right-2 h-6 w-6 p-0 opacity-60 hover:opacity-100 hover:bg-red-100"
-          >
-            <Trash2 className="w-3 h-3 text-red-600" />
-          </Button>
-
+        <div key={item.id} className="flex flex-col lg:flex-row lg:justify-between p-3 rounded-lg bg-blue-50 gap-3 border-l-4 border-blue-400">
           {/* タイトル・記録日時のブロック */}
-          <div className="flex-grow min-w-0 pr-8">
+          <div className="flex-grow min-w-0">
             <div className="flex items-center gap-2">
               <Utensils className="w-4 h-4 text-blue-600" />
               <div className="flex flex-col gap-1">
@@ -223,25 +212,25 @@ export function HistoryCard() {
               </div>
             </div>
           </div>
-        </div>
-      );
-    } else {
-      const exercise = item.data as Exercise;
-      return (
-        <div key={item.id} className="flex flex-col lg:flex-row lg:justify-between p-3 rounded-lg bg-orange-50 gap-3 border-l-4 border-orange-400 relative">
+
           {/* 削除ボタン */}
           <Button
             variant="ghost"
             size="sm"
             onClick={() => handleDelete(item)}
             disabled={isDeleting}
-            className="absolute top-2 right-2 h-6 w-6 p-0 opacity-60 hover:opacity-100 hover:bg-red-100"
+            className="flex-shrink-0 h-8 w-8 p-0 opacity-60 hover:opacity-100 hover:bg-red-100"
           >
-            <Trash2 className="w-3 h-3 text-red-600" />
+            <Trash2 className="w-4 h-4 text-red-600" />
           </Button>
-
+        </div>
+      );
+    } else {
+      const exercise = item.data as Exercise;
+      return (
+        <div key={item.id} className="flex flex-col lg:flex-row lg:justify-between p-3 rounded-lg bg-orange-50 gap-3 border-l-4 border-orange-400">
           {/* タイトル・記録日時のブロック */}
-          <div className="flex-grow min-w-0 pr-8">
+          <div className="flex-grow min-w-0">
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-orange-600" />
               <div className="flex flex-col gap-1">
@@ -266,6 +255,17 @@ export function HistoryCard() {
               </div>
             </div>
           </div>
+
+          {/* 削除ボタン */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleDelete(item)}
+            disabled={isDeleting}
+            className="flex-shrink-0 h-8 w-8 p-0 opacity-60 hover:opacity-100 hover:bg-red-100"
+          >
+            <Trash2 className="w-4 h-4 text-red-600" />
+          </Button>
         </div>
       );
     }
