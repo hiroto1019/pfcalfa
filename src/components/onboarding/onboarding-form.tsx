@@ -5,6 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { ja } from "date-fns/locale";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
@@ -146,21 +151,73 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label htmlFor="birth_date">生年月日 <span className="text-red-500">*</span></Label>
-            <Input
-              id="birth_date"
-              type="date"
-              value={profile.birth_date ? profile.birth_date.split('T')[0] : ''}
-              onChange={(e) => setProfile({ ...profile, birth_date: e.target.value })}
-            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-left font-normal"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {profile.birth_date ? (
+                    format(new Date(profile.birth_date), "yyyy年MM月dd日", { locale: ja })
+                  ) : (
+                    <span className="text-muted-foreground">生年月日を選択</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={profile.birth_date ? new Date(profile.birth_date) : undefined}
+                  onSelect={(date) => 
+                    setProfile({ 
+                      ...profile, 
+                      birth_date: date ? format(date, "yyyy-MM-dd") : "" 
+                    })
+                  }
+                  disabled={(date) =>
+                    date > new Date() || date < new Date("1900-01-01")
+                  }
+                  initialFocus
+                  locale={ja}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           <div>
             <Label htmlFor="goal_target_date">目標達成日</Label>
-            <Input
-              id="goal_target_date"
-              type="date"
-              value={profile.goal_target_date ? profile.goal_target_date.split('T')[0] : ''}
-              onChange={(e) => setProfile({ ...profile, goal_target_date: e.target.value })}
-            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-left font-normal"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {profile.goal_target_date ? (
+                    format(new Date(profile.goal_target_date), "yyyy年MM月dd日", { locale: ja })
+                  ) : (
+                    <span className="text-muted-foreground">目標達成日を選択</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={profile.goal_target_date ? new Date(profile.goal_target_date) : undefined}
+                  onSelect={(date) => 
+                    setProfile({ 
+                      ...profile, 
+                      goal_target_date: date ? format(date, "yyyy-MM-dd") : "" 
+                    })
+                  }
+                  disabled={(date) =>
+                    date < new Date()
+                  }
+                  initialFocus
+                  locale={ja}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
         <div className="grid grid-cols-3 gap-4">
