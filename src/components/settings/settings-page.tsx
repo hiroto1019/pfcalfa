@@ -201,13 +201,26 @@ export function SettingsPage() {
         return;
       }
 
+      // 確認ダイアログを閉じる
+      setShowDeleteConfirm(false);
+      setDeleteText("");
+
+      // 削除処理中の表示
+      alert('アカウント削除を開始します。この処理には数秒かかる場合があります。');
+
       // サーバーアクションを使用してユーザーデータを削除
       const result = await deleteUserAccount(user.id);
       
       if (result.success) {
+        // 成功メッセージを表示
+        if (result.warning) {
+          alert(`アカウントデータを削除しました。\n\n注意: ${result.warning}\n\nログアウトします。`);
+        } else {
+          alert('アカウントと関連データを正常に削除しました。ログアウトします。');
+        }
+        
         // ユーザーをログアウトさせる
         await supabase.auth.signOut();
-        alert('アカウントデータを削除しました。アカウントは無効化されました。');
         router.push('/login');
       } else {
         // エラーメッセージを表示
@@ -215,7 +228,7 @@ export function SettingsPage() {
       }
     } catch (error) {
       console.error('アカウント削除エラー:', error);
-      alert('アカウントの削除に失敗しました');
+      alert('アカウントの削除に失敗しました。しばらく時間をおいて再度お試しください。');
     }
   };
 

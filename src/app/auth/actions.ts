@@ -73,25 +73,45 @@ export async function signInWithGithub() {
 }
 
 export async function deleteUserAccount(userId: string) {
-  const supabase = createClient();
-
   try {
-    // 関連データを削除（CASCADEにより関連データも削除される）
-    const { error: deleteDataError } = await supabase
-      .from('profiles')
-      .delete()
-      .eq('id', userId);
-
-    if (deleteDataError) {
-      console.error('プロフィール削除エラー:', deleteDataError);
-      throw new Error('プロフィールの削除に失敗しました');
+    // Supabase Edge Functionを呼び出してユーザーを削除
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Supabase設定が不完全です');
     }
 
-    // 無料プランではauth.admin.deleteUserが利用できないため、
-    // ユーザーのデータを削除してアカウントを無効化する
-    // 実際のユーザー削除は管理者が手動で行う必要があります
-    
-    return { success: true };
+    const response = await fetch(`${supabaseUrl}/functions/v1/delete-user`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+      },
+      body: JSON.stringify({ userId }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      console.error('Edge Function エラー:', result);
+      throw new Error(result.error || 'ユーザー削除に失敗しました');
+    }
+
+    if (!result.success) {
+      throw new Error(result.error || 'ユーザー削除に失敗しました');
+    }
+
+    // 警告がある場合はログに出力
+    if (result.warning) {
+      console.warn('ユーザー削除警告:', result.warning);
+    }
+
+    return { 
+      success: true, 
+      message: result.message,
+      warning: result.warning 
+    };
   } catch (error) {
     console.error('アカウント削除エラー:', error);
     return { 
