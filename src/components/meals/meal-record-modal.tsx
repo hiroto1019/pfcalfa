@@ -27,7 +27,7 @@ export function MealRecordModal() {
   const [imageErrorMessage, setImageErrorMessage] = useState("");
   const [textErrorMessage, setTextErrorMessage] = useState("");
   const [textInput, setTextInput] = useState("");
-  const [analysisMethod, setAnalysisMethod] = useState<"image" | "text" | "manual" | null>(null);
+  const [analysisMethod, setAnalysisMethod] = useState<"image" | "text" | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -200,19 +200,20 @@ export function MealRecordModal() {
     }
   };
 
-  const handleManualInput = () => {
-    setAnalysisMethod("manual");
-    setNutritionData(null);
-    setFormData({
-      food_name: "",
-      calories: "",
-      protein: "",
-      fat: "",
-      carbs: ""
-    });
-    setImageErrorMessage("");
-    setTextErrorMessage("");
-  };
+  // 手動入力機能を削除
+  // const handleManualInput = () => {
+  //   setAnalysisMethod("manual");
+  //   setNutritionData(null);
+  //   setFormData({
+  //     food_name: "",
+  //     calories: "",
+  //     protein: "",
+  //     fat: "",
+  //     carbs: ""
+  //   });
+  //   setImageErrorMessage("");
+  //   setTextErrorMessage("");
+  // };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -420,8 +421,7 @@ export function MealRecordModal() {
 
     return (
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900">解析方法を選択</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Button 
             variant="outline" 
             onClick={() => setAnalysisMethod("image")}
@@ -437,14 +437,6 @@ export function MealRecordModal() {
           >
             <span className="text-2xl">📝</span>
             <span className="text-sm">テキスト解析</span>
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={handleManualInput}
-            className="h-20 flex flex-col items-center justify-center space-y-2"
-          >
-            <span className="text-2xl">✏️</span>
-            <span className="text-sm">手動入力</span>
           </Button>
         </div>
       </div>
@@ -565,29 +557,30 @@ export function MealRecordModal() {
       );
   };
 
-  const renderManualInput = () => {
-    if (analysisMethod !== "manual") return null;
+  // 手動入力機能を削除
+  // const renderManualInput = () => {
+  //   if (analysisMethod !== "manual") return null;
 
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">手動入力</h3>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => setAnalysisMethod(null)}
-          >
-            戻る
-        </Button>
-        </div>
-        <div className="border rounded-lg p-4 bg-blue-50">
-          <p className="text-sm text-blue-700">
-            💡 栄養成分を手動で入力してください。食品名と栄養成分を正確に入力することで、より正確な記録ができます。
-          </p>
-        </div>
-      </div>
-    );
-  };
+  //   return (
+  //     <div className="space-y-4">
+  //       <div className="flex items-center justify-between">
+  //         <h3 className="text-lg font-semibold text-gray-900">手動入力</h3>
+  //         <Button 
+  //           variant="ghost" 
+  //           size="sm" 
+  //           onClick={() => setAnalysisMethod(null)}
+  //         >
+  //           戻る
+  //       </Button>
+  //       </div>
+  //       <div className="border rounded-lg p-4 bg-blue-50">
+  //         <p className="text-sm text-blue-700">
+  //           💡 栄養成分を手動で入力してください。食品名と栄養成分を正確に入力することで、より正確な記録ができます。
+  //         </p>
+  //       </div>
+  //     </div>
+  //   );
+  // };
 
   // 登録ボタンの表示条件を見直し
   const isFormFilled = formData.food_name || formData.calories || formData.protein || formData.fat || formData.carbs;
@@ -730,7 +723,6 @@ export function MealRecordModal() {
             {renderAnalysisOptions()}
             {renderImageAnalysis()}
             {renderTextAnalysis()}
-            {renderManualInput()}
             {renderForm()}
           </div>
           

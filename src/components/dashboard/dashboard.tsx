@@ -7,7 +7,7 @@ import { DashboardGrid } from "./dashboard-grid";
 export function Dashboard({ profile }: { profile: any }) {
   return (
     <div className="flex justify-center items-center min-h-screen bg-gray-50">
-      <div className="w-full max-w-screen-xl aspect-[16/9] bg-white rounded-xl shadow-lg flex flex-col p-4">
+      <div className="w-full max-w-screen-xl bg-white rounded-xl shadow-lg flex flex-col p-4">
         <header className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold">ダッシュボード</h1>
           <Link href="/settings">
@@ -16,10 +16,12 @@ export function Dashboard({ profile }: { profile: any }) {
               設定
             </Button>
           </Link>
-      </header>
-        <DashboardGrid profile={profile} />
-        <MealRecordModal />
+        </header>
+        <div className="flex-1 overflow-hidden">
+          <DashboardGrid profile={profile} />
         </div>
+        <MealRecordModal />
+      </div>
     </div>
   );
 }

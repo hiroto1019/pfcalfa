@@ -112,22 +112,22 @@ async function performResize(imageBuffer: Buffer, maxWidth: number, maxHeight: n
   return imageBuffer;
 }
 
-// 簡易キャッシュ（メモリ内）
-const imageCache = new Map<string, any>();
-const CACHE_TTL = 5 * 60 * 1000; // 5分
+// キャッシュを無効化して最新の画像を常に解析
+// const imageCache = new Map<string, any>();
+// const CACHE_TTL = 5 * 60 * 1000; // 5分
 
 // キャッシュクリーンアップ関数
-function cleanupCache() {
-  const now = Date.now();
-  for (const [key, value] of imageCache.entries()) {
-    if (now - value.timestamp > CACHE_TTL) {
-      imageCache.delete(key);
-    }
-  }
-}
+// function cleanupCache() {
+//   const now = Date.now();
+//   for (const [key, value] of imageCache.entries()) {
+//     if (now - value.timestamp > CACHE_TTL) {
+//       imageCache.delete(key);
+//     }
+//   }
+// }
 
 // 定期的にキャッシュをクリーンアップ（5分ごと）
-setInterval(cleanupCache, 5 * 60 * 1000);
+// setInterval(cleanupCache, 5 * 60 * 1000);
 
 // 高速なフォールバックレスポンス生成
 function createFallbackResponse(content: string) {
@@ -156,13 +156,13 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
   const maxRetries = 1; // 2回から1回にさらに削減
   const baseDelay = 200; // 0.5秒から0.2秒に削減
 
-  // キャッシュチェック（最適化版）
-  const cacheKey = `${base64Image.substring(0, 50)}_${imageType}`; // キャッシュキーを短縮
-  const cached = imageCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    console.log('キャッシュから結果を取得');
-    return cached.data;
-  }
+  // キャッシュを無効化して最新の画像を常に解析
+  // const cacheKey = `${base64Image.substring(0, 50)}_${imageType}`; // キャッシュキーを短縮
+  // const cached = imageCache.get(cacheKey);
+  // if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+  //   console.log('キャッシュから結果を取得');
+  //   return cached.data;
+  // }
 
   // 画像前処理
   const optimizedImage = optimizeImageSize(base64Image);
@@ -171,14 +171,14 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
 
 【返答形式】
 {
-  "food_name": "食品名",
+  "food_name": "食品名（日本語）",
   "calories": 数値,
   "protein": 数値,
   "fat": 数値,
   "carbs": 数値
 }
 
-食品が写っていない場合は全て0を返してください。`;
+食品名は日本語で返してください。食品が写っていない場合は全て0を返してください。`;
 
   try {
     console.log(`Gemini API呼び出し開始 (試行 ${retryCount + 1}/${maxRetries + 1})`);
@@ -288,11 +288,11 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
         const correctedData = validateAndCorrectNutritionData(nutritionData);
         console.log('補正後の解析結果:', correctedData);
         
-      // キャッシュに保存
-      imageCache.set(cacheKey, {
-        data: correctedData,
-        timestamp: Date.now()
-      });
+      // キャッシュを無効化
+      // imageCache.set(cacheKey, {
+      //   data: correctedData,
+      //   timestamp: Date.now()
+      // });
       
       return correctedData;
       } catch (parseError) {

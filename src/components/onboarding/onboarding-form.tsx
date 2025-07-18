@@ -110,7 +110,7 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
   }
 
   return (
-    <Card>
+    <Card className="mx-4 max-w-md w-full">
       <CardHeader>
         <CardTitle>ようこそ！</CardTitle>
         <CardDescription>

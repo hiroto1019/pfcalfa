@@ -382,7 +382,7 @@ export function SettingsPage() {
       </div>
 
       {/* プロフィール編集 */}
-      <Card className="shadow-lg border-0">
+      <Card className="shadow-sm border-0">
         <CardHeader className="pb-4">
           <CardTitle className="text-xl font-semibold text-gray-900">プロフィール編集</CardTitle>
           <CardDescription className="text-gray-600">
@@ -553,7 +553,7 @@ export function SettingsPage() {
       </Card>
 
       {/* 食事の好み */}
-      <Card className="shadow-lg border-0">
+      <Card className="shadow-sm border-0">
         <CardHeader className="pb-4">
           <CardTitle className="text-xl font-semibold text-gray-900">食事の好み</CardTitle>
           <CardDescription className="text-gray-600">
@@ -578,12 +578,12 @@ export function SettingsPage() {
               {profile.food_preferences?.dislikes?.map((dislike, index) => (
                 <span
                   key={index}
-                  className="bg-red-100 text-red-800 px-3 py-2 rounded-full text-sm flex items-center gap-2"
+                  className="bg-gray-100 text-gray-800 px-3 py-2 rounded-full text-sm flex items-center gap-2"
                 >
                   {dislike}
                   <button
                     onClick={() => removeDislike(dislike)}
-                    className="text-red-600 hover:text-red-800 text-lg font-bold"
+                    className="text-gray-500 hover:text-gray-700 text-lg font-bold"
                   >
                     ×
                   </button>
@@ -609,12 +609,12 @@ export function SettingsPage() {
               {profile.food_preferences?.allergies?.map((allergy, index) => (
                 <span
                   key={index}
-                  className="bg-orange-100 text-orange-800 px-3 py-2 rounded-full text-sm flex items-center gap-2"
+                  className="bg-gray-100 text-gray-800 px-3 py-2 rounded-full text-sm flex items-center gap-2"
                 >
                   {allergy}
                   <button
                     onClick={() => removeAllergy(allergy)}
-                    className="text-orange-600 hover:text-orange-800 text-lg font-bold"
+                    className="text-gray-500 hover:text-gray-700 text-lg font-bold"
                   >
                     ×
                   </button>
@@ -626,7 +626,7 @@ export function SettingsPage() {
       </Card>
 
       {/* アカウント管理 */}
-      <Card className="shadow-lg border-0">
+      <Card className="shadow-sm border-0">
         <CardHeader className="pb-4">
           <CardTitle className="text-xl font-semibold text-gray-900">アカウント管理</CardTitle>
         </CardHeader>
