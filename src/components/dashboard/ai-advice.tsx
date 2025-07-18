@@ -197,20 +197,28 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
                 <div>
                   <h3 className="font-semibold text-green-700 mb-2">🍽️ 食事アドバイス</h3>
                   <p className="text-sm text-gray-700 leading-relaxed">
-                    {showDetails ? advice.meal_advice : advice.meal_advice.length > 100 ? 
-                      `${advice.meal_advice.substring(0, 100)}...` : advice.meal_advice}
+                    {showDetails ? (
+                      <div className="whitespace-pre-line">
+                        {advice.meal_advice}
+                      </div>
+                    ) : advice.meal_advice.length > 60 ? 
+                      `${advice.meal_advice.substring(0, 60)}...` : advice.meal_advice}
                   </p>
                 </div>
                 <div>
                   <h3 className="font-semibold text-blue-700 mb-2">🏃‍♂️ 運動アドバイス</h3>
                   <p className="text-sm text-gray-700 leading-relaxed">
-                    {showDetails ? advice.exercise_advice : advice.exercise_advice.length > 100 ? 
-                      `${advice.exercise_advice.substring(0, 100)}...` : advice.exercise_advice}
+                    {showDetails ? (
+                      <div className="whitespace-pre-line">
+                        {advice.exercise_advice}
+                      </div>
+                    ) : advice.exercise_advice.length > 60 ? 
+                      `${advice.exercise_advice.substring(0, 60)}...` : advice.exercise_advice}
                   </p>
                 </div>
                 
                 {/* 詳細表示切り替えボタン */}
-                {(advice.meal_advice.length > 100 || advice.exercise_advice.length > 100) && (
+                {(advice.meal_advice.length > 60 || advice.exercise_advice.length > 60) && (
                   <Button
                     variant="outline"
                     size="sm"

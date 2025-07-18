@@ -216,17 +216,18 @@ export async function POST(request: NextRequest) {
     const prompt = `ユーザー情報に基づき、具体的で実践的な食事と運動のアドバイスを日本語で生成してください。
 
 以下のJSON形式で出力してください：
-{\"meal_advice\": \"食事アドバイス（具体的なメニューや食材を含む）\", \"exercise_advice\": \"運動アドバイス（具体的な運動や時間を含む）\"}
+{\"meal_advice\": \"食事アドバイス（200文字程度、段落分けして具体的に）\", \"exercise_advice\": \"運動アドバイス（200文字程度、段落分けして具体的に）\"}
 
 ユーザー情報: ${userProfile.username}, ${userProfile.gender}, ${userProfile.height_cm}cm, ${userProfile.initial_weight_kg}kg→${userProfile.target_weight_kg}kg, 目標:${userProfile.goal_type}, 目標カロリー:${Math.round(targetCalories)}kcal
 ${foodPreferencesText ? `${foodPreferencesText}` : ''}
 ${dailyData ? `今日の摂取: ${dailyData.total_calories || 0}kcal (目標との差: ${Math.round(targetCalories - (dailyData.total_calories || 0))}kcal)` : ''}
 
 アドバイスのポイント:
-- 食事: 具体的な食材やメニューを提案し、栄養バランスを考慮する
-- 運動: 具体的な運動種目、時間、頻度を提案する
+- 食事: 具体的な食材やメニューを提案し、栄養バランスを考慮する。段落分けして読みやすくする
+- 運動: 具体的な運動種目、時間、頻度を提案する。段落分けして読みやすくする
 - 食事の好みがある場合は、それらを自然に考慮した提案をする（明示的に「避けてください」とは言わない）
-- ユーザーの目標に合わせた実践的なアドバイスを提供する`;
+- ユーザーの目標に合わせた実践的なアドバイスを提供する
+- 各アドバイスは200文字程度で、具体的で実行しやすい内容にする`;
 
     console.log('GEMINI_API_KEY設定確認:', process.env.GEMINI_API_KEY ? '設定済み' : '未設定');
     
