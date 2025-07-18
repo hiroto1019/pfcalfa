@@ -88,7 +88,7 @@ export function MealRecordModal() {
       return;
     }
 
-    // デバウンス処理（300ms待機）
+    // デバウンス処理（200msに短縮）
     const timeoutId = setTimeout(async () => {
       setIsSearching(true);
       try {
@@ -106,7 +106,7 @@ export function MealRecordModal() {
       } finally {
         setIsSearching(false);
       }
-    }, 300);
+    }, 200);
 
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
@@ -789,7 +789,21 @@ export function MealRecordModal() {
             </div>
             
             {/* 検索結果表示 */}
-            {searchResults.length > 0 && (
+            {/* 検索中の表示 */}
+            {isSearching && (
+              <div className="border rounded-lg p-3 bg-blue-50 mt-2">
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <div className="text-sm text-blue-700 font-medium">検索中...</div>
+                </div>
+                <div className="text-xs text-blue-600 mt-1 text-center">
+                  複数のサイトから食品情報を検索しています
+                </div>
+              </div>
+            )}
+            
+            {/* 検索結果の表示 */}
+            {!isSearching && searchResults.length > 0 && (
               <div className="border rounded-lg p-2 max-h-32 overflow-y-auto mt-2">
                 {searchResults.map((food, index) => (
                   <div

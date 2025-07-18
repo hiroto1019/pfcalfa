@@ -245,7 +245,13 @@ async function searchFromCookpad(query: string): Promise<ExternalFoodItem[]> {
       // カテゴリーページ
       'https://cookpad.com/category/',
       // ランキングページ
-      'https://cookpad.com/ranking/'
+      'https://cookpad.com/ranking/',
+      // 人気レシピページ
+      'https://cookpad.com/ranking/recipe',
+      // 簡単レシピページ
+      'https://cookpad.com/ranking/easy',
+      // 時短レシピページ
+      'https://cookpad.com/ranking/quick'
     ];
     
     for (const url of urlsToTry) {
@@ -322,7 +328,11 @@ async function searchFromFoodDB(query: string): Promise<ExternalFoodItem[]> {
     const urlsToTry = [
       `https://fooddb.mext.go.jp/search.pl?ITEM_NAME=${encodeURIComponent(query)}`,
       `https://fooddb.mext.go.jp/search.pl?ITEM_NAME=${encodeURIComponent(query)}&CATEGORY=1`,
-      'https://fooddb.mext.go.jp/'
+      'https://fooddb.mext.go.jp/',
+      // 食品成分データベースのトップページ
+      'https://fooddb.mext.go.jp/index.pl',
+      // 食品成分検索ページ
+      'https://fooddb.mext.go.jp/search.pl'
     ];
     
     for (const url of urlsToTry) {
@@ -396,7 +406,13 @@ async function searchFromRakutenMarket(query: string): Promise<ExternalFoodItem[
     const urlsToTry = [
       `https://search.rakuten.co.jp/search/mall/${encodeURIComponent(query)}/`,
       `https://search.rakuten.co.jp/search/mall/${encodeURIComponent(query)}/?f=1&s=1&n=20`,
-      'https://search.rakuten.co.jp/search/mall/食品/'
+      'https://search.rakuten.co.jp/search/mall/食品/',
+      // お菓子・スイーツカテゴリ
+      'https://search.rakuten.co.jp/search/mall/お菓子/',
+      // 飲料カテゴリ
+      'https://search.rakuten.co.jp/search/mall/飲料/',
+      // スナック菓子カテゴリ
+      'https://search.rakuten.co.jp/search/mall/スナック/'
     ];
     
     for (const url of urlsToTry) {
