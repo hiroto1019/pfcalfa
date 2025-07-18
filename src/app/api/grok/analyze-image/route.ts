@@ -49,7 +49,7 @@ function validateAndCorrectNutritionData(data: any) {
 function optimizeImageSize(base64Image: string): string {
   // 画像サイズが大きすぎる場合は圧縮を検討
   const sizeInBytes = Math.ceil((base64Image.length * 3) / 4);
-  if (sizeInBytes > 2 * 1024 * 1024) { // 2MB以上の場合
+  if (sizeInBytes > 1 * 1024 * 1024) { // 1MB以上の場合
     console.log('画像サイズが大きいため、圧縮を推奨します');
   }
   return base64Image;
@@ -94,10 +94,10 @@ function createFallbackResponse(content: string) {
   return fallbackResponse;
 }
 
-// Gemini API呼び出し関数（超高速化版）
+// Gemini API呼び出し関数（超高速化版 - 10秒以内対応）
 async function callGeminiAPI(base64Image: string, imageType: string, retryCount = 0): Promise<any> {
-  const maxRetries = 2; // 3回から2回にさらに削減
-  const baseDelay = 500; // 1秒から0.5秒に削減
+  const maxRetries = 1; // 2回から1回にさらに削減
+  const baseDelay = 200; // 0.5秒から0.2秒に削減
 
   // キャッシュチェック（最適化版）
   const cacheKey = `${base64Image.substring(0, 50)}_${imageType}`; // キャッシュキーを短縮
@@ -127,10 +127,10 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
     console.log(`Gemini API呼び出し開始 (試行 ${retryCount + 1}/${maxRetries + 1})`);
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 25秒から15秒に短縮
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 15秒から8秒に短縮（10秒以内対応）
 
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: {
@@ -151,10 +151,10 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
             }
           ],
           generationConfig: {
-            temperature: 0.05, // さらに低い温度で一貫性を向上
-            maxOutputTokens: 150, // さらに制限
-            topP: 0.7,
-            topK: 20,
+            temperature: 0.01, // さらに低い温度で一貫性を向上
+            maxOutputTokens: 100, // さらに制限
+            topP: 0.5,
+            topK: 10,
             candidateCount: 1 // 候補数を1に制限
           }
         }),
@@ -171,7 +171,7 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
       
       // 503エラー（過負荷）の場合はリトライ
       if (geminiResponse.status === 503 && retryCount < maxRetries) {
-        const delay = baseDelay * Math.pow(2, retryCount); // 指数バックオフ: 0.5秒、1秒
+        const delay = baseDelay * Math.pow(2, retryCount); // 指数バックオフ: 0.2秒
         console.log(`${delay}ms後にリトライします... (${retryCount + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return callGeminiAPI(base64Image, imageType, retryCount + 1);
@@ -294,12 +294,12 @@ export async function POST(request: NextRequest) {
       type: imageFile.type
     });
 
-    // ファイルサイズチェック（3MB制限にさらに短縮）
-    const maxSize = 3 * 1024 * 1024; // 3MB
+    // ファイルサイズチェック（2MB制限にさらに短縮）
+    const maxSize = 2 * 1024 * 1024; // 2MB
     if (imageFile.size > maxSize) {
       console.log('ファイルサイズ超過:', imageFile.size);
       return NextResponse.json(
-        { error: '画像ファイルが大きすぎます。3MB以下のファイルを選択してください。' },
+        { error: '画像ファイルが大きすぎます。2MB以下のファイルを選択してください。' },
         { status: 400 }
       );
     }
@@ -323,7 +323,7 @@ export async function POST(request: NextRequest) {
     console.log('GEMINI_API_KEY設定確認:', process.env.GEMINI_API_KEY ? '設定済み' : '未設定');
     
     try {
-      // Gemini APIを呼び出し（超高速化版）
+      // Gemini APIを呼び出し（超高速化版 - 10秒以内対応）
       const result = await callGeminiAPI(base64Image, imageFile.type);
       return NextResponse.json(result);
     } catch (apiError: any) {
@@ -333,7 +333,7 @@ export async function POST(request: NextRequest) {
       if (apiError.message.includes('503')) {
         return NextResponse.json(
           { 
-            error: 'Gemini APIが一時的に過負荷状態です。しばらく時間をおいて再度お試しください。',
+            error: 'Gemini APIが一時的に過負荷状態です。手入力で登録するか、数分後に再度お試しください。',
             fallback: {
               food_name: "手入力で登録してください",
               calories: 0,
@@ -343,6 +343,23 @@ export async function POST(request: NextRequest) {
             }
           },
           { status: 503 }
+        );
+      }
+      
+      // タイムアウトエラーの場合
+      if (apiError.message.includes('タイムアウト')) {
+        return NextResponse.json(
+          { 
+            error: '画像解析がタイムアウトしました。手入力で登録するか、画像サイズを小さくして再度お試しください。',
+            fallback: {
+              food_name: "手入力で登録してください",
+              calories: 0,
+              protein: 0,
+              fat: 0,
+              carbs: 0
+            }
+          },
+          { status: 408 }
         );
       }
       

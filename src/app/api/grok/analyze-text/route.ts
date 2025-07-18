@@ -52,10 +52,10 @@ function createFallbackResponse(text: string) {
   };
 }
 
-// Gemini API呼び出し関数（超高速化版）
+// Gemini API呼び出し関数（超高速化版 - 10秒以内対応）
 async function callGeminiAPI(text: string, retryCount = 0): Promise<any> {
-  const maxRetries = 2; // 3回から2回にさらに削減
-  const baseDelay = 500; // 1秒から0.5秒に削減
+  const maxRetries = 1; // 2回から1回にさらに削減
+  const baseDelay = 200; // 0.5秒から0.2秒に削減
 
   // キャッシュチェック（最適化版）
   const cacheKey = text.toLowerCase().trim().substring(0, 100); // キャッシュキーを短縮
@@ -74,10 +74,10 @@ async function callGeminiAPI(text: string, retryCount = 0): Promise<any> {
     console.log(`Gemini API呼び出し開始 (試行 ${retryCount + 1}/${maxRetries + 1})`);
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000); // 20秒から12秒に短縮
+    const timeoutId = setTimeout(() => controller.abort(), 6000); // 12秒から6秒に短縮（10秒以内対応）
 
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: {
@@ -92,10 +92,10 @@ async function callGeminiAPI(text: string, retryCount = 0): Promise<any> {
             }
           ],
           generationConfig: {
-            temperature: 0.05, // さらに低い温度で一貫性を向上
-            maxOutputTokens: 100, // さらに制限
-            topP: 0.7,
-            topK: 20,
+            temperature: 0.01, // さらに低い温度で一貫性を向上
+            maxOutputTokens: 80, // さらに制限
+            topP: 0.5,
+            topK: 10,
             candidateCount: 1 // 候補数を1に制限
           }
         }),
@@ -112,7 +112,7 @@ async function callGeminiAPI(text: string, retryCount = 0): Promise<any> {
       
       // 503エラー（過負荷）の場合はリトライ
       if (geminiResponse.status === 503 && retryCount < maxRetries) {
-        const delay = baseDelay * Math.pow(2, retryCount); // 指数バックオフ: 0.5秒、1秒
+        const delay = baseDelay * Math.pow(2, retryCount); // 指数バックオフ: 0.2秒
         console.log(`${delay}ms後にリトライします... (${retryCount + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return callGeminiAPI(text, retryCount + 1);
@@ -222,7 +222,7 @@ export async function POST(request: NextRequest) {
     console.log('GEMINI_API_KEY設定確認:', process.env.GEMINI_API_KEY ? '設定済み' : '未設定');
     
     try {
-      // Gemini APIを呼び出し（超高速化版）
+      // Gemini APIを呼び出し（超高速化版 - 10秒以内対応）
       const result = await callGeminiAPI(text);
       return NextResponse.json(result);
     } catch (apiError: any) {
@@ -232,7 +232,8 @@ export async function POST(request: NextRequest) {
       if (apiError.message.includes('503')) {
         return NextResponse.json(
           { 
-            error: 'Gemini APIが一時的に過負荷状態です。しばらく時間をおいて再度お試しください。',
+            error: 'Gemini APIが一時的に過負荷状態です。手入力で登録するか、数分後に再度お試しください。',
+            errorType: 'overload',
             fallback: {
               food_name: text,
               calories: 0,
@@ -245,9 +246,55 @@ export async function POST(request: NextRequest) {
         );
       }
       
+      // タイムアウトエラーの場合
+      if (apiError.message.includes('タイムアウト')) {
+        return NextResponse.json(
+          { 
+            error: 'テキスト解析がタイムアウトしました。手入力で登録するか、再度お試しください。',
+            errorType: 'timeout',
+            fallback: {
+              food_name: text,
+              calories: 0,
+              protein: 0,
+              fat: 0,
+              carbs: 0
+            }
+          },
+          { status: 408 }
+        );
+      }
+      
+      // 400エラーの場合（不正な入力）
+      if (apiError.message.includes('400') || apiError.message.includes('食品名を確認')) {
+        return NextResponse.json(
+          { 
+            error: '入力されたテキストを解析できませんでした。食品名を確認してください。',
+            errorType: 'invalid_input',
+            fallback: {
+              food_name: text,
+              calories: 0,
+              protein: 0,
+              fat: 0,
+              carbs: 0
+            }
+          },
+          { status: 400 }
+        );
+      }
+      
       // その他のエラー
       return NextResponse.json(
-        { error: apiError.message },
+        { 
+          error: apiError.message,
+          errorType: 'unknown',
+          fallback: {
+            food_name: text,
+            calories: 0,
+            protein: 0,
+            fat: 0,
+            carbs: 0
+          }
+        },
         { status: 500 }
       );
     }
@@ -255,7 +302,17 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('テキスト解析エラー:', error);
     return NextResponse.json(
-      { error: 'テキスト解析に失敗しました。再度お試しください。' },
+      { 
+        error: 'テキスト解析に失敗しました。再度お試しください。',
+        errorType: 'system_error',
+        fallback: {
+          food_name: "手入力で登録してください",
+          calories: 0,
+          protein: 0,
+          fat: 0,
+          carbs: 0
+        }
+      },
       { status: 500 }
     );
   }

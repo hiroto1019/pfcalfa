@@ -9,7 +9,6 @@ import { analyzeImageNutrition, analyzeTextNutrition, GrokNutritionResponse } fr
 import { createClient } from "@/lib/supabase/client";
 
 export function MealRecordModal() {
-  const [mode, setMode] = useState<"camera" | "text" | null>(null);
   const [open, setOpen] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [nutritionData, setNutritionData] = useState<GrokNutritionResponse | null>(null);
@@ -25,8 +24,10 @@ export function MealRecordModal() {
   const modalRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
-  const [errorMessage, setErrorMessage] = useState("");
+  const [imageErrorMessage, setImageErrorMessage] = useState("");
+  const [textErrorMessage, setTextErrorMessage] = useState("");
   const [textInput, setTextInput] = useState("");
+  const [analysisMethod, setAnalysisMethod] = useState<"image" | "text" | "manual" | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -42,29 +43,30 @@ export function MealRecordModal() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // ファイルサイズチェック（10MB制限）
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    // ファイルサイズチェック（2MB制限）
+    const maxSize = 2 * 1024 * 1024; // 2MB
     if (file.size > maxSize) {
-      setErrorMessage('画像ファイルが大きすぎます。10MB以下のファイルを選択してください。');
+      setImageErrorMessage('画像ファイルが大きすぎます。2MB以下のファイルを選択してください。');
       return;
     }
 
     // ファイル形式チェック
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      setErrorMessage('サポートされていないファイル形式です。JPEG、PNG、WebP形式の画像を選択してください。');
+      setImageErrorMessage('サポートされていないファイル形式です。JPEG、PNG、WebP形式の画像を選択してください。');
       return;
     }
 
     setIsAnalyzing(true);
-    setErrorMessage("");
+    setImageErrorMessage("");
+    setAnalysisMethod("image");
     
     try {
       // 画像をリサイズ（モバイルでの大きな画像に対応）
       let processedFile = file;
       
-      // ファイルサイズが2MBを超える場合はリサイズ
-      if (file.size > 2 * 1024 * 1024) {
+      // ファイルサイズが1MBを超える場合はリサイズ
+      if (file.size > 1 * 1024 * 1024) {
         try {
           processedFile = await resizeImage(file);
           console.log('画像をリサイズしました:', file.size, '->', processedFile.size, 'bytes');
@@ -79,7 +81,7 @@ export function MealRecordModal() {
       
       // 解析結果の検証
       if (result.food_name === "解析できませんでした" || result.food_name === "食事が写っていません") {
-        setErrorMessage('画像から食事を認識できませんでした。食事が写っている画像を選択してください。');
+        setImageErrorMessage('画像から食事を認識できませんでした。食事が写っている画像を選択してください。');
         setFormData({
           food_name: "",
           calories: "",
@@ -99,13 +101,13 @@ export function MealRecordModal() {
     } catch (error: any) {
       console.error('画像解析エラー:', error);
       if (error.message.includes('タイムアウト')) {
-        setErrorMessage('画像解析がタイムアウトしました。画像サイズを小さくするか、再度お試しください。');
+        setImageErrorMessage('画像解析がタイムアウトしました。手入力で登録するか、画像サイズを小さくして再度お試しください。');
       } else if (error.message.includes('ファイルが大きすぎます')) {
-        setErrorMessage('画像ファイルが大きすぎます。10MB以下のファイルを選択してください。');
+        setImageErrorMessage('画像ファイルが大きすぎます。2MB以下のファイルを選択してください。');
       } else if (error.message.includes('過負荷状態') || error.message.includes('503')) {
-        setErrorMessage('Gemini APIが一時的に過負荷状態です。しばらく時間をおいて再度お試しください。\n\n代替手段：\n• 手入力で食事を登録\n• 数分後に再度画像解析を試行\n• テキスト入力で食品名を指定');
+        setImageErrorMessage('Gemini APIが一時的に過負荷状態です。手入力で登録するか、数分後に再度お試しください。');
       } else {
-        setErrorMessage('画像解析に失敗しました。手入力で登録できます。');
+        setImageErrorMessage('画像解析に失敗しました。手入力で登録できます。');
       }
     } finally {
       setIsAnalyzing(false);
@@ -113,7 +115,7 @@ export function MealRecordModal() {
   };
 
   // 画像をリサイズする関数
-  const resizeImage = async (file: File, maxWidth: number = 1024, maxHeight: number = 1024): Promise<File> => {
+  const resizeImage = async (file: File, maxWidth: number = 800, maxHeight: number = 800): Promise<File> => {
     return new Promise((resolve, reject) => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
@@ -152,7 +154,7 @@ export function MealRecordModal() {
             } else {
               reject(new Error('画像のリサイズに失敗しました'));
             }
-          }, file.type, 0.7); // 品質を70%に設定してファイルサイズを削減
+          }, file.type, 0.6); // 品質を60%に設定してファイルサイズを削減
         } catch (error) {
           reject(new Error(`画像のリサイズ処理でエラーが発生しました: ${error}`));
         }
@@ -169,7 +171,9 @@ export function MealRecordModal() {
     if (!text) return;
 
     setIsAnalyzing(true);
-    setErrorMessage("");
+    setTextErrorMessage("");
+    setAnalysisMethod("text");
+    
     try {
       const result = await analyzeTextNutrition(text);
       setNutritionData(result);
@@ -182,10 +186,32 @@ export function MealRecordModal() {
       });
     } catch (error: any) {
       console.error('テキスト解析エラー:', error);
-      setErrorMessage('テキスト解析に失敗しました。手入力で登録できます。');
+      if (error.message.includes('タイムアウト')) {
+        setTextErrorMessage('テキスト解析がタイムアウトしました。手入力で登録するか、再度お試しください。');
+      } else if (error.message.includes('過負荷状態') || error.message.includes('503')) {
+        setTextErrorMessage('Gemini APIが一時的に過負荷状態です。手入力で登録するか、数分後に再度お試しください。');
+      } else if (error.message.includes('食品名を確認')) {
+        setTextErrorMessage('入力されたテキストを解析できませんでした。食品名を確認してください。');
+      } else {
+        setTextErrorMessage('テキスト解析に失敗しました。手入力で登録できます。');
+      }
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleManualInput = () => {
+    setAnalysisMethod("manual");
+    setNutritionData(null);
+    setFormData({
+      food_name: "",
+      calories: "",
+      protein: "",
+      fat: "",
+      carbs: ""
+    });
+    setImageErrorMessage("");
+    setTextErrorMessage("");
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -372,7 +398,9 @@ export function MealRecordModal() {
       setNutritionData(null);
       setTextInput("");
       setIsCorrectedByUser(false);
-      setMode(null);
+      setAnalysisMethod(null);
+      setImageErrorMessage("");
+      setTextErrorMessage("");
       setOpen(false);
       
       // ページをリロードせずに、親コンポーネントに更新を通知
@@ -387,105 +415,176 @@ export function MealRecordModal() {
     }
   };
 
-  const renderContent = () => {
-    if (mode === "camera") {
-      return (
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="meal-image">食事の画像をアップロード</Label>
-            <Input 
-              id="meal-image" 
-              type="file" 
-              accept="image/jpeg,image/jpg,image/png,image/webp" 
-              onChange={handleImageUpload}
-              ref={fileInputRef}
-            />
-          </div>
-          {isAnalyzing && (
-            <div className="text-center py-4">
-              <p>画像を解析中...</p>
-            </div>
-          )}
-          {errorMessage && (
-            <div className="border border-red-200 rounded-lg p-4 bg-red-50">
-              <p className="text-red-600 text-sm">{errorMessage}</p>
-            </div>
-          )}
-          {nutritionData && (
-            <div className="border rounded-lg p-4 bg-gray-50">
-              <h3 className="font-semibold mb-2">解析結果</h3>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>食品名: {nutritionData.food_name}</div>
-                <div>カロリー: {nutritionData.calories}kcal</div>
-                <div>タンパク質: {nutritionData.protein}g</div>
-                <div>脂質: {nutritionData.fat}g</div>
-                <div>炭水化物: {nutritionData.carbs}g</div>
-              </div>
-              <div className="mt-3 pt-3 border-t border-gray-200">
-                <p className="text-xs text-gray-600">
-                  💡 解析結果が不正確な場合は、下のフォームで手動で修正できます
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    }
-    
-    if (mode === "text") {
-      return (
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="meal-text">食事の内容を入力</Label>
-            <Textarea 
-              id="meal-text" 
-              placeholder="例: 鶏胸肉 200g、ごはん 150g" 
-              value={textInput}
-              onChange={(e) => setTextInput(e.target.value)}
-            />
-            <Button 
-              type="button" 
-              onClick={handleTextAnalysis}
-              disabled={isAnalyzing || !textInput?.trim()}
-              className="mt-2"
-            >
-              {isAnalyzing ? "解析中..." : "解析する"}
-            </Button>
-          </div>
-          {errorMessage && (
-            <div className="border border-red-200 rounded-lg p-4 bg-red-50">
-              <p className="text-red-600 text-sm">{errorMessage}</p>
-            </div>
-          )}
-          {nutritionData && (
-            <div className="border rounded-lg p-4 bg-gray-50">
-              <h3 className="font-semibold mb-2">解析結果</h3>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>食品名: {nutritionData.food_name}</div>
-                <div>カロリー: {nutritionData.calories}kcal</div>
-                <div>タンパク質: {nutritionData.protein}g</div>
-                <div>脂質: {nutritionData.fat}g</div>
-                <div>炭水化物: {nutritionData.carbs}g</div>
-              </div>
-              <div className="mt-3 pt-3 border-t border-gray-200">
-                <p className="text-xs text-gray-600">
-                  💡 解析結果が不正確な場合は、下のフォームで手動で修正できます
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    }
+  const renderAnalysisOptions = () => {
+    if (analysisMethod) return null;
 
     return (
-      <div className="grid grid-cols-2 gap-4">
-        <Button variant="outline" onClick={() => setMode("camera")}>
-          カメラで解析
-        </Button>
-        <Button variant="outline" onClick={() => setMode("text")}>
-          テキストで入力
-        </Button>
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-gray-900">解析方法を選択</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Button 
+            variant="outline" 
+            onClick={() => setAnalysisMethod("image")}
+            className="h-20 flex flex-col items-center justify-center space-y-2"
+          >
+            <span className="text-2xl">📷</span>
+            <span className="text-sm">画像解析</span>
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => setAnalysisMethod("text")}
+            className="h-20 flex flex-col items-center justify-center space-y-2"
+          >
+            <span className="text-2xl">📝</span>
+            <span className="text-sm">テキスト解析</span>
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={handleManualInput}
+            className="h-20 flex flex-col items-center justify-center space-y-2"
+          >
+            <span className="text-2xl">✏️</span>
+            <span className="text-sm">手動入力</span>
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderImageAnalysis = () => {
+    if (analysisMethod !== "image") return null;
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">画像解析</h3>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setAnalysisMethod(null)}
+          >
+            戻る
+          </Button>
+        </div>
+        <div>
+          <Label htmlFor="meal-image">食事の画像をアップロード</Label>
+          <Input 
+            id="meal-image" 
+            type="file" 
+            accept="image/jpeg,image/jpg,image/png,image/webp" 
+            onChange={handleImageUpload}
+            ref={fileInputRef}
+          />
+        </div>
+        {isAnalyzing && (
+          <div className="text-center py-4">
+            <p>画像を解析中...（10秒以内）</p>
+          </div>
+        )}
+        {imageErrorMessage && (
+          <div className="border border-red-200 rounded-lg p-4 bg-red-50">
+            <p className="text-red-600 text-sm">{imageErrorMessage}</p>
+          </div>
+        )}
+        {nutritionData && (
+          <div className="border rounded-lg p-4 bg-gray-50">
+            <h3 className="font-semibold mb-2">解析結果</h3>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div>食品名: {nutritionData.food_name}</div>
+              <div>カロリー: {nutritionData.calories}kcal</div>
+              <div>タンパク質: {nutritionData.protein}g</div>
+              <div>脂質: {nutritionData.fat}g</div>
+              <div>炭水化物: {nutritionData.carbs}g</div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-gray-200">
+              <p className="text-xs text-gray-600">
+                💡 解析結果が不正確な場合は、下のフォームで手動で修正できます
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderTextAnalysis = () => {
+    if (analysisMethod !== "text") return null;
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">テキスト解析</h3>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setAnalysisMethod(null)}
+          >
+            戻る
+          </Button>
+        </div>
+        <div>
+          <Label htmlFor="meal-text">食事の内容を入力</Label>
+          <Textarea 
+            id="meal-text" 
+            placeholder="例: 鶏胸肉 200g、ごはん 150g" 
+            value={textInput}
+            onChange={(e) => setTextInput(e.target.value)}
+          />
+          <Button 
+            type="button" 
+            onClick={handleTextAnalysis}
+            disabled={isAnalyzing || !textInput?.trim()}
+            className="mt-2"
+          >
+            {isAnalyzing ? "解析中...（10秒以内）" : "解析する"}
+          </Button>
+        </div>
+        {textErrorMessage && (
+          <div className="border border-red-200 rounded-lg p-4 bg-red-50">
+            <p className="text-red-600 text-sm">{textErrorMessage}</p>
+          </div>
+        )}
+        {nutritionData && (
+          <div className="border rounded-lg p-4 bg-gray-50">
+            <h3 className="font-semibold mb-2">解析結果</h3>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div>食品名: {nutritionData.food_name}</div>
+              <div>カロリー: {nutritionData.calories}kcal</div>
+              <div>タンパク質: {nutritionData.protein}g</div>
+              <div>脂質: {nutritionData.fat}g</div>
+              <div>炭水化物: {nutritionData.carbs}g</div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-gray-200">
+              <p className="text-xs text-gray-600">
+                💡 解析結果が不正確な場合は、下のフォームで手動で修正できます
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderManualInput = () => {
+    if (analysisMethod !== "manual") return null;
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">手動入力</h3>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setAnalysisMethod(null)}
+          >
+            戻る
+          </Button>
+        </div>
+        <div className="border rounded-lg p-4 bg-blue-50">
+          <p className="text-sm text-blue-700">
+            💡 栄養成分を手動で入力してください。食品名と栄養成分を正確に入力することで、より正確な記録ができます。
+          </p>
+        </div>
       </div>
     );
   };
@@ -496,11 +595,11 @@ export function MealRecordModal() {
   const isFormComplete = formData.food_name && formData.calories && formData.protein && formData.fat && formData.carbs;
 
   const renderForm = () => {
-    // 画像・テキスト解析失敗時でも、何か1つでも入力があればフォームを表示
-    if (!isFormFilled && !nutritionData && mode !== "text" && mode !== "camera") return null;
+    // 解析方法が選択されていない場合は表示しない
+    if (!analysisMethod) return null;
 
     return (
-      <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+      <form onSubmit={handleSubmit} className="space-y-4 mt-6">
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label htmlFor="food_name">食品名</Label>
@@ -575,7 +674,6 @@ export function MealRecordModal() {
           </div>
         </div>
         <div className="flex justify-end gap-2 pt-4">
-          <Button onClick={() => setMode(null)} type="button" variant="outline">戻る</Button>
           <Button 
             type="submit" 
             onClick={handleSubmit}
@@ -601,7 +699,7 @@ export function MealRecordModal() {
       </div>
       
       <div ref={modalRef} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
-        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold">食事の記録</h2>
             <Button 
@@ -609,7 +707,7 @@ export function MealRecordModal() {
               size="sm" 
               onClick={() => {
                 setOpen(false);
-                setMode(null);
+                setAnalysisMethod(null);
                 setNutritionData(null);
                 setTextInput("");
                 setFormData({
@@ -620,23 +718,19 @@ export function MealRecordModal() {
                   carbs: ""
                 });
                 setIsCorrectedByUser(false);
+                setImageErrorMessage("");
+                setTextErrorMessage("");
               }}
             >
               ✕
             </Button>
           </div>
           
-          {!nutritionData && (
-            <p className="text-sm text-muted-foreground mb-4">
-              食事の記録方法を選択してください。
-            </p>
-          )}
-          
           <div className="py-4">
-            {errorMessage && (
-              <div className="text-red-500 text-sm mb-2">{errorMessage}</div>
-            )}
-            {renderContent()}
+            {renderAnalysisOptions()}
+            {renderImageAnalysis()}
+            {renderTextAnalysis()}
+            {renderManualInput()}
             {renderForm()}
           </div>
           
