@@ -89,16 +89,16 @@ function calculateTargetCalories(userProfile: any): number {
   return targetCalories;
 }
 
-// Gemini API呼び出し関数（高精度版）
+// Gemini API呼び出し関数（高品質版）
 async function callGeminiAPI(prompt: string, retryCount = 0): Promise<any> {
-  const maxRetries = 1; // 1回のみ（高速化）
-  const baseDelay = 200; // 0.3秒から0.2秒に削減
+  const maxRetries = 2; // 2回に増加（安定性向上）
+  const baseDelay = 300; // 0.3秒に戻す
 
   try {
     console.log(`Gemini API呼び出し開始 (試行 ${retryCount + 1}/${maxRetries + 1})`);
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 6秒から5秒に短縮
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒に延長（高品質なアドバイス生成のため）
 
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -116,10 +116,10 @@ async function callGeminiAPI(prompt: string, retryCount = 0): Promise<any> {
             }
           ],
           generationConfig: {
-            temperature: 0.3, // 0.2から0.3に戻す（要約文の多様性を確保）
-            maxOutputTokens: 700, // 600から700に増加（要約文の品質向上）
-            topP: 0.8, // 0.7から0.8に戻す
-            topK: 25, // 20から25に戻す
+            temperature: 0.4, // 0.3から0.4に増加（より多様なアドバイス）
+            maxOutputTokens: 800, // 700から800に増加（より詳細なアドバイス）
+            topP: 0.9, // 0.8から0.9に増加
+            topK: 30, // 25から30に増加
             candidateCount: 1
           }
         }),
@@ -136,7 +136,7 @@ async function callGeminiAPI(prompt: string, retryCount = 0): Promise<any> {
       
       // 503エラー（過負荷）の場合はリトライ
       if (geminiResponse.status === 503 && retryCount < maxRetries) {
-        const delay = baseDelay * Math.pow(2, retryCount); // 指数バックオフ: 0.2秒
+        const delay = baseDelay * Math.pow(2, retryCount); // 指数バックオフ: 0.3秒、0.6秒
         console.log(`${delay}ms後にリトライします... (${retryCount + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return callGeminiAPI(prompt, retryCount + 1);
@@ -276,15 +276,15 @@ export async function POST(request: NextRequest) {
       ? `参考情報: ユーザーの食事制限(${dislikes.join(', ') || 'なし'}), アレルギー(${allergies.join(', ') || 'なし'})` 
       : '';
 
-    // より効率的で具体的なアドバイスを生成するプロンプト（高精度版）
+    // より効率的で具体的なアドバイスを生成するプロンプト（高品質版）
     const prompt = `ユーザー情報に基づき、具体的で実践的な食事と運動のアドバイスを日本語で生成してください。
 
 以下のJSON形式で出力してください：
 {
-  "meal_summary": "食事アドバイスの要約（必ず40-60文字で、具体的で多様な表現を使用）",
-  "meal_detail": "食事アドバイスの詳細（100-300文字程度、具体的で実行しやすい内容）",
-  "exercise_summary": "運動アドバイスの要約（必ず40-60文字で、具体的で多様な表現を使用）",
-  "exercise_detail": "運動アドバイスの詳細（100-300文字程度、具体的で実行しやすい内容）"
+  "meal_summary": "食事アドバイスの要約（40-60文字、具体的で魅力的な表現）",
+  "meal_detail": "食事アドバイスの詳細（100-300文字、具体的で実行しやすい内容）",
+  "exercise_summary": "運動アドバイスの要約（40-60文字、具体的で魅力的な表現）",
+  "exercise_detail": "運動アドバイスの詳細（100-300文字、具体的で実行しやすい内容）"
 }
 
 ユーザー情報: ${userProfile.username}, ${userProfile.gender}, ${userProfile.height_cm}cm, ${userProfile.initial_weight_kg}kg→${userProfile.target_weight_kg}kg, 目標:${userProfile.goal_type}, 目標カロリー:${Math.round(targetCalories)}kcal
@@ -292,15 +292,12 @@ ${foodPreferencesText ? `${foodPreferencesText}` : ''}
 ${dailyData ? `今日の摂取: ${dailyData.total_calories || 0}kcal (目標との差: ${Math.round(targetCalories - (dailyData.total_calories || 0))}kcal), タンパク質:${Math.round(dailyData.total_protein || 0)}g, 脂質:${Math.round(dailyData.total_fat || 0)}g, 炭水化物:${Math.round(dailyData.total_carbs || 0)}g` : ''}
 
 アドバイスのポイント:
-- 食事: 具体的な食材やメニューを提案し、栄養バランスを考慮する。今日の摂取量がある場合は、不足している栄養素を補うアドバイスを含める
-- 運動: 具体的な運動種目、時間、頻度を提案する。ユーザーの目標に合わせた運動強度を提案する
-- 食事の好みがある場合は、それらを自然に考慮した提案をする（言及しない）
-- ユーザーの目標に合わせた実践的なアドバイスを提供する
-- 要約は必ず40-60文字で、毎回異なる表現を使用し、具体的で魅力的な内容にする
-- 詳細は100-300文字程度で、具体的で実行しやすい内容にする
-- 今日の摂取データがある場合は、それを踏まえた具体的なアドバイスを提供する
-- 内容が少ない場合は短めでも構わないが、最低100文字は確保する
-- 数値は小数点以下を四捨五入して整数で表示する`;
+- 食事: 具体的な食材やメニューを提案、栄養バランスを考慮
+- 運動: 具体的な運動種目、時間、頻度を提案
+- 要約は40-60文字で、毎回異なる表現を使用
+- 詳細は100-300文字で、具体的で実行しやすい内容
+- 今日の摂取データがある場合は、それを踏まえた具体的なアドバイス
+- 数値は整数で表示`;
 
     console.log('GEMINI_API_KEY設定確認:', process.env.GEMINI_API_KEY ? '設定済み' : '未設定');
     

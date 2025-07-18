@@ -269,11 +269,11 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
     try {
       console.log('AIアドバイス取得開始:', { userProfile, dailyData });
       
-      // 5秒タイムアウトに短縮
+      // 8秒タイムアウトに延長（高品質なアドバイス生成のため）
       const timeoutPromise = new Promise((_, reject) => {
         fetchTimeoutRef.current = setTimeout(() => {
           reject(new Error('タイムアウト'));
-        }, 5000);
+        }, 8000);
       });
 
       const advicePromise = getAiAdvice(userProfile, dailyData);
@@ -313,12 +313,12 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
         fetchTimeoutRef.current = null;
       }
       
-      // リトライロジック（最大1回に削減）
-      if (retryCount < 1) {
+      // リトライロジック（最大2回に増加）
+      if (retryCount < 2) {
         console.log(`${retryCount}回目のリトライを実行します...`);
         setTimeout(() => {
           fetchAdvice();
-        }, 500 * (retryCount + 1)); // 指数バックオフ: 0.5秒
+        }, 1000 * (retryCount + 1)); // 指数バックオフ: 1秒、2秒
         return;
       }
 

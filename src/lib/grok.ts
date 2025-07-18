@@ -124,12 +124,12 @@ export async function analyzeTextNutrition(text: string): Promise<GrokNutritionR
   }
 }
 
-// AIアドバイスを取得（高速化版）
+// AIアドバイスを取得（高品質版）
 export async function getAiAdvice(userProfile: UserProfile, dailyData?: any): Promise<GrokAdviceResponse> {
   try {
-    // 5秒タイムアウトに短縮
+    // 8秒タイムアウトに延長（高品質なアドバイス生成のため）
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     const response = await fetch('/api/grok/advice', {
       method: 'POST',
