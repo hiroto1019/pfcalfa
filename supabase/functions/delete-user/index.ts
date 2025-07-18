@@ -141,32 +141,12 @@ serve(async (req) => {
       console.log('目標設定削除完了')
     }
 
-    // 7. Authユーザーを削除（サービスロールキーを使用）
-    console.log('Authユーザー削除開始')
-    const { error: deleteUserError } = await supabase.auth.admin.deleteUser(userId)
-
-    if (deleteUserError) {
-      console.error('Authユーザー削除エラー:', deleteUserError)
-      // Authユーザーの削除に失敗した場合でも、データは削除されているので成功とする
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          warning: 'データは削除されましたが、Authユーザーの削除に失敗しました。管理者による手動削除が必要です。',
-          details: deleteUserError.message 
-        }),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    }
-
-    console.log('Authユーザー削除完了')
+    console.log('データベースレベルでの削除完了')
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'ユーザーと関連データが正常に削除されました' 
+        message: 'ユーザーデータが正常に削除されました。Authユーザーの削除は管理者画面から手動で行ってください。' 
       }),
       { 
         status: 200, 

@@ -31,6 +31,11 @@ export function createClient() {
           }
         },
       },
+      global: {
+        headers: {
+          'X-Client-Info': 'supabase-js/2.50.5'
+        }
+      }
     }
   )
 }

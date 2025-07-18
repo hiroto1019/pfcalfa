@@ -216,7 +216,7 @@ export function SettingsPage() {
         if (result.warning) {
           alert(`アカウントデータを削除しました。\n\n注意: ${result.warning}\n\nログアウトします。`);
         } else {
-          alert('アカウントと関連データを正常に削除しました。ログアウトします。');
+          alert('アカウントデータを正常に削除しました。ログアウトします。');
         }
         
         // ユーザーをログアウトさせる

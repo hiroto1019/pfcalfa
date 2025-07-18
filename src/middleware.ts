@@ -43,6 +43,11 @@ export async function middleware(request: NextRequest) {
           }
         },
       },
+      global: {
+        headers: {
+          'X-Client-Info': 'supabase-js/2.50.5'
+        }
+      }
     }
   )
 
