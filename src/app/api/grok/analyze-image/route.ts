@@ -20,7 +20,7 @@ async function validateAndCorrectNutritionData(data: any) {
   // カロリーが0の場合、食品名から推定を試行
   if (corrected.calories === 0) {
     try {
-      const { findFoodByName } = await import('../../../../../lib/food-database');
+      const { findFoodByName } = await import('../../../../lib/food-database');
       const foodData = findFoodByName(corrected.food_name);
       if (foodData) {
         Object.assign(corrected, {
