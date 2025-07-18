@@ -133,7 +133,7 @@ async function callGeminiAPI(text: string, retryCount = 0): Promise<any> {
       console.log('Gemini APIからcandidatesが返されませんでした:', geminiData);
       throw new Error('Gemini APIから有効な応答が返されませんでした');
     }
-    
+
     const content = geminiData.candidates[0]?.content?.parts?.[0]?.text;
 
     if (!content) {
@@ -253,11 +253,11 @@ export async function POST(request: NextRequest) {
             error: 'テキスト解析がタイムアウトしました。手入力で登録するか、再度お試しください。',
             errorType: 'timeout',
             fallback: {
-              food_name: text,
-              calories: 0,
-              protein: 0,
-              fat: 0,
-              carbs: 0
+        food_name: text, 
+        calories: 0, 
+        protein: 0, 
+        fat: 0, 
+        carbs: 0 
             }
           },
           { status: 408 }
@@ -271,11 +271,11 @@ export async function POST(request: NextRequest) {
             error: '入力されたテキストを解析できませんでした。食品名を確認してください。',
             errorType: 'invalid_input',
             fallback: {
-              food_name: text,
-              calories: 0,
-              protein: 0,
-              fat: 0,
-              carbs: 0
+          food_name: text, 
+          calories: 0, 
+          protein: 0, 
+          fat: 0, 
+          carbs: 0 
             }
           },
           { status: 400 }

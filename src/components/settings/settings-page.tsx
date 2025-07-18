@@ -474,8 +474,8 @@ export function SettingsPage() {
               disabled={isSaving} 
               className="w-full sm:w-auto px-8 py-3 h-12"
             >
-              {isSaving ? '保存中...' : '保存'}
-            </Button>
+            {isSaving ? '保存中...' : '保存'}
+          </Button>
           </div>
         </CardContent>
       </Card>

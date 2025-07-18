@@ -32,14 +32,14 @@ export async function analyzeImageNutrition(imageFile: File): Promise<GrokNutrit
   formData.append('image', imageFile);
   
   try {
-    const response = await fetch('/api/grok/analyze-image', {
-      method: 'POST',
-      body: formData,
-    });
+  const response = await fetch('/api/grok/analyze-image', {
+    method: 'POST',
+    body: formData,
+  });
 
     const data = await response.json();
 
-    if (!response.ok) {
+  if (!response.ok) {
       // フォールバックデータがある場合は使用
       if (data.fallback) {
         console.log('フォールバックデータを使用:', data.fallback);
@@ -57,8 +57,8 @@ export async function analyzeImageNutrition(imageFile: File): Promise<GrokNutrit
         errorMessage = '画像ファイルが不正です。画像を確認して再度お試しください。';
       }
       
-      throw new Error(errorMessage);
-    }
+    throw new Error(errorMessage);
+  }
 
     return data;
   } catch (error: any) {
@@ -77,17 +77,17 @@ export async function analyzeImageNutrition(imageFile: File): Promise<GrokNutrit
 // テキストから栄養素を解析（改善版）
 export async function analyzeTextNutrition(text: string): Promise<GrokNutritionResponse> {
   try {
-    const response = await fetch('/api/grok/analyze-text', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ text }),
-    });
+  const response = await fetch('/api/grok/analyze-text', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ text }),
+  });
 
     const data = await response.json();
 
-    if (!response.ok) {
+  if (!response.ok) {
       // フォールバックデータがある場合は使用
       if (data.fallback) {
         console.log('フォールバックデータを使用:', data.fallback);
@@ -105,8 +105,8 @@ export async function analyzeTextNutrition(text: string): Promise<GrokNutritionR
         errorMessage = '入力されたテキストを解析できませんでした。食品名を確認してください。';
       }
       
-      throw new Error(errorMessage);
-    }
+    throw new Error(errorMessage);
+  }
 
     return data;
   } catch (error: any) {
@@ -125,18 +125,18 @@ export async function analyzeTextNutrition(text: string): Promise<GrokNutritionR
 // AIアドバイスを取得（改善版）
 export async function getAiAdvice(userProfile: UserProfile, dailyData?: any): Promise<GrokAdviceResponse> {
   try {
-    const response = await fetch('/api/grok/advice', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ 
-        userProfile,
-        dailyData 
-      }),
-    });
+  const response = await fetch('/api/grok/advice', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ 
+      userProfile,
+      dailyData 
+    }),
+  });
 
-    if (!response.ok) {
+  if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       let errorMessage = errorData.error || 'AIアドバイスの取得に失敗しました';
       
@@ -147,9 +147,9 @@ export async function getAiAdvice(userProfile: UserProfile, dailyData?: any): Pr
       }
       
       throw new Error(errorMessage);
-    }
+  }
 
-    return response.json();
+  return response.json();
   } catch (error: any) {
     console.error('AIアドバイスエラー詳細:', error);
     

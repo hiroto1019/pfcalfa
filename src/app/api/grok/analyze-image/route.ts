@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import sharp from 'sharp';
 
 // 栄養データの検証と補正関数（最適化版）
 function validateAndCorrectNutritionData(data: any) {
@@ -53,6 +54,45 @@ function optimizeImageSize(base64Image: string): string {
     console.log('画像サイズが大きいため、圧縮を推奨します');
   }
   return base64Image;
+}
+
+// 画像リサイズ関数（新規追加）
+async function resizeImage(imageBuffer: Buffer, maxWidth: number = 1024, maxHeight: number = 1024, quality: number = 80): Promise<Buffer> {
+  try {
+    console.log('画像リサイズ開始');
+    
+    // 元画像のメタデータを取得
+    const metadata = await sharp(imageBuffer).metadata();
+    console.log('元画像サイズ:', metadata.width, 'x', metadata.height, '形式:', metadata.format);
+    
+    // リサイズが必要かチェック
+    if (metadata.width && metadata.height) {
+      const needsResize = metadata.width > maxWidth || metadata.height > maxHeight;
+      
+      if (!needsResize) {
+        console.log('リサイズ不要 - 既に適切なサイズです');
+        return imageBuffer;
+      }
+      
+      // アスペクト比を保ってリサイズ
+      const resizedBuffer = await sharp(imageBuffer)
+        .resize(maxWidth, maxHeight, {
+          fit: 'inside',
+          withoutEnlargement: true
+        })
+        .jpeg({ quality })
+        .toBuffer();
+      
+      console.log('リサイズ完了, 新しいサイズ:', resizedBuffer.length, 'bytes');
+      return resizedBuffer;
+    }
+    
+    return imageBuffer;
+  } catch (error) {
+    console.error('画像リサイズエラー:', error);
+    // エラーの場合は元の画像を返す
+    return imageBuffer;
+  }
 }
 
 // 簡易キャッシュ（メモリ内）
@@ -129,26 +169,26 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000); // 15秒から8秒に短縮（10秒以内対応）
 
-    const geminiResponse = await fetch(
+      const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { text: prompt },
-                {
-                  inlineData: {
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { text: prompt },
+                  {
+                    inlineData: {
                     mimeType: imageType,
                     data: optimizedImage
+                    }
                   }
-                }
-              ]
-            }
+                ]
+              }
           ],
           generationConfig: {
             temperature: 0.1, // 精度を保つため適度な設定
@@ -157,18 +197,18 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
             topK: 20,
             candidateCount: 1
           }
-        }),
-        signal: controller.signal
-      }
-    );
+          }),
+          signal: controller.signal
+        }
+      );
 
-    clearTimeout(timeoutId);
-    console.log('Gemini API応答ステータス:', geminiResponse.status);
+      clearTimeout(timeoutId);
+      console.log('Gemini API応答ステータス:', geminiResponse.status);
 
-    if (!geminiResponse.ok) {
-      const errorText = await geminiResponse.text();
-      console.error('Gemini APIエラー詳細:', errorText);
-      
+      if (!geminiResponse.ok) {
+        const errorText = await geminiResponse.text();
+        console.error('Gemini APIエラー詳細:', errorText);
+        
       // 503エラー（過負荷）の場合はリトライ
       if (geminiResponse.status === 503 && retryCount < maxRetries) {
         const delay = baseDelay * Math.pow(2, retryCount); // 指数バックオフ: 0.2秒
@@ -178,59 +218,59 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
       }
       
       // その他のエラーまたは最大リトライ回数に達した場合
-      if (geminiResponse.status === 400) {
+        if (geminiResponse.status === 400) {
         throw new Error('画像の解析に失敗しました。画像が鮮明でないか、食事が写っていない可能性があります。');
+        }
+        
+        throw new Error(`Gemini API呼び出しに失敗しました: ${geminiResponse.status}`);
+      }
+
+      const geminiData = await geminiResponse.json();
+      console.log('Gemini API応答データ:', geminiData);
+      
+      if (!geminiData.candidates || geminiData.candidates.length === 0) {
+        console.log('Gemini APIからcandidatesが返されませんでした:', geminiData);
+        throw new Error('Gemini APIから有効な応答が返されませんでした');
       }
       
-      throw new Error(`Gemini API呼び出しに失敗しました: ${geminiResponse.status}`);
-    }
+      const content = geminiData.candidates[0]?.content?.parts?.[0]?.text;
 
-    const geminiData = await geminiResponse.json();
-    console.log('Gemini API応答データ:', geminiData);
-    
-    if (!geminiData.candidates || geminiData.candidates.length === 0) {
-      console.log('Gemini APIからcandidatesが返されませんでした:', geminiData);
-      throw new Error('Gemini APIから有効な応答が返されませんでした');
-    }
-    
-    const content = geminiData.candidates[0]?.content?.parts?.[0]?.text;
+      if (!content) {
+        console.log('Gemini APIからの応答が不正:', geminiData);
+        throw new Error('Gemini APIからの応答が不正です');
+      }
 
-    if (!content) {
-      console.log('Gemini APIからの応答が不正:', geminiData);
-      throw new Error('Gemini APIからの応答が不正です');
-    }
-
-    console.log('Gemini API応答内容:', content);
+      console.log('Gemini API応答内容:', content);
 
     // JSONレスポンスを抽出（最適化版）
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.log('JSONレスポンスが見つかりません。内容:', content);
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        console.log('JSONレスポンスが見つかりません。内容:', content);
       const fallbackResponse = createFallbackResponse(content);
-      console.log('フォールバックレスポンスを使用:', fallbackResponse);
+        console.log('フォールバックレスポンスを使用:', fallbackResponse);
       return fallbackResponse;
-    }
-
-    try {
-      const nutritionData = JSON.parse(jsonMatch[0]);
-      console.log('解析結果:', nutritionData);
-      
-      // 必須フィールドの検証（最適化版）
-      const requiredFields = ['food_name', 'calories', 'protein', 'fat', 'carbs'];
-      const missingFields = requiredFields.filter(field => !(field in nutritionData));
-      
-      if (missingFields.length > 0) {
-        console.log('必須フィールドが不足:', missingFields);
-        // 不足しているフィールドにデフォルト値を設定
-        missingFields.forEach(field => {
-          nutritionData[field] = field === 'food_name' ? '食品（詳細不明）' : 0;
-        });
       }
-      
-      // 解析結果の妥当性チェックと補正
-      const correctedData = validateAndCorrectNutritionData(nutritionData);
-      console.log('補正後の解析結果:', correctedData);
-      
+
+      try {
+        const nutritionData = JSON.parse(jsonMatch[0]);
+        console.log('解析結果:', nutritionData);
+        
+      // 必須フィールドの検証（最適化版）
+        const requiredFields = ['food_name', 'calories', 'protein', 'fat', 'carbs'];
+        const missingFields = requiredFields.filter(field => !(field in nutritionData));
+        
+        if (missingFields.length > 0) {
+          console.log('必須フィールドが不足:', missingFields);
+          // 不足しているフィールドにデフォルト値を設定
+          missingFields.forEach(field => {
+            nutritionData[field] = field === 'food_name' ? '食品（詳細不明）' : 0;
+          });
+        }
+        
+        // 解析結果の妥当性チェックと補正
+        const correctedData = validateAndCorrectNutritionData(nutritionData);
+        console.log('補正後の解析結果:', correctedData);
+        
       // キャッシュに保存
       imageCache.set(cacheKey, {
         data: correctedData,
@@ -238,26 +278,26 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
       });
       
       return correctedData;
-    } catch (parseError) {
-      console.log('JSONパースエラー:', parseError);
-      console.log('パースしようとしたJSON:', jsonMatch[0]);
-      
-      // パースエラーの場合もフォールバック
-      const fallbackResponse = {
-        food_name: "解析できませんでした",
-        calories: 0,
-        protein: 0,
-        fat: 0,
-        carbs: 0
-      };
-      
+      } catch (parseError) {
+        console.log('JSONパースエラー:', parseError);
+        console.log('パースしようとしたJSON:', jsonMatch[0]);
+        
+        // パースエラーの場合もフォールバック
+        const fallbackResponse = {
+          food_name: "解析できませんでした",
+          calories: 0,
+          protein: 0,
+          fat: 0,
+          carbs: 0
+        };
+        
       return fallbackResponse;
-    }
+      }
 
-  } catch (fetchError: any) {
-    console.error('Gemini API呼び出しエラー:', fetchError);
-    
-    if (fetchError.name === 'AbortError') {
+    } catch (fetchError: any) {
+      console.error('Gemini API呼び出しエラー:', fetchError);
+      
+      if (fetchError.name === 'AbortError') {
       throw new Error('画像解析がタイムアウトしました。画像サイズを小さくするか、再度お試しください。');
     }
     
@@ -294,12 +334,12 @@ export async function POST(request: NextRequest) {
       type: imageFile.type
     });
 
-    // ファイルサイズチェック（2MB制限にさらに短縮）
-    const maxSize = 2 * 1024 * 1024; // 2MB
+    // ファイルサイズチェック（リサイズ機能により10MBまで許可）
+    const maxSize = 10 * 1024 * 1024; // 10MB
     if (imageFile.size > maxSize) {
       console.log('ファイルサイズ超過:', imageFile.size);
       return NextResponse.json(
-        { error: '画像ファイルが大きすぎます。2MB以下のファイルを選択してください。' },
+        { error: '画像ファイルが大きすぎます。10MB以下のファイルを選択してください。' },
         { status: 400 }
       );
     }
@@ -314,10 +354,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Base64エンコード開始');
-    // 画像をBase64エンコード
+    console.log('画像リサイズ処理開始');
+    // 画像をBufferに変換
     const arrayBuffer = await imageFile.arrayBuffer();
-    const base64Image = Buffer.from(arrayBuffer).toString('base64');
+    const imageBuffer = Buffer.from(arrayBuffer);
+    
+    // 画像を自動リサイズ（最大1024x1024、品質80%）
+    const resizedBuffer = await resizeImage(imageBuffer, 1024, 1024, 80);
+    
+    console.log('Base64エンコード開始');
+    // リサイズされた画像をBase64エンコード
+    const base64Image = resizedBuffer.toString('base64');
     console.log('Base64エンコード完了, サイズ:', base64Image.length);
 
     console.log('GEMINI_API_KEY設定確認:', process.env.GEMINI_API_KEY ? '設定済み' : '未設定');

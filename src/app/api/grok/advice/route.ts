@@ -228,15 +228,15 @@ ${dailyData ? `今日の摂取: ${dailyData.total_calories || 0}kcal` : ''}`;
       return NextResponse.json(result);
     } catch (apiError: any) {
       console.error('Gemini API最終エラー:', apiError);
-      
+
       // 503エラーの場合は特別なメッセージを返す
       if (apiError.message.includes('503')) {
         return NextResponse.json(
           { 
             error: 'Gemini APIが一時的に過負荷状態です。しばらく時間をおいて再度お試しください。',
             fallback: {
-              meal_advice: "今日も健康的な食事を心がけましょう。",
-              exercise_advice: "適度な運動を取り入れてください。"
+          meal_advice: "今日も健康的な食事を心がけましょう。", 
+          exercise_advice: "適度な運動を取り入れてください。" 
             }
           },
           { status: 503 }

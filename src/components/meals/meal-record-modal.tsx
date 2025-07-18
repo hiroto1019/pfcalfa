@@ -43,10 +43,10 @@ export function MealRecordModal() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // ファイルサイズチェック（2MB制限）
-    const maxSize = 2 * 1024 * 1024; // 2MB
+    // ファイルサイズチェック（リサイズ機能により10MBまで許可）
+    const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
-      setImageErrorMessage('画像ファイルが大きすぎます。2MB以下のファイルを選択してください。');
+      setImageErrorMessage('画像ファイルが大きすぎます。10MB以下のファイルを選択してください。');
       return;
     }
 
@@ -65,10 +65,10 @@ export function MealRecordModal() {
       // 画像をリサイズ（モバイルでの大きな画像に対応）
       let processedFile = file;
       
-      // ファイルサイズが1MBを超える場合はリサイズ
-      if (file.size > 1 * 1024 * 1024) {
+      // ファイルサイズが2MBを超える場合、または画像サイズが大きい場合はリサイズ
+      if (file.size > 2 * 1024 * 1024) {
         try {
-          processedFile = await resizeImage(file);
+          processedFile = await resizeImage(file, 1024, 1024);
           console.log('画像をリサイズしました:', file.size, '->', processedFile.size, 'bytes');
         } catch (resizeError) {
           console.warn('画像のリサイズに失敗しました。元の画像を使用します:', resizeError);
@@ -103,7 +103,7 @@ export function MealRecordModal() {
       if (error.message.includes('タイムアウト')) {
         setImageErrorMessage('画像解析がタイムアウトしました。手入力で登録するか、画像サイズを小さくして再度お試しください。');
       } else if (error.message.includes('ファイルが大きすぎます')) {
-        setImageErrorMessage('画像ファイルが大きすぎます。2MB以下のファイルを選択してください。');
+        setImageErrorMessage('画像ファイルが大きすぎます。10MB以下のファイルを選択してください。');
       } else if (error.message.includes('過負荷状態') || error.message.includes('503')) {
         setImageErrorMessage('Gemini APIが一時的に過負荷状態です。手入力で登録するか、数分後に再度お試しください。');
       } else {
@@ -154,7 +154,7 @@ export function MealRecordModal() {
             } else {
               reject(new Error('画像のリサイズに失敗しました'));
             }
-          }, file.type, 0.6); // 品質を60%に設定してファイルサイズを削減
+          }, file.type, 0.8); // 品質を80%に設定してファイルサイズを削減
         } catch (error) {
           reject(new Error(`画像のリサイズ処理でエラーが発生しました: ${error}`));
         }
@@ -454,8 +454,8 @@ export function MealRecordModal() {
   const renderImageAnalysis = () => {
     if (analysisMethod !== "image") return null;
 
-    return (
-      <div className="space-y-4">
+      return (
+        <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">画像解析</h3>
           <Button 
@@ -466,52 +466,52 @@ export function MealRecordModal() {
             戻る
           </Button>
         </div>
-        <div>
-          <Label htmlFor="meal-image">食事の画像をアップロード</Label>
-          <Input 
-            id="meal-image" 
-            type="file" 
-            accept="image/jpeg,image/jpg,image/png,image/webp" 
-            onChange={handleImageUpload}
-            ref={fileInputRef}
-          />
-        </div>
-        {isAnalyzing && (
-          <div className="text-center py-4">
+          <div>
+            <Label htmlFor="meal-image">食事の画像をアップロード</Label>
+            <Input 
+              id="meal-image" 
+              type="file" 
+              accept="image/jpeg,image/jpg,image/png,image/webp" 
+              onChange={handleImageUpload}
+              ref={fileInputRef}
+            />
+          </div>
+          {isAnalyzing && (
+            <div className="text-center py-4">
             <p>画像を解析中...（10秒以内）</p>
-          </div>
-        )}
+            </div>
+          )}
         {imageErrorMessage && (
-          <div className="border border-red-200 rounded-lg p-4 bg-red-50">
+            <div className="border border-red-200 rounded-lg p-4 bg-red-50">
             <p className="text-red-600 text-sm">{imageErrorMessage}</p>
-          </div>
-        )}
-        {nutritionData && (
-          <div className="border rounded-lg p-4 bg-gray-50">
-            <h3 className="font-semibold mb-2">解析結果</h3>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>食品名: {nutritionData.food_name}</div>
-              <div>カロリー: {nutritionData.calories}kcal</div>
-              <div>タンパク質: {nutritionData.protein}g</div>
-              <div>脂質: {nutritionData.fat}g</div>
-              <div>炭水化物: {nutritionData.carbs}g</div>
             </div>
-            <div className="mt-3 pt-3 border-t border-gray-200">
-              <p className="text-xs text-gray-600">
-                💡 解析結果が不正確な場合は、下のフォームで手動で修正できます
-              </p>
+          )}
+          {nutritionData && (
+            <div className="border rounded-lg p-4 bg-gray-50">
+              <h3 className="font-semibold mb-2">解析結果</h3>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>食品名: {nutritionData.food_name}</div>
+                <div>カロリー: {nutritionData.calories}kcal</div>
+                <div>タンパク質: {nutritionData.protein}g</div>
+                <div>脂質: {nutritionData.fat}g</div>
+                <div>炭水化物: {nutritionData.carbs}g</div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-gray-200">
+                <p className="text-xs text-gray-600">
+                  💡 解析結果が不正確な場合は、下のフォームで手動で修正できます
+                </p>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
-    );
+          )}
+        </div>
+      );
   };
 
   const renderTextAnalysis = () => {
     if (analysisMethod !== "text") return null;
-
-    return (
-      <div className="space-y-4">
+    
+      return (
+        <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">テキスト解析</h3>
           <Button 
@@ -522,47 +522,47 @@ export function MealRecordModal() {
             戻る
           </Button>
         </div>
-        <div>
-          <Label htmlFor="meal-text">食事の内容を入力</Label>
-          <Textarea 
-            id="meal-text" 
-            placeholder="例: 鶏胸肉 200g、ごはん 150g" 
-            value={textInput}
-            onChange={(e) => setTextInput(e.target.value)}
-          />
-          <Button 
-            type="button" 
-            onClick={handleTextAnalysis}
+          <div>
+            <Label htmlFor="meal-text">食事の内容を入力</Label>
+            <Textarea 
+              id="meal-text" 
+              placeholder="例: 鶏胸肉 200g、ごはん 150g" 
+              value={textInput}
+              onChange={(e) => setTextInput(e.target.value)}
+            />
+            <Button 
+              type="button" 
+              onClick={handleTextAnalysis}
             disabled={isAnalyzing || !textInput?.trim()}
-            className="mt-2"
-          >
+              className="mt-2"
+            >
             {isAnalyzing ? "解析中...（10秒以内）" : "解析する"}
-          </Button>
-        </div>
+            </Button>
+          </div>
         {textErrorMessage && (
-          <div className="border border-red-200 rounded-lg p-4 bg-red-50">
+            <div className="border border-red-200 rounded-lg p-4 bg-red-50">
             <p className="text-red-600 text-sm">{textErrorMessage}</p>
-          </div>
-        )}
-        {nutritionData && (
-          <div className="border rounded-lg p-4 bg-gray-50">
-            <h3 className="font-semibold mb-2">解析結果</h3>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>食品名: {nutritionData.food_name}</div>
-              <div>カロリー: {nutritionData.calories}kcal</div>
-              <div>タンパク質: {nutritionData.protein}g</div>
-              <div>脂質: {nutritionData.fat}g</div>
-              <div>炭水化物: {nutritionData.carbs}g</div>
             </div>
-            <div className="mt-3 pt-3 border-t border-gray-200">
-              <p className="text-xs text-gray-600">
-                💡 解析結果が不正確な場合は、下のフォームで手動で修正できます
-              </p>
+          )}
+          {nutritionData && (
+            <div className="border rounded-lg p-4 bg-gray-50">
+              <h3 className="font-semibold mb-2">解析結果</h3>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>食品名: {nutritionData.food_name}</div>
+                <div>カロリー: {nutritionData.calories}kcal</div>
+                <div>タンパク質: {nutritionData.protein}g</div>
+                <div>脂質: {nutritionData.fat}g</div>
+                <div>炭水化物: {nutritionData.carbs}g</div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-gray-200">
+                <p className="text-xs text-gray-600">
+                  💡 解析結果が不正確な場合は、下のフォームで手動で修正できます
+                </p>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
-    );
+          )}
+        </div>
+      );
   };
 
   const renderManualInput = () => {
@@ -578,7 +578,7 @@ export function MealRecordModal() {
             onClick={() => setAnalysisMethod(null)}
           >
             戻る
-          </Button>
+        </Button>
         </div>
         <div className="border rounded-lg p-4 bg-blue-50">
           <p className="text-sm text-blue-700">
