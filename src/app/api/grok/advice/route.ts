@@ -19,26 +19,36 @@ setInterval(cleanupCache, 10 * 60 * 1000);
 
 // 高速なフォールバックレスポンス生成
 function createFallbackResponse(userProfile?: any, dailyData?: any) {
-  let mealAdvice = "今日も健康的な食事を心がけましょう。";
-  let exerciseAdvice = "適度な運動を取り入れてください。";
+  let mealSummary = "今日も健康的な食事を心がけましょう。";
+  let mealDetail = "今日も健康的な食事を心がけましょう。\n\n具体的には、野菜、タンパク質、炭水化物をバランスよく摂取。朝食はしっかりと、昼食は適度に、夕食は軽めに。間食は果物やナッツを選び、水分補給も忘れずに。";
+  let exerciseSummary = "適度な運動を取り入れてください。";
+  let exerciseDetail = "適度な運動を取り入れてください。\n\nウォーキング、ジョギング、サイクリングなどの有酸素運動を30分程度。筋トレも週2回取り入れて、全身の筋肉をバランスよく鍛えましょう。";
   
   // ユーザープロファイルがある場合は少しカスタマイズ
   if (userProfile) {
     if (userProfile.goal_type === 'diet') {
-      mealAdvice = "ダイエット中は野菜を多めに、炭水化物を控えめにしましょう。\n\n具体的には、朝食にサラダと卵、昼食は鶏胸肉と野菜、夕食は魚と野菜を中心に。間食はナッツやヨーグルトを選び、水分も十分に摂りましょう。";
-      exerciseAdvice = "ウォーキングや軽い筋トレで代謝を上げましょう。\n\n毎日30分のウォーキング、週3回の筋トレ（スクワット、プッシュアップ、プランク）を習慣に。階段を使う、一駅分歩くなど、日常生活でも運動量を増やしましょう。";
+      mealSummary = "ダイエット中は野菜を多めに、炭水化物を控えめにしましょう。";
+      mealDetail = "ダイエット中は野菜を多めに、炭水化物を控えめにしましょう。\n\n具体的には、朝食にサラダと卵、昼食は鶏胸肉と野菜、夕食は魚と野菜を中心に。間食はナッツやヨーグルトを選び、水分も十分に摂りましょう。";
+      exerciseSummary = "ウォーキングや軽い筋トレで代謝を上げましょう。";
+      exerciseDetail = "ウォーキングや軽い筋トレで代謝を上げましょう。\n\n毎日30分のウォーキング、週3回の筋トレ（スクワット、プッシュアップ、プランク）を習慣に。階段を使う、一駅分歩くなど、日常生活でも運動量を増やしましょう。";
     } else if (userProfile.goal_type === 'bulk-up') {
-      mealAdvice = "筋肉をつけるためにタンパク質を多めに摂りましょう。\n\n朝食にプロテインシェイク、昼食は鶏胸肉や牛肉、夕食は魚や豆腐を中心に。間食にナッツやチーズ、運動後はプロテインを摂取。炭水化物も適度に摂ってエネルギーを確保しましょう。";
-      exerciseAdvice = "筋トレを中心に、有酸素運動も取り入れましょう。\n\n週4回の筋トレ（胸、背中、脚、肩をローテーション）、各部位8-12回×3セット。有酸素運動は週2回30分程度。十分な休息と栄養補給で筋肉の成長をサポートしましょう。";
+      mealSummary = "筋肉をつけるためにタンパク質を多めに摂りましょう。";
+      mealDetail = "筋肉をつけるためにタンパク質を多めに摂りましょう。\n\n朝食にプロテインシェイク、昼食は鶏胸肉や牛肉、夕食は魚や豆腐を中心に。間食にナッツやチーズ、運動後はプロテインを摂取。炭水化物も適度に摂ってエネルギーを確保しましょう。";
+      exerciseSummary = "筋トレを中心に、有酸素運動も取り入れましょう。";
+      exerciseDetail = "筋トレを中心に、有酸素運動も取り入れましょう。\n\n週4回の筋トレ（胸、背中、脚、肩をローテーション）、各部位8-12回×3セット。有酸素運動は週2回30分程度。十分な休息と栄養補給で筋肉の成長をサポートしましょう。";
     } else {
-      mealAdvice = "バランスの良い食事で健康を維持しましょう。\n\n野菜、タンパク質、炭水化物をバランスよく摂取。朝食はしっかりと、昼食は適度に、夕食は軽めに。間食は果物やナッツを選び、水分補給も忘れずに。";
-      exerciseAdvice = "週3回程度の運動で体力を維持しましょう。\n\nウォーキング、ジョギング、サイクリングなどの有酸素運動を30分程度。筋トレも週2回取り入れて、全身の筋肉をバランスよく鍛えましょう。";
+      mealSummary = "バランスの良い食事で健康を維持しましょう。";
+      mealDetail = "バランスの良い食事で健康を維持しましょう。\n\n野菜、タンパク質、炭水化物をバランスよく摂取。朝食はしっかりと、昼食は適度に、夕食は軽めに。間食は果物やナッツを選び、水分補給も忘れずに。";
+      exerciseSummary = "週3回程度の運動で体力を維持しましょう。";
+      exerciseDetail = "週3回程度の運動で体力を維持しましょう。\n\nウォーキング、ジョギング、サイクリングなどの有酸素運動を30分程度。筋トレも週2回取り入れて、全身の筋肉をバランスよく鍛えましょう。";
     }
   }
   
   return {
-    meal_advice: mealAdvice,
-    exercise_advice: exerciseAdvice
+    meal_summary: mealSummary,
+    meal_detail: mealDetail,
+    exercise_summary: exerciseSummary,
+    exercise_detail: exerciseDetail
   };
 }
 
@@ -135,17 +145,21 @@ async function callGeminiAPI(prompt: string, retryCount = 0): Promise<any> {
       console.log('解析結果:', adviceData);
       
       // 必須フィールドの検証（最適化版）
-      const requiredFields = ['meal_advice', 'exercise_advice'];
+      const requiredFields = ['meal_summary', 'meal_detail', 'exercise_summary', 'exercise_detail'];
       const missingFields = requiredFields.filter(field => !(field in adviceData));
       
       if (missingFields.length > 0) {
         console.log('必須フィールドが不足:', missingFields);
         // 不足しているフィールドにデフォルト値を設定
         missingFields.forEach(field => {
-          if (field === 'meal_advice') {
+          if (field === 'meal_summary') {
             adviceData[field] = "今日も健康的な食事を心がけましょう。";
-          } else if (field === 'exercise_advice') {
+          } else if (field === 'meal_detail') {
+            adviceData[field] = "今日も健康的な食事を心がけましょう。\n\n具体的には、野菜、タンパク質、炭水化物をバランスよく摂取。朝食はしっかりと、昼食は適度に、夕食は軽めに。間食は果物やナッツを選び、水分補給も忘れずに。";
+          } else if (field === 'exercise_summary') {
             adviceData[field] = "適度な運動を取り入れてください。";
+          } else if (field === 'exercise_detail') {
+            adviceData[field] = "適度な運動を取り入れてください。\n\nウォーキング、ジョギング、サイクリングなどの有酸素運動を30分程度。筋トレも週2回取り入れて、全身の筋肉をバランスよく鍛えましょう。";
           }
         });
       }
@@ -234,7 +248,12 @@ export async function POST(request: NextRequest) {
     const prompt = `ユーザー情報に基づき、具体的で実践的な食事と運動のアドバイスを日本語で生成してください。
 
 以下のJSON形式で出力してください：
-{\"meal_advice\": \"食事アドバイス（300文字程度、段落分けして具体的に）\", \"exercise_advice\": \"運動アドバイス（300文字程度、段落分けして具体的に）\"}
+{
+  "meal_summary": "食事アドバイスの要約（40-60文字程度の簡潔な要約）",
+  "meal_detail": "食事アドバイスの詳細（300文字程度、段落分けして具体的に）",
+  "exercise_summary": "運動アドバイスの要約（40-60文字程度の簡潔な要約）",
+  "exercise_detail": "運動アドバイスの詳細（300文字程度、段落分けして具体的に）"
+}
 
 ユーザー情報: ${userProfile.username}, ${userProfile.gender}, ${userProfile.height_cm}cm, ${userProfile.initial_weight_kg}kg→${userProfile.target_weight_kg}kg, 目標:${userProfile.goal_type}, 目標カロリー:${Math.round(targetCalories)}kcal
 ${foodPreferencesText ? `${foodPreferencesText}` : ''}
@@ -245,8 +264,8 @@ ${dailyData ? `今日の摂取: ${dailyData.total_calories || 0}kcal (目標と�
 - 運動: 具体的な運動種目、時間、頻度を提案する。段落分けして読みやすくする
 - 食事の好みがある場合は、それらを自然に考慮した提案をする（明示的に「避けてください」とは言わない）
 - ユーザーの目標に合わせた実践的なアドバイスを提供する
-- 各アドバイスは300文字程度で、具体的で実行しやすい内容にする
-- 要約表示用に40-60文字程度の簡潔なアドバイスも含める`;
+- 要約は40-60文字程度の簡潔な内容にする
+- 詳細は300文字程度で、具体的で実行しやすい内容にする`;
 
     console.log('GEMINI_API_KEY設定確認:', process.env.GEMINI_API_KEY ? '設定済み' : '未設定');
     

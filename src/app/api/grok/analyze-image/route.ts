@@ -87,7 +87,7 @@ async function performResize(imageBuffer: Buffer, maxWidth: number, maxHeight: n
   // 元画像のメタデータを取得
   const metadata = await sharp(imageBuffer).metadata();
   console.log('元画像サイズ:', metadata.width, 'x', metadata.height, '形式:', metadata.format);
-  
+
   // リサイズが必要かチェック
   if (metadata.width && metadata.height) {
     const needsResize = metadata.width > maxWidth || metadata.height > maxHeight;

@@ -7,8 +7,10 @@ export interface GrokNutritionResponse {
 }
 
 export interface GrokAdviceResponse {
-  meal_advice: string;
-  exercise_advice: string;
+  meal_summary: string;
+  meal_detail: string;
+  exercise_summary: string;
+  exercise_detail: string;
 }
 
 export interface UserProfile {

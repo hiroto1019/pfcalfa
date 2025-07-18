@@ -11,7 +11,12 @@ interface AiAdviceProps {
 }
 
 export function AiAdvice({ compact = false }: AiAdviceProps) {
-  const [advice, setAdvice] = useState<{ meal_advice: string; exercise_advice: string } | null>(null);
+  const [advice, setAdvice] = useState<{ 
+    meal_summary: string; 
+    meal_detail: string; 
+    exercise_summary: string; 
+    exercise_detail: string 
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [dailyData, setDailyData] = useState<any>(null);
@@ -133,8 +138,10 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
     } catch (error) {
       console.error('AIアドバイス取得エラー:', error);
       setAdvice({
-        meal_advice: "データの読み込みに失敗しました。しばらく時間をおいて再度お試しください。",
-        exercise_advice: "現在アドバイスを取得できません。"
+        meal_summary: "データの読み込みに失敗しました。",
+        meal_detail: "データの読み込みに失敗しました。しばらく時間をおいて再度お試しください。",
+        exercise_summary: "現在アドバイスを取得できません。",
+        exercise_detail: "現在アドバイスを取得できません。しばらく時間をおいて再度お試しください。"
       });
     } finally {
       setIsLoading(false);
@@ -150,9 +157,9 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
           <div className="text-center space-y-1">
             <p className="text-xs text-gray-500">AIアドバイス</p>
             <p className="text-xs text-gray-700 whitespace-pre-line">
-              {advice.meal_advice}
+              {advice.meal_summary}
               <br />
-              {advice.exercise_advice}
+              {advice.exercise_summary}
             </p>
             <Button 
               variant="outline"
@@ -199,11 +206,11 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
                   <p className="text-sm text-gray-700 leading-relaxed">
                     {showDetails ? (
                       <div className="whitespace-pre-line">
-                        {advice.meal_advice}
+                        {advice.meal_detail}
                       </div>
                     ) : (
                       // 要約表示: 全ての文字を表示（40-60文字程度の簡潔な要約）
-                      advice.meal_advice
+                      advice.meal_summary
                     )}
                   </p>
                 </div>
@@ -212,11 +219,11 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
                   <p className="text-sm text-gray-700 leading-relaxed">
                     {showDetails ? (
                       <div className="whitespace-pre-line">
-                        {advice.exercise_advice}
+                        {advice.exercise_detail}
                       </div>
                     ) : (
                       // 要約表示: 全ての文字を表示（40-60文字程度の簡潔な要約）
-                      advice.exercise_advice
+                      advice.exercise_summary
                     )}
                   </p>
                 </div>
