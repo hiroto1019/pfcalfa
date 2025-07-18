@@ -10,6 +10,19 @@ export interface ExternalFoodItem {
   source: string;
 }
 
+// 本番環境でのベースURLを取得する関数
+function getBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    // クライアントサイド
+    return window.location.origin;
+  } else {
+    // サーバーサイド
+    return process.env.NODE_ENV === 'production' 
+      ? (process.env.NEXT_PUBLIC_BASE_URL || 'https://your-domain.com') // 本番環境のドメインに変更
+      : 'http://localhost:3000';
+  }
+}
+
 // 実際の外部サイトからデータを取得（スクレイピング）
 export async function searchFoodFromRealSites(query: string): Promise<ExternalFoodItem[]> {
   try {
@@ -63,7 +76,8 @@ async function searchFromSlism(query: string): Promise<ExternalFoodItem[]> {
     const searchUrl = `https://www.slism.jp/calorie/search/?keyword=${encodeURIComponent(query)}`;
     
     // 注意: 実際のスクレイピングはCORSの問題があるため、プロキシ経由で実行
-    const response = await fetch(`http://localhost:3000/api/scrape?url=${encodeURIComponent(searchUrl)}`);
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}/api/scrape?url=${encodeURIComponent(searchUrl)}`);
     
     if (!response.ok) {
       throw new Error(`Slism検索エラー: ${response.status}`);
@@ -116,13 +130,14 @@ async function searchFromSlism(query: string): Promise<ExternalFoodItem[]> {
   }
 }
 
-// 楽天レシピから検索（APIキー不要のスクレイピング版）
+// 楽天レシピから検索（実際のスクレイピング版）
 async function searchFromRakuten(query: string): Promise<ExternalFoodItem[]> {
   try {
     // 楽天レシピの検索ページをスクレイピング
     const searchUrl = `https://recipe.rakuten.co.jp/search/${encodeURIComponent(query)}/`;
     
-    const response = await fetch(`http://localhost:3000/api/scrape?url=${encodeURIComponent(searchUrl)}`);
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}/api/scrape?url=${encodeURIComponent(searchUrl)}`);
     
     if (!response.ok) {
       throw new Error(`楽天レシピ検索エラー: ${response.status}`);
@@ -130,34 +145,35 @@ async function searchFromRakuten(query: string): Promise<ExternalFoodItem[]> {
 
     const data = await response.json();
     
-    // 実際のスクレイピング結果を解析
-    // ここでは模擬データを返す
-    const mockResults: ExternalFoodItem[] = [
-      {
-        name: `${query}（楽天レシピ）`,
-        calories: Math.floor(Math.random() * 300) + 100,
-        protein: Math.floor(Math.random() * 15) + 2,
-        fat: Math.floor(Math.random() * 10) + 1,
-        carbs: Math.floor(Math.random() * 25) + 5,
-        unit: '1人前',
-        source: '楽天レシピ'
-      }
-    ];
-    
-    return mockResults;
+    if (data.success && data.data && data.data.length > 0) {
+      console.log(`楽天レシピから${data.data.length}件のレシピを取得`);
+      return data.data.map((item: any) => ({
+        name: item.name,
+        calories: item.calories,
+        protein: item.protein,
+        fat: item.fat,
+        carbs: item.carbs,
+        unit: item.unit,
+        source: item.source
+      }));
+    } else {
+      console.log('楽天レシピからデータを取得できませんでした');
+      return [];
+    }
   } catch (error) {
     console.error('楽天レシピ検索エラー:', error);
     return [];
   }
 }
 
-// クックパッドから検索
+// クックパッドから検索（実際のスクレイピング版）
 async function searchFromCookpad(query: string): Promise<ExternalFoodItem[]> {
   try {
     // クックパッドの検索ページをスクレイピング
     const searchUrl = `https://cookpad.com/search/${encodeURIComponent(query)}`;
     
-    const response = await fetch(`http://localhost:3000/api/scrape?url=${encodeURIComponent(searchUrl)}`);
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}/api/scrape?url=${encodeURIComponent(searchUrl)}`);
     
     if (!response.ok) {
       throw new Error(`クックパッド検索エラー: ${response.status}`);
@@ -165,21 +181,21 @@ async function searchFromCookpad(query: string): Promise<ExternalFoodItem[]> {
     
     const data = await response.json();
     
-    // 実際のスクレイピング結果を解析
-    // ここでは模擬データを返す
-    const mockResults: ExternalFoodItem[] = [
-      {
-        name: `${query}（クックパッド）`,
-        calories: Math.floor(Math.random() * 250) + 80,
-        protein: Math.floor(Math.random() * 18) + 2,
-        fat: Math.floor(Math.random() * 12) + 1,
-        carbs: Math.floor(Math.random() * 28) + 6,
-        unit: '1人前',
-        source: 'クックパッド'
-      }
-    ];
-    
-    return mockResults;
+    if (data.success && data.data && data.data.length > 0) {
+      console.log(`クックパッドから${data.data.length}件のレシピを取得`);
+      return data.data.map((item: any) => ({
+        name: item.name,
+        calories: item.calories,
+        protein: item.protein,
+        fat: item.fat,
+        carbs: item.carbs,
+        unit: item.unit,
+        source: item.source
+      }));
+    } else {
+      console.log('クックパッドからデータを取得できませんでした');
+      return [];
+    }
   } catch (error) {
     console.error('クックパッド検索エラー:', error);
     return [];
