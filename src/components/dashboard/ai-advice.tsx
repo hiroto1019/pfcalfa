@@ -201,8 +201,8 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
                       <div className="whitespace-pre-line">
                         {advice.meal_advice}
                       </div>
-                    ) : advice.meal_advice.length > 60 ? 
-                      `${advice.meal_advice.substring(0, 60)}...` : advice.meal_advice}
+                    ) : advice.meal_advice.length > 50 ? 
+                      `${advice.meal_advice.substring(0, 50)}...` : advice.meal_advice}
                   </p>
                 </div>
                 <div>
@@ -212,13 +212,13 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
                       <div className="whitespace-pre-line">
                         {advice.exercise_advice}
                       </div>
-                    ) : advice.exercise_advice.length > 60 ? 
-                      `${advice.exercise_advice.substring(0, 60)}...` : advice.exercise_advice}
+                    ) : advice.exercise_advice.length > 50 ? 
+                      `${advice.exercise_advice.substring(0, 50)}...` : advice.exercise_advice}
                   </p>
                 </div>
                 
                 {/* 詳細表示切り替えボタン */}
-                {(advice.meal_advice.length > 60 || advice.exercise_advice.length > 60) && (
+                {(advice.meal_advice.length > 50 || advice.exercise_advice.length > 50) && (
                   <Button
                     variant="outline"
                     size="sm"
