@@ -241,7 +241,7 @@ export async function POST(request: NextRequest) {
     const dislikes = userProfile.food_preferences?.dislikes || [];
     const allergies = userProfile.food_preferences?.allergies || [];
     const foodPreferencesText = dislikes.length > 0 || allergies.length > 0 
-      ? `食事の好み: 嫌いな食べ物(${dislikes.join(', ') || 'なし'}), アレルギー(${allergies.join(', ') || 'なし'})` 
+      ? `参考情報: ユーザーの食事制限(${dislikes.join(', ') || 'なし'}), アレルギー(${allergies.join(', ') || 'なし'})` 
       : '';
 
     // より詳細で効果的なアドバイスを生成するプロンプト
@@ -262,10 +262,11 @@ ${dailyData ? `今日の摂取: ${dailyData.total_calories || 0}kcal (目標と�
 アドバイスのポイント:
 - 食事: 具体的な食材やメニューを提案し、栄養バランスを考慮する。段落分けして読みやすくする
 - 運動: 具体的な運動種目、時間、頻度を提案する。段落分けして読みやすくする
-- 食事の好みがある場合は、それらを自然に考慮した提案をする（明示的に「避けてください」とは言わない）
+- 食事の好みがある場合は、それらを自然に考慮した提案をする。ただし、アドバイス内で「〜を避けてください」「〜は使わないでください」などと明示的に言及してはいけない
 - ユーザーの目標に合わせた実践的なアドバイスを提供する
 - 要約は40-60文字程度の簡潔な内容にする
-- 詳細は300文字程度で、具体的で実行しやすい内容にする`;
+- 詳細は300文字程度で、具体的で実行しやすい内容にする
+- 食事の好みは参考情報として活用し、自然に除外した提案をする（言及しない）`;
 
     console.log('GEMINI_API_KEY設定確認:', process.env.GEMINI_API_KEY ? '設定済み' : '未設定');
     
