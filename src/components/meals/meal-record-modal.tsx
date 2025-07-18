@@ -9,6 +9,18 @@ import { analyzeImageNutrition, analyzeTextNutrition, GrokNutritionResponse } fr
 import { createClient } from "@/lib/supabase/client";
 import { findFoodByName } from "@/lib/food-database";
 
+interface Meal {
+  id: string;
+  user_id: string;
+  food_name: string;
+  calories: number;
+  protein: number;
+  fat: number;
+  carbs: number;
+  is_corrected_by_user: boolean;
+  created_at: string;
+}
+
 export function MealRecordModal() {
   const [open, setOpen] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -398,10 +410,11 @@ export function MealRecordModal() {
           console.log('今日のmeals詳細:', todayMeals);
 
           // daily_summariesを更新または作成
-          const totalCalories = todayMeals?.reduce((sum, meal) => sum + meal.calories, 0) ?? 0;
-          const totalProtein = todayMeals?.reduce((sum, meal) => sum + meal.protein, 0) ?? 0;
-          const totalFat = todayMeals?.reduce((sum, meal) => sum + meal.fat, 0) ?? 0;
-          const totalCarbs = todayMeals?.reduce((sum, meal) => sum + meal.carbs, 0) ?? 0;
+          const typedTodayMeals = todayMeals as Meal[];
+          const totalCalories = typedTodayMeals?.reduce((sum: number, meal: Meal) => sum + meal.calories, 0) ?? 0;
+          const totalProtein = typedTodayMeals?.reduce((sum: number, meal: Meal) => sum + meal.protein, 0) ?? 0;
+          const totalFat = typedTodayMeals?.reduce((sum: number, meal: Meal) => sum + meal.fat, 0) ?? 0;
+          const totalCarbs = typedTodayMeals?.reduce((sum: number, meal: Meal) => sum + meal.carbs, 0) ?? 0;
 
           console.log('集計結果:', {
             totalCalories,
@@ -412,7 +425,7 @@ export function MealRecordModal() {
           
           // 各食事の詳細も表示
           console.log('各食事の詳細:');
-          todayMeals?.forEach((meal, index) => {
+          typedTodayMeals?.forEach((meal: Meal, index: number) => {
             console.log(`${index + 1}. ${meal.food_name}: ${meal.calories}kcal (P:${meal.protein}g, F:${meal.fat}g, C:${meal.carbs}g)`);
           });
 
