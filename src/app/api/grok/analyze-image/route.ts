@@ -56,43 +56,60 @@ function optimizeImageSize(base64Image: string): string {
   return base64Image;
 }
 
-// 画像リサイズ関数（新規追加）
+// 画像リサイズ関数（最適化版）
 async function resizeImage(imageBuffer: Buffer, maxWidth: number = 1024, maxHeight: number = 1024, quality: number = 80): Promise<Buffer> {
+  const startTime = Date.now();
+  
   try {
     console.log('画像リサイズ開始');
     
-    // 元画像のメタデータを取得
-    const metadata = await sharp(imageBuffer).metadata();
-    console.log('元画像サイズ:', metadata.width, 'x', metadata.height, '形式:', metadata.format);
+    // リサイズ処理のタイムアウト設定（3秒）
+    const resizePromise = performResize(imageBuffer, maxWidth, maxHeight, quality);
+    const timeoutPromise = new Promise<Buffer>((_, reject) => {
+      setTimeout(() => reject(new Error('リサイズ処理がタイムアウトしました')), 3000);
+    });
     
-    // リサイズが必要かチェック
-    if (metadata.width && metadata.height) {
-      const needsResize = metadata.width > maxWidth || metadata.height > maxHeight;
-      
-      if (!needsResize) {
-        console.log('リサイズ不要 - 既に適切なサイズです');
-        return imageBuffer;
-      }
-      
-      // アスペクト比を保ってリサイズ
-      const resizedBuffer = await sharp(imageBuffer)
-        .resize(maxWidth, maxHeight, {
-          fit: 'inside',
-          withoutEnlargement: true
-        })
-        .jpeg({ quality })
-        .toBuffer();
-      
-      console.log('リサイズ完了, 新しいサイズ:', resizedBuffer.length, 'bytes');
-      return resizedBuffer;
-    }
+    const resizedBuffer = await Promise.race([resizePromise, timeoutPromise]);
     
-    return imageBuffer;
+    const endTime = Date.now();
+    console.log(`リサイズ完了, 処理時間: ${endTime - startTime}ms, 新しいサイズ: ${resizedBuffer.length} bytes`);
+    
+    return resizedBuffer;
   } catch (error) {
     console.error('画像リサイズエラー:', error);
     // エラーの場合は元の画像を返す
     return imageBuffer;
   }
+}
+
+// 実際のリサイズ処理を行う関数
+async function performResize(imageBuffer: Buffer, maxWidth: number, maxHeight: number, quality: number): Promise<Buffer> {
+  // 元画像のメタデータを取得
+  const metadata = await sharp(imageBuffer).metadata();
+  console.log('元画像サイズ:', metadata.width, 'x', metadata.height, '形式:', metadata.format);
+  
+  // リサイズが必要かチェック
+  if (metadata.width && metadata.height) {
+    const needsResize = metadata.width > maxWidth || metadata.height > maxHeight;
+    
+    if (!needsResize) {
+      console.log('リサイズ不要 - 既に適切なサイズです');
+      return imageBuffer;
+    }
+    
+    // アスペクト比を保ってリサイズ
+    const resizedBuffer = await sharp(imageBuffer)
+      .resize(maxWidth, maxHeight, {
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .jpeg({ quality })
+      .toBuffer();
+    
+    return resizedBuffer;
+  }
+  
+  return imageBuffer;
 }
 
 // 簡易キャッシュ（メモリ内）
@@ -314,6 +331,7 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
 }
 
 export async function POST(request: NextRequest) {
+  const apiStartTime = Date.now();
   try {
     console.log('画像解析API開始');
     
@@ -372,6 +390,10 @@ export async function POST(request: NextRequest) {
     try {
       // Gemini APIを呼び出し（超高速化版 - 10秒以内対応）
       const result = await callGeminiAPI(base64Image, imageFile.type);
+      
+      const apiEndTime = Date.now();
+      console.log(`画像解析API完了, 総処理時間: ${apiEndTime - apiStartTime}ms`);
+      
       return NextResponse.json(result);
     } catch (apiError: any) {
       console.error('Gemini API最終エラー:', apiError);
