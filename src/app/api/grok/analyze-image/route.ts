@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// 栄養データの検証と補正関数
+// 栄養データの検証と補正関数（最適化版）
 function validateAndCorrectNutritionData(data: any) {
   const corrected = { ...data };
   
-  // 数値フィールドの検証と補正
+  // 数値フィールドの検証と補正（一括処理）
   const numericFields = ['calories', 'protein', 'fat', 'carbs'];
   numericFields.forEach(field => {
-    if (typeof corrected[field] !== 'number' || isNaN(corrected[field])) {
-      corrected[field] = 0;
-    }
-    // 負の値を0に修正
-    if (corrected[field] < 0) {
-      corrected[field] = 0;
-    }
+    const value = corrected[field];
+    corrected[field] = (typeof value === 'number' && !isNaN(value) && value >= 0) ? value : 0;
   });
   
   // 食品名の検証
@@ -21,26 +16,24 @@ function validateAndCorrectNutritionData(data: any) {
     corrected.food_name = '食品（詳細不明）';
   }
   
-  // 飲料の場合は最低限のカロリーを設定
+  // 飲料の場合は最低限のカロリーを設定（最適化版）
   const drinkKeywords = ['ジュース', 'コーヒー', 'お茶', '牛乳', '水', 'お酒', 'ビール', 'ワイン', 'コーラ', 'ソーダ'];
   const isDrink = drinkKeywords.some(keyword => corrected.food_name.includes(keyword));
   
   if (isDrink && corrected.calories === 0) {
-    // 飲料の一般的なカロリーを設定
-    if (corrected.food_name.includes('ジュース')) {
-      corrected.calories = 100;
-      corrected.carbs = 25;
-    } else if (corrected.food_name.includes('コーヒー')) {
-      corrected.calories = 5;
-      corrected.carbs = 1;
-    } else if (corrected.food_name.includes('牛乳')) {
-      corrected.calories = 120;
-      corrected.protein = 8;
-      corrected.fat = 5;
-      corrected.carbs = 12;
-    } else if (corrected.food_name.includes('お酒') || corrected.food_name.includes('ビール')) {
-      corrected.calories = 150;
-      corrected.carbs = 10;
+    const drinkCalories = {
+      'ジュース': { calories: 100, carbs: 25 },
+      'コーヒー': { calories: 5, carbs: 1 },
+      '牛乳': { calories: 120, protein: 8, fat: 5, carbs: 12 },
+      'お酒': { calories: 150, carbs: 10 },
+      'ビール': { calories: 150, carbs: 10 }
+    };
+    
+    for (const [keyword, values] of Object.entries(drinkCalories)) {
+      if (corrected.food_name.includes(keyword)) {
+        Object.assign(corrected, values);
+        break;
+      }
     }
   }
   
@@ -52,59 +45,92 @@ function validateAndCorrectNutritionData(data: any) {
   return corrected;
 }
 
-// Gemini API呼び出し関数（リトライ機能付き）
-async function callGeminiAPI(base64Image: string, imageType: string, retryCount = 0): Promise<any> {
-  const maxRetries = 5; // 3回から5回に増加
-  const baseDelay = 2000; // 1秒から2秒に増加
-
-  const prompt = `あなたは栄養士の専門家です。この画像に写っている食品・飲料を詳細に分析し、正確な栄養成分を推定してください。
-
-【分析の指示】
-1. 画像に写っている食品・飲料を特定してください
-2. 量（グラム数、ml数）を推定してください
-3. 標準的な栄養成分表に基づいて、以下の栄養素を計算してください：
-   - カロリー（kcal）
-   - タンパク質（g）
-   - 脂質（g）
-   - 炭水化物（g）
-
-【重要な注意事項】
-- ジュース、コーヒー、お茶などの飲料も必ずカロリーを計算してください
-- 砂糖入り飲料は炭水化物として計算してください
-- 牛乳はタンパク質、脂質、炭水化物すべてを含みます
-- お酒はアルコール分もカロリーとして計算してください
-- 調味料（ソース、ドレッシングなど）も含めて計算してください
-- 量が不明な場合は、一般的な一人前の量を想定してください
-
-【返答形式】
-必ず以下のJSON形式のみで返してください。説明文は一切含めないでください：
-
-{
-  "food_name": "具体的な食品名（例：オレンジジュース 200ml）",
-  "calories": 数値のみ（例：90）,
-  "protein": 数値のみ（例：1.5）,
-  "fat": 数値のみ（例：0.2）,
-  "carbs": 数値のみ（例：20.5）
+// 画像前処理関数（サイズ最適化）
+function optimizeImageSize(base64Image: string): string {
+  // 画像サイズが大きすぎる場合は圧縮を検討
+  const sizeInBytes = Math.ceil((base64Image.length * 3) / 4);
+  if (sizeInBytes > 2 * 1024 * 1024) { // 2MB以上の場合
+    console.log('画像サイズが大きいため、圧縮を推奨します');
+  }
+  return base64Image;
 }
 
-【食品が写っていない場合】
-画像に食品・飲料が写っていない場合は以下を返してください：
+// 簡易キャッシュ（メモリ内）
+const imageCache = new Map<string, any>();
+const CACHE_TTL = 5 * 60 * 1000; // 5分
+
+// キャッシュクリーンアップ関数
+function cleanupCache() {
+  const now = Date.now();
+  for (const [key, value] of imageCache.entries()) {
+    if (now - value.timestamp > CACHE_TTL) {
+      imageCache.delete(key);
+    }
+  }
+}
+
+// 定期的にキャッシュをクリーンアップ（5分ごと）
+setInterval(cleanupCache, 5 * 60 * 1000);
+
+// 高速なフォールバックレスポンス生成
+function createFallbackResponse(content: string) {
+  const fallbackResponse = {
+    food_name: "解析できませんでした",
+    calories: 0,
+    protein: 0,
+    fat: 0,
+    carbs: 0
+  };
+  
+  // 内容から食品名を推測（最適化版）
+  if (content.includes('食べ物') || content.includes('食事') || content.includes('料理')) {
+    fallbackResponse.food_name = "食事（詳細不明）";
+  } else if (content.includes('飲み物') || content.includes('ドリンク')) {
+    fallbackResponse.food_name = "飲み物";
+  } else {
+    fallbackResponse.food_name = "食品（詳細不明）";
+  }
+  
+  return fallbackResponse;
+}
+
+// Gemini API呼び出し関数（超高速化版）
+async function callGeminiAPI(base64Image: string, imageType: string, retryCount = 0): Promise<any> {
+  const maxRetries = 2; // 3回から2回にさらに削減
+  const baseDelay = 500; // 1秒から0.5秒に削減
+
+  // キャッシュチェック（最適化版）
+  const cacheKey = `${base64Image.substring(0, 50)}_${imageType}`; // キャッシュキーを短縮
+  const cached = imageCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log('キャッシュから結果を取得');
+    return cached.data;
+  }
+
+  // 画像前処理
+  const optimizedImage = optimizeImageSize(base64Image);
+
+  const prompt = `画像の食品を分析し、栄養成分をJSON形式で返してください。
+
+【返答形式】
 {
-  "food_name": "食事が写っていません",
-  "calories": 0,
-  "protein": 0,
-  "fat": 0,
-  "carbs": 0
-}`;
+  "food_name": "食品名",
+  "calories": 数値,
+  "protein": 数値,
+  "fat": 数値,
+  "carbs": 数値
+}
+
+食品が写っていない場合は全て0を返してください。`;
 
   try {
     console.log(`Gemini API呼び出し開始 (試行 ${retryCount + 1}/${maxRetries + 1})`);
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000); // 30秒から45秒に増加
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 25秒から15秒に短縮
 
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: {
@@ -118,12 +144,19 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
                 {
                   inlineData: {
                     mimeType: imageType,
-                    data: base64Image
+                    data: optimizedImage
                   }
                 }
               ]
             }
-          ]
+          ],
+          generationConfig: {
+            temperature: 0.05, // さらに低い温度で一貫性を向上
+            maxOutputTokens: 150, // さらに制限
+            topP: 0.7,
+            topK: 20,
+            candidateCount: 1 // 候補数を1に制限
+          }
         }),
         signal: controller.signal
       }
@@ -138,7 +171,7 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
       
       // 503エラー（過負荷）の場合はリトライ
       if (geminiResponse.status === 503 && retryCount < maxRetries) {
-        const delay = baseDelay * Math.pow(2, retryCount); // 指数バックオフ: 2秒、4秒、8秒、16秒、32秒
+        const delay = baseDelay * Math.pow(2, retryCount); // 指数バックオフ: 0.5秒、1秒
         console.log(`${delay}ms後にリトライします... (${retryCount + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return callGeminiAPI(base64Image, imageType, retryCount + 1);
@@ -169,29 +202,11 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
 
     console.log('Gemini API応答内容:', content);
 
-    // JSONレスポンスを抽出
+    // JSONレスポンスを抽出（最適化版）
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.log('JSONレスポンスが見つかりません。内容:', content);
-      
-      // フォールバック: 手動でJSONを構築
-      const fallbackResponse = {
-        food_name: "解析できませんでした",
-        calories: 0,
-        protein: 0,
-        fat: 0,
-        carbs: 0
-      };
-      
-      // 内容から食品名を推測
-      if (content.includes('食べ物') || content.includes('食事') || content.includes('料理')) {
-        fallbackResponse.food_name = "食事（詳細不明）";
-      } else if (content.includes('飲み物') || content.includes('ドリンク')) {
-        fallbackResponse.food_name = "飲み物";
-      } else {
-        fallbackResponse.food_name = "食品（詳細不明）";
-      }
-      
+      const fallbackResponse = createFallbackResponse(content);
       console.log('フォールバックレスポンスを使用:', fallbackResponse);
       return fallbackResponse;
     }
@@ -200,7 +215,7 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
       const nutritionData = JSON.parse(jsonMatch[0]);
       console.log('解析結果:', nutritionData);
       
-      // 必須フィールドの検証
+      // 必須フィールドの検証（最適化版）
       const requiredFields = ['food_name', 'calories', 'protein', 'fat', 'carbs'];
       const missingFields = requiredFields.filter(field => !(field in nutritionData));
       
@@ -215,6 +230,12 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
       // 解析結果の妥当性チェックと補正
       const correctedData = validateAndCorrectNutritionData(nutritionData);
       console.log('補正後の解析結果:', correctedData);
+      
+      // キャッシュに保存
+      imageCache.set(cacheKey, {
+        data: correctedData,
+        timestamp: Date.now()
+      });
       
       return correctedData;
     } catch (parseError) {
@@ -273,12 +294,12 @@ export async function POST(request: NextRequest) {
       type: imageFile.type
     });
 
-    // ファイルサイズチェック（10MB制限）
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    // ファイルサイズチェック（3MB制限にさらに短縮）
+    const maxSize = 3 * 1024 * 1024; // 3MB
     if (imageFile.size > maxSize) {
       console.log('ファイルサイズ超過:', imageFile.size);
       return NextResponse.json(
-        { error: '画像ファイルが大きすぎます。10MB以下のファイルを選択してください。' },
+        { error: '画像ファイルが大きすぎます。3MB以下のファイルを選択してください。' },
         { status: 400 }
       );
     }
@@ -302,7 +323,7 @@ export async function POST(request: NextRequest) {
     console.log('GEMINI_API_KEY設定確認:', process.env.GEMINI_API_KEY ? '設定済み' : '未設定');
     
     try {
-      // Gemini APIを呼び出し（リトライ機能付き）
+      // Gemini APIを呼び出し（超高速化版）
       const result = await callGeminiAPI(base64Image, imageFile.type);
       return NextResponse.json(result);
     } catch (apiError: any) {

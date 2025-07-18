@@ -1,18 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Gemini API呼び出し関数（リトライ機能付き）
+// 簡易キャッシュ（メモリ内）
+const adviceCache = new Map<string, any>();
+const CACHE_TTL = 10 * 60 * 1000; // 10分（アドバイスは少し長めにキャッシュ）
+
+// キャッシュクリーンアップ関数
+function cleanupCache() {
+  const now = Date.now();
+  for (const [key, value] of adviceCache.entries()) {
+    if (now - value.timestamp > CACHE_TTL) {
+      adviceCache.delete(key);
+    }
+  }
+}
+
+// 定期的にキャッシュをクリーンアップ（10分ごと）
+setInterval(cleanupCache, 10 * 60 * 1000);
+
+// 高速なフォールバックレスポンス生成
+function createFallbackResponse() {
+  return {
+    meal_advice: "今日も健康的な食事を心がけましょう。",
+    exercise_advice: "適度な運動を取り入れてください。"
+  };
+}
+
+// Gemini API呼び出し関数（超高速化版）
 async function callGeminiAPI(prompt: string, retryCount = 0): Promise<any> {
-  const maxRetries = 5;
-  const baseDelay = 2000; // 2秒
+  const maxRetries = 2; // 3回から2回にさらに削減
+  const baseDelay = 500; // 1秒から0.5秒に削減
 
   try {
     console.log(`Gemini API呼び出し開始 (試行 ${retryCount + 1}/${maxRetries + 1})`);
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45秒タイムアウト
+    const timeoutId = setTimeout(() => controller.abort(), 12000); // 20秒から12秒に短縮
 
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: {
@@ -25,7 +50,14 @@ async function callGeminiAPI(prompt: string, retryCount = 0): Promise<any> {
                 { text: prompt }
               ]
             }
-          ]
+          ],
+          generationConfig: {
+            temperature: 0.2, // 適度な温度で創造性を保ちつつ一貫性を向上
+            maxOutputTokens: 200, // 出力トークンを制限して高速化
+            topP: 0.7,
+            topK: 20,
+            candidateCount: 1 // 候補数を1に制限
+          }
         }),
         signal: controller.signal
       }
@@ -40,7 +72,7 @@ async function callGeminiAPI(prompt: string, retryCount = 0): Promise<any> {
       
       // 503エラー（過負荷）の場合はリトライ
       if (geminiResponse.status === 503 && retryCount < maxRetries) {
-        const delay = baseDelay * Math.pow(2, retryCount); // 指数バックオフ: 2秒、4秒、8秒、16秒、32秒
+        const delay = baseDelay * Math.pow(2, retryCount); // 指数バックオフ: 0.5秒、1秒
         console.log(`${delay}ms後にリトライします... (${retryCount + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return callGeminiAPI(prompt, retryCount + 1);
@@ -71,17 +103,11 @@ async function callGeminiAPI(prompt: string, retryCount = 0): Promise<any> {
 
     console.log('Gemini API応答内容:', content);
 
-    // JSONレスポンスを抽出
+    // JSONレスポンスを抽出（最適化版）
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.log('JSONレスポンスが見つかりません。内容:', content);
-      
-      // フォールバック: 手動でJSONを構築
-      const fallbackResponse = {
-        meal_advice: "今日も健康的な食事を心がけましょう。",
-        exercise_advice: "適度な運動を取り入れてください。"
-      };
-      
+      const fallbackResponse = createFallbackResponse();
       console.log('フォールバックレスポンスを使用:', fallbackResponse);
       return fallbackResponse;
     }
@@ -90,7 +116,7 @@ async function callGeminiAPI(prompt: string, retryCount = 0): Promise<any> {
       const adviceData = JSON.parse(jsonMatch[0]);
       console.log('解析結果:', adviceData);
       
-      // 必須フィールドの検証
+      // 必須フィールドの検証（最適化版）
       const requiredFields = ['meal_advice', 'exercise_advice'];
       const missingFields = requiredFields.filter(field => !(field in adviceData));
       
@@ -113,11 +139,7 @@ async function callGeminiAPI(prompt: string, retryCount = 0): Promise<any> {
       console.log('パースしようとしたJSON:', jsonMatch[0]);
       
       // パースエラーの場合もフォールバック
-      const fallbackResponse = {
-        meal_advice: "今日も健康的な食事を心がけましょう。",
-        exercise_advice: "適度な運動を取り入れてください。"
-      };
-      
+      const fallbackResponse = createFallbackResponse();
       return fallbackResponse;
     }
 
@@ -155,7 +177,15 @@ export async function POST(request: NextRequest) {
 
     console.log('AIアドバイス処理開始:', { userProfile, dailyData });
 
-    // 目標カロリーを計算（簡易版）
+    // キャッシュキーを生成（最適化版）
+    const cacheKey = `${userProfile.id}_${userProfile.goal_type}_${userProfile.activity_level}_${dailyData ? Math.round(dailyData.total_calories / 100) * 100 : 'no_data'}`;
+    const cached = adviceCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      console.log('キャッシュからアドバイスを取得');
+      return NextResponse.json(cached.data);
+    }
+
+    // 目標カロリーを計算（最適化版）
     const age = new Date().getFullYear() - new Date(userProfile.birth_date).getFullYear();
     let bmr = 0;
     
@@ -175,14 +205,26 @@ export async function POST(request: NextRequest) {
       targetCalories = tdee + 300; // 300kcal増
     }
 
-    // プロンプトを強化
-    const prompt = `以下のユーザープロフィールと目標に基づき、今日1日の食事と運動に関するアドバイスを日本語で簡潔に100文字以内で、必ず以下のJSON形式で出力してください。\n\n形式: {\"meal_advice\": \"食事アドバイス\", \"exercise_advice\": \"運動アドバイス\"}\n\nユーザー情報:\n- 名前: ${userProfile.username}\n- 性別: ${userProfile.gender}\n- 身長: ${userProfile.height_cm}cm\n- 現在の体重: ${userProfile.initial_weight_kg}kg\n- 目標体重: ${userProfile.target_weight_kg}kg\n- 活動レベル: ${userProfile.activity_level}\n- 目標: ${userProfile.goal_type}\n- 目標カロリー: ${Math.round(targetCalories)}kcal\n- 嫌いな食べ物: ${userProfile.food_preferences?.dislikes?.join(', ') || 'なし'}\n- アレルギー: ${userProfile.food_preferences?.allergies?.join(', ') || 'なし'}\n${dailyData ? `\n今日の摂取状況:\n- カロリー: ${dailyData.total_calories || 0}kcal\n- タンパク質: ${dailyData.total_protein || 0}g\n- 脂質: ${dailyData.total_fat || 0}g\n- 炭水化物: ${dailyData.total_carbs || 0}g` : ''}`;
+    // プロンプトを最適化（超短縮版）
+    const prompt = `ユーザー情報に基づき、食事と運動のアドバイスを日本語で100文字以内で、以下のJSON形式で出力してください。
+
+{\"meal_advice\": \"食事アドバイス\", \"exercise_advice\": \"運動アドバイス\"}
+
+ユーザー: ${userProfile.username}, ${userProfile.gender}, ${userProfile.height_cm}cm, ${userProfile.initial_weight_kg}kg→${userProfile.target_weight_kg}kg, 目標:${userProfile.goal_type}, カロリー:${Math.round(targetCalories)}kcal
+${dailyData ? `今日の摂取: ${dailyData.total_calories || 0}kcal` : ''}`;
 
     console.log('GEMINI_API_KEY設定確認:', process.env.GEMINI_API_KEY ? '設定済み' : '未設定');
     
     try {
-      // Gemini APIを呼び出し（リトライ機能付き）
+      // Gemini APIを呼び出し（超高速化版）
       const result = await callGeminiAPI(prompt);
+      
+      // キャッシュに保存
+      adviceCache.set(cacheKey, {
+        data: result,
+        timestamp: Date.now()
+      });
+      
       return NextResponse.json(result);
     } catch (apiError: any) {
       console.error('Gemini API最終エラー:', apiError);

@@ -262,39 +262,42 @@ export function SettingsPage() {
   const idealCalories = profile && currentWeight ? getIdealCalories(profile, currentWeight, profile.activity_level) : 2000;
 
   return (
-    <div className="container mx-auto p-4 max-w-4xl">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">設定</h1>
-        <Button variant="outline" onClick={() => router.push('/')}>
+    <div className="container mx-auto p-4 max-w-4xl space-y-8">
+      {/* ヘッダー */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-3xl font-bold text-gray-900">設定</h1>
+        <Button variant="outline" onClick={() => router.push('/')} className="w-full sm:w-auto">
           ダッシュボードに戻る
         </Button>
       </div>
 
       {/* プロフィール編集 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>プロフィール編集</CardTitle>
-          <CardDescription>
+      <Card className="shadow-lg border-0">
+        <CardHeader className="pb-6">
+          <CardTitle className="text-xl font-semibold text-gray-900">プロフィール編集</CardTitle>
+          <CardDescription className="text-gray-600">
             基本情報を編集できます
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="username">お名前</Label>
+        <CardContent className="space-y-6">
+          {/* 名前と性別 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="username" className="text-sm font-medium text-gray-700">お名前</Label>
               <Input
                 id="username"
                 value={profile.username}
                 onChange={(e) => setProfile({ ...profile, username: e.target.value })}
+                className="h-11"
               />
             </div>
-            <div>
-              <Label htmlFor="gender">性別</Label>
+            <div className="space-y-2">
+              <Label htmlFor="gender" className="text-sm font-medium text-gray-700">性別</Label>
               <select
                 id="gender"
                 value={profile.gender}
                 onChange={(e) => setProfile({ ...profile, gender: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-md"
+                className="w-full h-11 px-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="male">男性</option>
                 <option value="female">女性</option>
@@ -303,65 +306,74 @@ export function SettingsPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="birth_date">生年月日</Label>
+          {/* 生年月日と目標達成日 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="birth_date" className="text-sm font-medium text-gray-700">生年月日</Label>
               <Input
                 id="birth_date"
                 type="date"
                 value={profile.birth_date ? profile.birth_date.split('T')[0] : ''}
                 onChange={(e) => setProfile({ ...profile, birth_date: e.target.value })}
+                className="h-11"
               />
             </div>
-            <div>
-              <Label htmlFor="goal_target_date">目標達成日</Label>
+            <div className="space-y-2">
+              <Label htmlFor="goal_target_date" className="text-sm font-medium text-gray-700">目標達成日</Label>
               <Input
                 id="goal_target_date"
                 type="date"
                 value={profile.goal_target_date ? profile.goal_target_date.split('T')[0] : ''}
                 onChange={(e) => setProfile({ ...profile, goal_target_date: e.target.value })}
+                className="h-11"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="height_cm">身長 (cm)</Label>
+          {/* 身長、現在の体重、目標体重 */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="height_cm" className="text-sm font-medium text-gray-700">身長 (cm)</Label>
               <Input
                 id="height_cm"
                 type="number"
                 value={profile.height_cm}
                 onChange={(e) => setProfile({ ...profile, height_cm: Number(e.target.value) })}
+                className="h-11"
               />
             </div>
-            <div>
-              <Label htmlFor="initial_weight_kg">現在の体重 (kg)</Label>
+            <div className="space-y-2">
+              <Label htmlFor="initial_weight_kg" className="text-sm font-medium text-gray-700 whitespace-nowrap">現在の体重 (kg)</Label>
               <Input
                 id="initial_weight_kg"
                 type="number"
                 value={currentWeight ?? ''}
                 onChange={(e) => setCurrentWeight(parseFloat(e.target.value) || null)}
                 step="0.1"
+                className="h-11"
               />
             </div>
-            <div>
-              <Label htmlFor="target_weight_kg">目標体重 (kg)</Label>
+            <div className="space-y-2">
+              <Label htmlFor="target_weight_kg" className="text-sm font-medium text-gray-700">目標体重 (kg)</Label>
               <Input
                 id="target_weight_kg"
                 type="number"
                 value={profile.target_weight_kg}
                 onChange={(e) => setProfile({ ...profile, target_weight_kg: Number(e.target.value) })}
+                className="h-11"
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="activity_level">活動レベル</Label>
+
+          {/* 活動レベルと目標 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="activity_level" className="text-sm font-medium text-gray-700">活動レベル</Label>
               <select
                 id="activity_level"
                 value={profile.activity_level}
                 onChange={(e) => setProfile({ ...profile, activity_level: Number(e.target.value) })}
-                className="w-full p-2 border rounded"
+                className="w-full h-11 px-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value={1}>座り仕事中心（運動なし）</option>
                 <option value={2}>軽い運動（週1-2回）</option>
@@ -371,12 +383,12 @@ export function SettingsPage() {
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="goal_type">目標</Label>
+              <Label htmlFor="goal_type" className="text-sm font-medium text-gray-700">目標</Label>
               <Select 
                 value={profile.goal_type}
                 onValueChange={(value) => setProfile({ ...profile, goal_type: value })}
               >
-                <SelectTrigger id="goal_type">
+                <SelectTrigger id="goal_type" className="h-11">
                   <SelectValue placeholder="目標を選択" />
                 </SelectTrigger>
                 <SelectContent>
@@ -387,43 +399,48 @@ export function SettingsPage() {
               </Select>
             </div>
           </div>
-          <Button onClick={handleSave} disabled={isSaving}>
-            {isSaving ? '保存中...' : '保存'}
-          </Button>
+
+          {/* 保存ボタン */}
+          <div className="pt-4">
+            <Button onClick={handleSave} disabled={isSaving} className="w-full sm:w-auto px-8 py-3">
+              {isSaving ? '保存中...' : '保存'}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
       {/* 食事の好み */}
-      <Card>
-        <CardHeader>
-          <CardTitle>食事の好み</CardTitle>
-          <CardDescription>
+      <Card className="shadow-lg border-0">
+        <CardHeader className="pb-6">
+          <CardTitle className="text-xl font-semibold text-gray-900">食事の好み</CardTitle>
+          <CardDescription className="text-gray-600">
             嫌いな食べ物やアレルギーを登録すると、AIが食事メニューを提案する際に除外されます
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-8">
           {/* 嫌いな食べ物 */}
-          <div>
-            <Label>嫌いな食べ物</Label>
-            <div className="flex gap-2 mt-2">
+          <div className="space-y-4">
+            <Label className="text-sm font-medium text-gray-700">嫌いな食べ物</Label>
+            <div className="flex flex-col sm:flex-row gap-3">
               <Input
                 value={newDislike}
                 onChange={(e) => setNewDislike(e.target.value)}
                 placeholder="例: トマト"
                 onKeyPress={(e) => e.key === 'Enter' && addDislike()}
+                className="flex-1 h-11"
               />
-              <Button onClick={addDislike}>追加</Button>
+              <Button onClick={addDislike} className="w-full sm:w-auto px-6 h-11">追加</Button>
             </div>
-            <div className="flex flex-wrap gap-2 mt-2">
+            <div className="flex flex-wrap gap-2">
               {profile.food_preferences?.dislikes?.map((dislike, index) => (
                 <span
                   key={index}
-                  className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-sm flex items-center gap-1"
+                  className="bg-red-100 text-red-800 px-3 py-2 rounded-full text-sm flex items-center gap-2"
                 >
                   {dislike}
                   <button
                     onClick={() => removeDislike(dislike)}
-                    className="text-red-600 hover:text-red-800"
+                    className="text-red-600 hover:text-red-800 text-lg font-bold"
                   >
                     ×
                   </button>
@@ -433,27 +450,28 @@ export function SettingsPage() {
           </div>
 
           {/* アレルギー */}
-          <div>
-            <Label>アレルギー</Label>
-            <div className="flex gap-2 mt-2">
+          <div className="space-y-4">
+            <Label className="text-sm font-medium text-gray-700">アレルギー</Label>
+            <div className="flex flex-col sm:flex-row gap-3">
               <Input
                 value={newAllergy}
                 onChange={(e) => setNewAllergy(e.target.value)}
                 placeholder="例: えび"
                 onKeyPress={(e) => e.key === 'Enter' && addAllergy()}
+                className="flex-1 h-11"
               />
-              <Button onClick={addAllergy}>追加</Button>
+              <Button onClick={addAllergy} className="w-full sm:w-auto px-6 h-11">追加</Button>
             </div>
-            <div className="flex flex-wrap gap-2 mt-2">
+            <div className="flex flex-wrap gap-2">
               {profile.food_preferences?.allergies?.map((allergy, index) => (
                 <span
                   key={index}
-                  className="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-sm flex items-center gap-1"
+                  className="bg-orange-100 text-orange-800 px-3 py-2 rounded-full text-sm flex items-center gap-2"
                 >
                   {allergy}
                   <button
                     onClick={() => removeAllergy(allergy)}
-                    className="text-orange-600 hover:text-orange-800"
+                    className="text-orange-600 hover:text-orange-800 text-lg font-bold"
                   >
                     ×
                   </button>
@@ -465,20 +483,21 @@ export function SettingsPage() {
       </Card>
 
       {/* アカウント管理 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>アカウント管理</CardTitle>
+      <Card className="shadow-lg border-0">
+        <CardHeader className="pb-6">
+          <CardTitle className="text-xl font-semibold text-gray-900">アカウント管理</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <Button variant="outline" onClick={handleLogout}>
+        <CardContent className="space-y-6">
+          <Button variant="outline" onClick={handleLogout} className="w-full sm:w-auto px-8 py-3">
             ログアウト
           </Button>
 
-          <div className="border-t pt-4">
-            <h3 className="font-semibold text-red-600 mb-2">危険な操作</h3>
+          <div className="border-t pt-6">
+            <h3 className="font-semibold text-red-600 mb-4">危険な操作</h3>
             <Button 
               variant="destructive" 
               onClick={() => setShowDeleteConfirm(true)}
+              className="w-full sm:w-auto px-8 py-3"
             >
               アカウント削除
             </Button>
@@ -488,8 +507,8 @@ export function SettingsPage() {
 
       {/* アカウント削除確認モーダル */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md mx-4 shadow-2xl">
             <CardHeader>
               <CardTitle className="text-red-600">アカウント削除の確認</CardTitle>
               <CardDescription>
@@ -497,8 +516,8 @@ export function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="delete-confirm">
+              <div className="space-y-2">
+                <Label htmlFor="delete-confirm" className="text-sm font-medium text-gray-700">
                   削除を確認するには「削除」と入力してください
                 </Label>
                 <Input
@@ -506,15 +525,17 @@ export function SettingsPage() {
                   value={deleteText}
                   onChange={(e) => setDeleteText(e.target.value)}
                   placeholder="削除"
+                  className="h-11"
                 />
               </div>
-              <div className="flex justify-end gap-2">
+              <div className="flex flex-col sm:flex-row justify-end gap-3">
                 <Button 
                   variant="outline" 
                   onClick={() => {
                     setShowDeleteConfirm(false);
                     setDeleteText("");
                   }}
+                  className="w-full sm:w-auto"
                 >
                   キャンセル
                 </Button>
@@ -522,6 +543,7 @@ export function SettingsPage() {
                   variant="destructive" 
                   onClick={handleDeleteAccount}
                   disabled={deleteText !== '削除'}
+                  className="w-full sm:w-auto"
                 >
                   削除
                 </Button>

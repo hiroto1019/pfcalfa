@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// 栄養データの検証と補正関数
+// 栄養データの検証と補正関数（最適化版）
 function validateAndCorrectNutritionData(data: any, originalText: string) {
   const corrected = { ...data };
   
-  // 数値フィールドの検証と補正
+  // 数値フィールドの検証と補正（一括処理）
   const numericFields = ['calories', 'protein', 'fat', 'carbs'];
   numericFields.forEach(field => {
-    if (typeof corrected[field] !== 'number' || isNaN(corrected[field])) {
-      corrected[field] = 0;
-    }
-    // 負の値を0に修正
-    if (corrected[field] < 0) {
-      corrected[field] = 0;
-    }
+    const value = corrected[field];
+    corrected[field] = (typeof value === 'number' && !isNaN(value) && value >= 0) ? value : 0;
   });
   
   // 食品名の検証
@@ -29,51 +24,60 @@ function validateAndCorrectNutritionData(data: any, originalText: string) {
   return corrected;
 }
 
-// Gemini API呼び出し関数（リトライ機能付き）
+// 簡易キャッシュ（メモリ内）
+const textCache = new Map<string, any>();
+const CACHE_TTL = 5 * 60 * 1000; // 5分
+
+// キャッシュクリーンアップ関数
+function cleanupCache() {
+  const now = Date.now();
+  for (const [key, value] of textCache.entries()) {
+    if (now - value.timestamp > CACHE_TTL) {
+      textCache.delete(key);
+    }
+  }
+}
+
+// 定期的にキャッシュをクリーンアップ（5分ごと）
+setInterval(cleanupCache, 5 * 60 * 1000);
+
+// 高速なフォールバックレスポンス生成
+function createFallbackResponse(text: string) {
+  return {
+    food_name: text,
+    calories: 0,
+    protein: 0,
+    fat: 0,
+    carbs: 0
+  };
+}
+
+// Gemini API呼び出し関数（超高速化版）
 async function callGeminiAPI(text: string, retryCount = 0): Promise<any> {
-  const maxRetries = 5;
-  const baseDelay = 2000; // 2秒
+  const maxRetries = 2; // 3回から2回にさらに削減
+  const baseDelay = 500; // 1秒から0.5秒に削減
 
-  const prompt = `以下の食事内容の栄養素を分析し、JSON形式で返してください。
-    
-食事内容: ${text}
+  // キャッシュチェック（最適化版）
+  const cacheKey = text.toLowerCase().trim().substring(0, 100); // キャッシュキーを短縮
+  const cached = textCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log('キャッシュから結果を取得');
+    return cached.data;
+  }
 
-【分析の指示】
-1. 入力された食品名をそのまま使用してください
-2. 量（グラム数、ml数）を推定してください
-3. 標準的な栄養成分表に基づいて、以下の栄養素を計算してください：
-   - カロリー（kcal）
-   - タンパク質（g）
-   - 脂質（g）
-   - 炭水化物（g）
+  const prompt = `食品: ${text}
 
-【重要な注意事項】
-- ジュース、コーヒー、お茶などの飲料も必ずカロリーを計算してください
-- 砂糖入り飲料は炭水化物として計算してください
-- 牛乳はタンパク質、脂質、炭水化物すべてを含みます
-- お酒はアルコール分もカロリーとして計算してください
-- 調味料（ソース、ドレッシングなど）も含めて計算してください
-- 量が不明な場合は、一般的な一人前の量を想定してください
-
-【返答形式】
-必ず以下のJSON形式のみで返してください。説明文は一切含めないでください：
-
-{
-  "food_name": "入力された食品名（例：オレンジジュース 200ml）",
-  "calories": 数値のみ（例：90）,
-  "protein": 数値のみ（例：1.5）,
-  "fat": 数値のみ（例：0.2）,
-  "carbs": 数値のみ（例：20.5）
-}`;
+栄養成分をJSON形式で返してください:
+{"food_name": "食品名", "calories": 数値, "protein": 数値, "fat": 数値, "carbs": 数値}`;
 
   try {
     console.log(`Gemini API呼び出し開始 (試行 ${retryCount + 1}/${maxRetries + 1})`);
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45秒タイムアウト
+    const timeoutId = setTimeout(() => controller.abort(), 12000); // 20秒から12秒に短縮
 
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: {
@@ -86,7 +90,14 @@ async function callGeminiAPI(text: string, retryCount = 0): Promise<any> {
                 { text: prompt }
               ]
             }
-          ]
+          ],
+          generationConfig: {
+            temperature: 0.05, // さらに低い温度で一貫性を向上
+            maxOutputTokens: 100, // さらに制限
+            topP: 0.7,
+            topK: 20,
+            candidateCount: 1 // 候補数を1に制限
+          }
         }),
         signal: controller.signal
       }
@@ -101,7 +112,7 @@ async function callGeminiAPI(text: string, retryCount = 0): Promise<any> {
       
       // 503エラー（過負荷）の場合はリトライ
       if (geminiResponse.status === 503 && retryCount < maxRetries) {
-        const delay = baseDelay * Math.pow(2, retryCount); // 指数バックオフ: 2秒、4秒、8秒、16秒、32秒
+        const delay = baseDelay * Math.pow(2, retryCount); // 指数バックオフ: 0.5秒、1秒
         console.log(`${delay}ms後にリトライします... (${retryCount + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return callGeminiAPI(text, retryCount + 1);
@@ -132,20 +143,11 @@ async function callGeminiAPI(text: string, retryCount = 0): Promise<any> {
 
     console.log('Gemini API応答内容:', content);
 
-    // JSONレスポンスを抽出
+    // JSONレスポンスを抽出（最適化版）
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.log('JSONレスポンスが見つかりません。内容:', content);
-      
-      // フォールバック: 手動でJSONを構築
-      const fallbackResponse = {
-        food_name: text,
-        calories: 0,
-        protein: 0,
-        fat: 0,
-        carbs: 0
-      };
-      
+      const fallbackResponse = createFallbackResponse(text);
       console.log('フォールバックレスポンスを使用:', fallbackResponse);
       return fallbackResponse;
     }
@@ -154,7 +156,7 @@ async function callGeminiAPI(text: string, retryCount = 0): Promise<any> {
       const nutritionData = JSON.parse(jsonMatch[0]);
       console.log('解析結果:', nutritionData);
       
-      // 必須フィールドの検証
+      // 必須フィールドの検証（最適化版）
       const requiredFields = ['food_name', 'calories', 'protein', 'fat', 'carbs'];
       const missingFields = requiredFields.filter(field => !(field in nutritionData));
       
@@ -170,20 +172,19 @@ async function callGeminiAPI(text: string, retryCount = 0): Promise<any> {
       const correctedData = validateAndCorrectNutritionData(nutritionData, text);
       console.log('補正後の解析結果:', correctedData);
       
+      // キャッシュに保存
+      textCache.set(cacheKey, {
+        data: correctedData,
+        timestamp: Date.now()
+      });
+      
       return correctedData;
     } catch (parseError) {
       console.log('JSONパースエラー:', parseError);
       console.log('パースしようとしたJSON:', jsonMatch[0]);
       
       // パースエラーの場合もフォールバック
-      const fallbackResponse = {
-        food_name: text,
-        calories: 0,
-        protein: 0,
-        fat: 0,
-        carbs: 0
-      };
-      
+      const fallbackResponse = createFallbackResponse(text);
       return fallbackResponse;
     }
 
@@ -221,7 +222,7 @@ export async function POST(request: NextRequest) {
     console.log('GEMINI_API_KEY設定確認:', process.env.GEMINI_API_KEY ? '設定済み' : '未設定');
     
     try {
-      // Gemini APIを呼び出し（リトライ機能付き）
+      // Gemini APIを呼び出し（超高速化版）
       const result = await callGeminiAPI(text);
       return NextResponse.json(result);
     } catch (apiError: any) {
