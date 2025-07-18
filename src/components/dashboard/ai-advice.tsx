@@ -28,45 +28,89 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
   const lastProfileHash = useRef<string | null>(null);
   const lastDailyHash = useRef<string | null>(null);
   const dataLoadAttempts = useRef(0);
+  const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // ハッシュ生成関数
-  const getHash = (obj: any) => JSON.stringify(obj ?? {});
-
-  // localStorageキー
-  const getAdviceKey = () => {
-    if (!userProfile) return "ai-advice-default";
-    return `ai-advice-${userProfile.username}`;
+  // ハッシュ生成関数（最適化版）
+  const getHash = (obj: any) => {
+    if (!obj) return 'null';
+    // 重要なフィールドのみをハッシュ化（高速化）
+    const keyFields = obj.username ? {
+      username: obj.username,
+      goal_type: obj.goal_type,
+      activity_level: obj.activity_level,
+      total_calories: obj.total_calories || 0
+    } : obj;
+    return JSON.stringify(keyFields);
   };
 
-  // キャッシュから復元
+  // localStorageキー（最適化版）
+  const getAdviceKey = () => {
+    if (!userProfile) return "ai-advice-default";
+    const targetCalories = calculateTargetCalories(userProfile);
+    const calorieRange = dailyData ? Math.floor((dailyData.total_calories || 0) / 200) * 200 : 0;
+    return `ai-advice-${userProfile.username}-${userProfile.goal_type}-${calorieRange}-${Math.round(targetCalories / 100) * 100}`;
+  };
+
+  // 目標カロリー計算関数（フロントエンド版）
+  const calculateTargetCalories = (profile: UserProfile): number => {
+    const age = new Date().getFullYear() - new Date(profile.birth_date).getFullYear();
+    let bmr = 0;
+    
+    if (profile.gender === 'male') {
+      bmr = 88.362 + (13.397 * profile.initial_weight_kg) + (4.799 * profile.height_cm) - (5.677 * age);
+    } else {
+      bmr = 447.593 + (9.247 * profile.initial_weight_kg) + (3.098 * profile.height_cm) - (4.330 * age);
+    }
+
+    const activityMultipliers = [1.2, 1.375, 1.55, 1.725, 1.9];
+    const tdee = bmr * activityMultipliers[profile.activity_level - 1];
+
+    let targetCalories = tdee;
+    if (profile.goal_type === 'diet') {
+      targetCalories = tdee - 500;
+    } else if (profile.goal_type === 'bulk-up') {
+      targetCalories = tdee + 300;
+    }
+    
+    return targetCalories;
+  };
+
+  // キャッシュから復元（最適化版）
   useEffect(() => {
     if (userProfile) {
       const cache = localStorage.getItem(getAdviceKey());
       if (cache) {
         try {
           const cachedAdvice = JSON.parse(cache);
-          setAdvice(cachedAdvice);
+          // キャッシュの有効期限をチェック（1時間）
+          const cacheAge = Date.now() - (cachedAdvice.timestamp || 0);
+          if (cacheAge < 60 * 60 * 1000) { // 1時間以内
+            setAdvice(cachedAdvice.data || cachedAdvice);
+            console.log('キャッシュからアドバイスを復元');
+          } else {
+            localStorage.removeItem(getAdviceKey());
+          }
         } catch (error) {
           console.error('キャッシュの復元に失敗:', error);
           localStorage.removeItem(getAdviceKey());
         }
       }
     }
-  }, [userProfile]);
+  }, [userProfile, dailyData]);
 
-  // プロフィール・日次データ取得（改善版）
+  // プロフィール・日次データ取得（最適化版）
   useEffect(() => {
     loadUserData();
   }, []);
 
-  // 食事記録イベントをリッスン
+  // 食事記録イベントをリッスン（最適化版）
   useEffect(() => {
     const handleMealRecorded = () => {
       console.log('AIアドバイス - 食事記録イベントを受信');
-      // 少し遅延させてからデータを再読み込み（DB更新を待つ）
+      // 遅延を短縮（高速化）
       setTimeout(() => {
         loadUserData();
-      }, 1000); // 500msから1000msに延長
+      }, 500); // 1000msから500msに短縮
     };
 
     window.addEventListener('mealRecorded', handleMealRecorded);
@@ -86,64 +130,64 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
         return;
       }
 
-      // プロフィールデータ取得
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+      // プロフィールデータ取得（並列処理で高速化）
+      const [profileResult, dailyResult] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single(),
+        (async () => {
+          const today = new Date();
+          const jstOffset = 9 * 60;
+          const jstDate = new Date(today.getTime() + jstOffset * 60000);
+          const todayDate = jstDate.toISOString().split('T')[0];
+          
+          return supabase
+            .from('daily_summaries')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('date', todayDate)
+            .single();
+        })()
+      ]);
 
-      if (profileError) {
-        console.error('プロフィール取得エラー:', profileError);
-        if (dataLoadAttempts.current < 3) {
-          setTimeout(loadUserData, 1000);
+      if (profileResult.error) {
+        console.error('プロフィール取得エラー:', profileResult.error);
+        if (dataLoadAttempts.current < 2) { // 3回から2回に削減
+          setTimeout(loadUserData, 500); // 1000msから500msに短縮
           return;
         }
       }
 
-      if (profile) {
+      if (profileResult.data) {
         const userProfileData = {
-          username: profile.username,
-          gender: profile.gender,
-          birth_date: profile.birth_date,
-          height_cm: profile.height_cm,
-          initial_weight_kg: profile.initial_weight_kg,
-          target_weight_kg: profile.target_weight_kg,
-          activity_level: profile.activity_level,
-          goal_type: profile.goal_type,
-          food_preferences: profile.food_preferences
+          username: profileResult.data.username,
+          gender: profileResult.data.gender,
+          birth_date: profileResult.data.birth_date,
+          height_cm: profileResult.data.height_cm,
+          initial_weight_kg: profileResult.data.initial_weight_kg,
+          target_weight_kg: profileResult.data.target_weight_kg,
+          activity_level: profileResult.data.activity_level,
+          goal_type: profileResult.data.goal_type,
+          food_preferences: profileResult.data.food_preferences
         };
         setUserProfile(userProfileData);
         console.log('プロフィールデータ設定完了:', userProfileData);
       }
 
-      // 今日の日付を取得（JST）
-      const today = new Date();
-      const jstOffset = 9 * 60; // JSTはUTC+9
-      const jstDate = new Date(today.getTime() + jstOffset * 60000);
-      const todayDate = jstDate.toISOString().split('T')[0];
-      
-      // 日次データ取得
-      const { data: dailySummary, error: dailyError } = await supabase
-        .from('daily_summaries')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('date', todayDate)
-        .single();
-
-      if (dailyError && dailyError.code !== 'PGRST116') { // PGRST116はデータが見つからないエラー
-        console.error('日次データ取得エラー:', dailyError);
-        if (dataLoadAttempts.current < 3) {
-          setTimeout(loadUserData, 1000);
+      if (dailyResult.error && dailyResult.error.code !== 'PGRST116') {
+        console.error('日次データ取得エラー:', dailyResult.error);
+        if (dataLoadAttempts.current < 2) {
+          setTimeout(loadUserData, 500);
           return;
         }
       }
 
-      if (dailySummary) {
-        setDailyData(dailySummary);
-        console.log('日次データ設定完了:', dailySummary);
+      if (dailyResult.data) {
+        setDailyData(dailyResult.data);
+        console.log('日次データ設定完了:', dailyResult.data);
       } else {
-        // データがない場合は空のオブジェクトを設定
         setDailyData({
           total_calories: 0,
           total_protein: 0,
@@ -153,23 +197,22 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
         console.log('日次データなし、デフォルト値を設定');
       }
 
-      // データ読み込み完了フラグを設定
       setIsDataReady(true);
-      dataLoadAttempts.current = 0; // リセット
+      dataLoadAttempts.current = 0;
 
     } catch (error) {
       console.error('ユーザーデータ読み込みエラー:', error);
-      if (dataLoadAttempts.current < 3) {
-        setTimeout(loadUserData, 1000);
+      if (dataLoadAttempts.current < 2) {
+        setTimeout(loadUserData, 500);
       } else {
-        setIsDataReady(true); // エラーでもフラグを設定
+        setIsDataReady(true);
       }
     }
   };
 
-  // プロフィール・日次データの変更検知
+  // プロフィール・日次データの変更検知（最適化版）
   useEffect(() => {
-    if (!isDataReady) return; // データが準備できていない場合はスキップ
+    if (!isDataReady) return;
 
     const profileHash = getHash(userProfile);
     const dailyHash = getHash(dailyData);
@@ -198,21 +241,45 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
       return;
     }
 
+    // 既存のタイムアウトをクリア
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+    }
+
     setIsLoading(true);
     setRetryCount(prev => prev + 1);
 
     try {
       console.log('AIアドバイス取得開始:', { userProfile, dailyData });
-      const adviceData = await getAiAdvice(userProfile, dailyData);
+      
+      // 8秒タイムアウトを設定
+      const timeoutPromise = new Promise((_, reject) => {
+        fetchTimeoutRef.current = setTimeout(() => {
+          reject(new Error('タイムアウト'));
+        }, 8000);
+      });
+
+      const advicePromise = getAiAdvice(userProfile, dailyData);
+      
+      const adviceData = await Promise.race([advicePromise, timeoutPromise]) as any;
+      
+      // タイムアウトをクリア
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+        fetchTimeoutRef.current = null;
+      }
       
       if (adviceData) {
         setAdvice(adviceData);
-        localStorage.setItem(getAdviceKey(), JSON.stringify(adviceData));
-        // 更新後はハッシュを最新に
+        // キャッシュにタイムスタンプ付きで保存
+        localStorage.setItem(getAdviceKey(), JSON.stringify({
+          data: adviceData,
+          timestamp: Date.now()
+        }));
         lastProfileHash.current = getHash(userProfile);
         lastDailyHash.current = getHash(dailyData);
         setCanUpdate(false);
-        setRetryCount(0); // 成功時にリセット
+        setRetryCount(0);
         console.log('AIアドバイス取得成功:', adviceData);
       } else {
         throw new Error('アドバイスデータが空です');
@@ -220,27 +287,44 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
     } catch (error) {
       console.error('AIアドバイス取得エラー:', error);
       
-      // リトライロジック（最大3回）
-      if (retryCount < 3) {
+      // タイムアウトをクリア
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+        fetchTimeoutRef.current = null;
+      }
+      
+      // リトライロジック（最大2回に削減）
+      if (retryCount < 2) {
         console.log(`${retryCount}回目のリトライを実行します...`);
         setTimeout(() => {
           fetchAdvice();
-        }, 2000 * (retryCount + 1)); // 指数バックオフ
+        }, 1000 * (retryCount + 1)); // 指数バックオフ: 1秒、2秒
         return;
       }
 
-      // 最終的なフォールバック
-      setAdvice({
+      // 最終的なフォールバック（改善版）
+      const fallbackAdvice = {
         meal_summary: "データの読み込みに失敗しました。",
-        meal_detail: "データの読み込みに失敗しました。しばらく時間をおいて再度お試しください。",
+        meal_detail: "データの読み込みに失敗しました。しばらく時間をおいて再度お試しください。\n\n一般的なアドバイス: バランスの良い食事と適度な運動を心がけましょう。",
         exercise_summary: "現在アドバイスを取得できません。",
-        exercise_detail: "現在アドバイスを取得できません。しばらく時間をおいて再度お試しください。"
-      });
-      setRetryCount(0); // リセット
+        exercise_detail: "現在アドバイスを取得できません。しばらく時間をおいて再度お試しください。\n\n一般的なアドバイス: ウォーキングや軽い筋トレを習慣にしましょう。"
+      };
+      
+      setAdvice(fallbackAdvice);
+      setRetryCount(0);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // クリーンアップ
+  useEffect(() => {
+    return () => {
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (compact) {
     return (

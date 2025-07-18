@@ -124,36 +124,82 @@ export async function analyzeTextNutrition(text: string): Promise<GrokNutritionR
   }
 }
 
-// AIアドバイスを取得（改善版）
+// AIアドバイスを取得（最適化版）
 export async function getAiAdvice(userProfile: UserProfile, dailyData?: any): Promise<GrokAdviceResponse> {
   try {
-  const response = await fetch('/api/grok/advice', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ 
-      userProfile,
-      dailyData 
-    }),
-  });
+    // 8秒タイムアウトを設定
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-  if (!response.ok) {
+    const response = await fetch('/api/grok/advice', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        userProfile,
+        dailyData 
+      }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      
+      // フォールバックデータがある場合は使用
+      if (errorData.fallback) {
+        console.log('フォールバックデータを使用:', errorData.fallback);
+        return errorData.fallback;
+      }
+      
       let errorMessage = errorData.error || 'AIアドバイスの取得に失敗しました';
       
       if (response.status === 503) {
-        errorMessage = 'AIアドバイスサービスが一時的に過負荷状態です。しばらく時間をおいて再度お試しください。';
+        errorMessage = 'AIアドバイスサービスが一時的に過負荷状態です。フォールバックアドバイスを表示します。';
       } else if (response.status === 408) {
         errorMessage = 'AIアドバイスの取得がタイムアウトしました。再度お試しください。';
       }
       
       throw new Error(errorMessage);
-  }
+    }
 
-  return response.json();
+    const data = await response.json();
+    
+    // レスポンスデータの検証
+    if (!data || typeof data !== 'object') {
+      throw new Error('AIアドバイスの応答データが不正です');
+    }
+    
+    // 必須フィールドの確認
+    const requiredFields = ['meal_summary', 'meal_detail', 'exercise_summary', 'exercise_detail'];
+    const missingFields = requiredFields.filter(field => !data[field]);
+    
+    if (missingFields.length > 0) {
+      console.warn('AIアドバイスに不足フィールドがあります:', missingFields);
+      // 不足フィールドにデフォルト値を設定
+      missingFields.forEach(field => {
+        if (field === 'meal_summary') {
+          data[field] = "今日も健康的な食事を心がけましょう。";
+        } else if (field === 'meal_detail') {
+          data[field] = "今日も健康的な食事を心がけましょう。\n\n具体的には、野菜、タンパク質、炭水化物をバランスよく摂取。朝食はしっかりと、昼食は適度に、夕食は軽めに。間食は果物やナッツを選び、水分補給も忘れずに。";
+        } else if (field === 'exercise_summary') {
+          data[field] = "適度な運動を取り入れてください。";
+        } else if (field === 'exercise_detail') {
+          data[field] = "適度な運動を取り入れてください。\n\nウォーキング、ジョギング、サイクリングなどの有酸素運動を30分程度。筋トレも週2回取り入れて、全身の筋肉をバランスよく鍛えましょう。";
+        }
+      });
+    }
+
+    return data;
   } catch (error: any) {
     console.error('AIアドバイスエラー詳細:', error);
+    
+    // タイムアウトエラーの場合
+    if (error.name === 'AbortError') {
+      throw new Error('AIアドバイスの取得がタイムアウトしました。再度お試しください。');
+    }
     
     // ネットワークエラーの場合
     if (error.name === 'TypeError' && error.message.includes('fetch')) {

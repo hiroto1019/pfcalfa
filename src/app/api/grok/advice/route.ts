@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // 簡易キャッシュ（メモリ内）
 const adviceCache = new Map<string, any>();
-const CACHE_TTL = 15 * 60 * 1000; // 15分に延長（アドバイスは少し長めにキャッシュ）
+const CACHE_TTL = 20 * 60 * 1000; // 20分に延長（より長くキャッシュ）
 
 // キャッシュクリーンアップ関数
 function cleanupCache() {
@@ -14,31 +14,34 @@ function cleanupCache() {
   }
 }
 
-// 定期的にキャッシュをクリーンアップ（15分ごと）
-setInterval(cleanupCache, 15 * 60 * 1000);
+// 定期的にキャッシュをクリーンアップ（20分ごと）
+setInterval(cleanupCache, 20 * 60 * 1000);
 
-// 高速なフォールバックレスポンス生成（改善版）
+// 高速なフォールバックレスポンス生成（最適化版）
 function createFallbackResponse(userProfile?: any, dailyData?: any) {
-  let mealSummary = "今日も健康的な食事を心がけましょう。";
-  let mealDetail = "今日も健康的な食事を心がけましょう。\n\n具体的には、野菜、タンパク質、炭水化物をバランスよく摂取。朝食はしっかりと、昼食は適度に、夕食は軽めに。間食は果物やナッツを選び、水分補給も忘れずに。";
+  // ユーザーの目標に基づいた詳細なフォールバック
+  let mealSummary = "バランスの良い食事で健康を維持しましょう。";
+  let mealDetail = "バランスの良い食事で健康を維持しましょう。\n\n具体的には、野菜、タンパク質、炭水化物をバランスよく摂取。朝食はしっかりと、昼食は適度に、夕食は軽めに。間食は果物やナッツを選び、水分補給も忘れずに。";
   let exerciseSummary = "適度な運動を取り入れてください。";
   let exerciseDetail = "適度な運動を取り入れてください。\n\nウォーキング、ジョギング、サイクリングなどの有酸素運動を30分程度。筋トレも週2回取り入れて、全身の筋肉をバランスよく鍛えましょう。";
   
-  // ユーザープロファイルがある場合は詳細にカスタマイズ
   if (userProfile) {
+    const targetCalories = calculateTargetCalories(userProfile);
+    const calorieDiff = dailyData ? targetCalories - (dailyData.total_calories || 0) : 0;
+    
     if (userProfile.goal_type === 'diet') {
       mealSummary = "ダイエット中は野菜を多めに、炭水化物を控えめにしましょう。";
-      mealDetail = "ダイエット中は野菜を多めに、炭水化物を控えめにしましょう。\n\n具体的には、朝食にサラダと卵、昼食は鶏胸肉と野菜、夕食は魚と野菜を中心に。間食はナッツやヨーグルトを選び、水分も十分に摂りましょう。\n\n1日の目標カロリーを意識して、食事の量と質をバランスよく調整してください。";
+      mealDetail = `ダイエット中は野菜を多めに、炭水化物を控えめにしましょう。\n\n具体的には、朝食にサラダと卵、昼食は鶏胸肉と野菜、夕食は魚と野菜を中心に。間食はナッツやヨーグルトを選び、水分も十分に摂りましょう。\n\n${dailyData ? `今日の摂取カロリー: ${dailyData.total_calories || 0}kcal、目標との差: ${calorieDiff}kcal` : ''}\n\n1日の目標カロリーを意識して、食事の量と質をバランスよく調整してください。`;
       exerciseSummary = "ウォーキングや軽い筋トレで代謝を上げましょう。";
       exerciseDetail = "ウォーキングや軽い筋トレで代謝を上げましょう。\n\n毎日30分のウォーキング、週3回の筋トレ（スクワット、プッシュアップ、プランク）を習慣に。階段を使う、一駅分歩くなど、日常生活でも運動量を増やしましょう。\n\n有酸素運動で脂肪燃焼を促進し、筋トレで基礎代謝を維持することが重要です。";
     } else if (userProfile.goal_type === 'bulk-up') {
       mealSummary = "筋肉をつけるためにタンパク質を多めに摂りましょう。";
-      mealDetail = "筋肉をつけるためにタンパク質を多めに摂りましょう。\n\n朝食にプロテインシェイク、昼食は鶏胸肉や牛肉、夕食は魚や豆腐を中心に。間食にナッツやチーズ、運動後はプロテインを摂取。炭水化物も適度に摂ってエネルギーを確保しましょう。\n\n1日3食に加えて、運動前後の栄養補給も重要です。";
+      mealDetail = `筋肉をつけるためにタンパク質を多めに摂りましょう。\n\n朝食にプロテインシェイク、昼食は鶏胸肉や牛肉、夕食は魚や豆腐を中心に。間食にナッツやチーズ、運動後はプロテインを摂取。炭水化物も適度に摂ってエネルギーを確保しましょう。\n\n${dailyData ? `今日の摂取カロリー: ${dailyData.total_calories || 0}kcal、目標との差: ${calorieDiff}kcal` : ''}\n\n1日3食に加えて、運動前後の栄養補給も重要です。`;
       exerciseSummary = "筋トレを中心に、有酸素運動も取り入れましょう。";
       exerciseDetail = "筋トレを中心に、有酸素運動も取り入れましょう。\n\n週4回の筋トレ（胸、背中、脚、肩をローテーション）、各部位8-12回×3セット。有酸素運動は週2回30分程度。十分な休息と栄養補給で筋肉の成長をサポートしましょう。\n\nプログレッシブオーバーロードを意識して、徐々に負荷を上げていくことが重要です。";
     } else {
       mealSummary = "バランスの良い食事で健康を維持しましょう。";
-      mealDetail = "バランスの良い食事で健康を維持しましょう。\n\n野菜、タンパク質、炭水化物をバランスよく摂取。朝食はしっかりと、昼食は適度に、夕食は軽めに。間食は果物やナッツを選び、水分補給も忘れずに。\n\n1日の栄養バランスを意識して、多様な食材を取り入れることが重要です。";
+      mealDetail = `バランスの良い食事で健康を維持しましょう。\n\n野菜、タンパク質、炭水化物をバランスよく摂取。朝食はしっかりと、昼食は適度に、夕食は軽めに。間食は果物やナッツを選び、水分補給も忘れずに。\n\n${dailyData ? `今日の摂取カロリー: ${dailyData.total_calories || 0}kcal、目標との差: ${calorieDiff}kcal` : ''}\n\n1日の栄養バランスを意識して、多様な食材を取り入れることが重要です。`;
       exerciseSummary = "週3回程度の運動で体力を維持しましょう。";
       exerciseDetail = "週3回程度の運動で体力を維持しましょう。\n\nウォーキング、ジョギング、サイクリングなどの有酸素運動を30分程度。筋トレも週2回取り入れて、全身の筋肉をバランスよく鍛えましょう。\n\n継続可能な運動習慣を作り、楽しみながら健康を維持することが大切です。";
     }
@@ -62,16 +65,40 @@ function createFallbackResponse(userProfile?: any, dailyData?: any) {
   };
 }
 
-// Gemini API呼び出し関数（超高速化版）
+// 目標カロリー計算関数（分離）
+function calculateTargetCalories(userProfile: any): number {
+  const age = new Date().getFullYear() - new Date(userProfile.birth_date).getFullYear();
+  let bmr = 0;
+  
+  if (userProfile.gender === 'male') {
+    bmr = 88.362 + (13.397 * userProfile.initial_weight_kg) + (4.799 * userProfile.height_cm) - (5.677 * age);
+  } else {
+    bmr = 447.593 + (9.247 * userProfile.initial_weight_kg) + (3.098 * userProfile.height_cm) - (4.330 * age);
+  }
+
+  const activityMultipliers = [1.2, 1.375, 1.55, 1.725, 1.9];
+  const tdee = bmr * activityMultipliers[userProfile.activity_level - 1];
+
+  let targetCalories = tdee;
+  if (userProfile.goal_type === 'diet') {
+    targetCalories = tdee - 500;
+  } else if (userProfile.goal_type === 'bulk-up') {
+    targetCalories = tdee + 300;
+  }
+  
+  return targetCalories;
+}
+
+// Gemini API呼び出し関数（最適化版）
 async function callGeminiAPI(prompt: string, retryCount = 0): Promise<any> {
-  const maxRetries = 3; // 2回から3回に増加
-  const baseDelay = 1000; // 0.5秒から1秒に増加
+  const maxRetries = 2; // 3回から2回に削減（タイムアウト短縮のため）
+  const baseDelay = 500; // 1秒から0.5秒に削減
 
   try {
     console.log(`Gemini API呼び出し開始 (試行 ${retryCount + 1}/${maxRetries + 1})`);
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 12秒から15秒に延長
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 15秒から8秒に短縮
 
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -89,10 +116,10 @@ async function callGeminiAPI(prompt: string, retryCount = 0): Promise<any> {
             }
           ],
           generationConfig: {
-            temperature: 0.4, // 0.3から0.4に調整（より創造的なアドバイス）
-            maxOutputTokens: 1000, // 800から1000に増加（より詳細なアドバイス）
-            topP: 0.9, // 0.8から0.9に調整
-            topK: 30, // 25から30に調整
+            temperature: 0.3, // 0.4から0.3に戻す（より一貫性のあるアドバイス）
+            maxOutputTokens: 800, // 1000から800に削減（高速化）
+            topP: 0.8, // 0.9から0.8に戻す
+            topK: 25, // 30から25に戻す
             candidateCount: 1
           }
         }),
@@ -109,7 +136,7 @@ async function callGeminiAPI(prompt: string, retryCount = 0): Promise<any> {
       
       // 503エラー（過負荷）の場合はリトライ
       if (geminiResponse.status === 503 && retryCount < maxRetries) {
-        const delay = baseDelay * Math.pow(2, retryCount); // 指数バックオフ: 1秒、2秒、4秒
+        const delay = baseDelay * Math.pow(2, retryCount); // 指数バックオフ: 0.5秒、1秒
         console.log(`${delay}ms後にリトライします... (${retryCount + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return callGeminiAPI(prompt, retryCount + 1);
@@ -220,31 +247,14 @@ export async function POST(request: NextRequest) {
     console.log('AIアドバイス処理開始:', { userProfile, dailyData });
 
     // キャッシュキーを生成（最適化版）
-    const cacheKey = `${userProfile.username}_${userProfile.goal_type}_${userProfile.activity_level}_${dailyData ? Math.round(dailyData.total_calories / 100) * 100 : 'no_data'}`;
+    const targetCalories = calculateTargetCalories(userProfile);
+    const calorieRange = dailyData ? Math.floor((dailyData.total_calories || 0) / 200) * 200 : 0;
+    const cacheKey = `${userProfile.username}_${userProfile.goal_type}_${userProfile.activity_level}_${calorieRange}_${Math.round(targetCalories / 100) * 100}`;
+    
     const cached = adviceCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       console.log('キャッシュからアドバイスを取得');
       return NextResponse.json(cached.data);
-    }
-
-    // 目標カロリーを計算（最適化版）
-    const age = new Date().getFullYear() - new Date(userProfile.birth_date).getFullYear();
-    let bmr = 0;
-    
-    if (userProfile.gender === 'male') {
-      bmr = 88.362 + (13.397 * userProfile.initial_weight_kg) + (4.799 * userProfile.height_cm) - (5.677 * age);
-    } else {
-      bmr = 447.593 + (9.247 * userProfile.initial_weight_kg) + (3.098 * userProfile.height_cm) - (4.330 * age);
-    }
-
-    const activityMultipliers = [1.2, 1.375, 1.55, 1.725, 1.9];
-    const tdee = bmr * activityMultipliers[userProfile.activity_level - 1];
-
-    let targetCalories = tdee;
-    if (userProfile.goal_type === 'diet') {
-      targetCalories = tdee - 500; // 500kcal減
-    } else if (userProfile.goal_type === 'bulk-up') {
-      targetCalories = tdee + 300; // 300kcal増
     }
 
     // 食事の好み情報を取得
@@ -254,7 +264,7 @@ export async function POST(request: NextRequest) {
       ? `参考情報: ユーザーの食事制限(${dislikes.join(', ') || 'なし'}), アレルギー(${allergies.join(', ') || 'なし'})` 
       : '';
 
-    // より詳細で効果的なアドバイスを生成するプロンプト（改善版）
+    // より効率的で具体的なアドバイスを生成するプロンプト（最適化版）
     const prompt = `ユーザー情報に基づき、具体的で実践的な食事と運動のアドバイスを日本語で生成してください。
 
 以下のJSON形式で出力してください：
@@ -270,19 +280,18 @@ ${foodPreferencesText ? `${foodPreferencesText}` : ''}
 ${dailyData ? `今日の摂取: ${dailyData.total_calories || 0}kcal (目標との差: ${Math.round(targetCalories - (dailyData.total_calories || 0))}kcal), タンパク質:${dailyData.total_protein || 0}g, 脂質:${dailyData.total_fat || 0}g, 炭水化物:${dailyData.total_carbs || 0}g` : ''}
 
 アドバイスのポイント:
-- 食事: 具体的な食材やメニューを提案し、栄養バランスを考慮する。段落分けして読みやすくする。今日の摂取量がある場合は、不足している栄養素を補うアドバイスを含める
-- 運動: 具体的な運動種目、時間、頻度を提案する。段落分けして読みやすくする。ユーザーの目標に合わせた運動強度を提案する
-- 食事の好みがある場合は、それらを自然に考慮した提案をする。ただし、アドバイス内で「〜を避けてください」「〜は使わないでください」などと明示的に言及してはいけない
+- 食事: 具体的な食材やメニューを提案し、栄養バランスを考慮する。今日の摂取量がある場合は、不足している栄養素を補うアドバイスを含める
+- 運動: 具体的な運動種目、時間、頻度を提案する。ユーザーの目標に合わせた運動強度を提案する
+- 食事の好みがある場合は、それらを自然に考慮した提案をする（言及しない）
 - ユーザーの目標に合わせた実践的なアドバイスを提供する
 - 要約は40-60文字程度の簡潔な内容にする
 - 詳細は400文字程度で、具体的で実行しやすい内容にする
-- 食事の好みは参考情報として活用し、自然に除外した提案をする（言及しない）
 - 今日の摂取データがある場合は、それを踏まえた具体的なアドバイスを提供する`;
 
     console.log('GEMINI_API_KEY設定確認:', process.env.GEMINI_API_KEY ? '設定済み' : '未設定');
     
     try {
-      // Gemini APIを呼び出し（超高速化版）
+      // Gemini APIを呼び出し（最適化版）
       const result = await callGeminiAPI(prompt);
       
       // キャッシュに保存
