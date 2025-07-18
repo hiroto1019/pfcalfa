@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     // 実際のスクレイピング処理
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒タイムアウト
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒タイムアウト
 
     const response = await fetch(url, {
       headers: {

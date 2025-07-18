@@ -27,56 +27,55 @@ function getBaseUrl(): string {
 export async function searchFoodFromRealSites(query: string): Promise<ExternalFoodItem[]> {
   try {
     console.log(`実際の外部サイトから検索: ${query}`);
+    const startTime = Date.now();
     
-    // 複数の外部サイトからデータを取得
-    const results: ExternalFoodItem[] = [];
+    // 複数の外部サイトからデータを取得（並列処理で高速化）
+    const searchPromises = [
+      searchFromSlism(query).catch(error => {
+        console.log('Slism検索エラー:', error);
+        return [];
+      }),
+      searchFromRakuten(query).catch(error => {
+        console.log('楽天レシピ検索エラー:', error);
+        return [];
+      }),
+      searchFromCookpad(query).catch(error => {
+        console.log('クックパッド検索エラー:', error);
+        return [];
+      }),
+      searchFromFoodDB(query).catch(error => {
+        console.log('FoodDB検索エラー:', error);
+        return [];
+      }),
+      searchFromRakutenMarket(query).catch(error => {
+        console.log('楽天市場検索エラー:', error);
+        return [];
+      })
+    ];
     
-    // 1. カロリーSlism（日本の食品データベース）
-    try {
-      const slismResults = await searchFromSlism(query);
-      results.push(...slismResults);
-    } catch (error) {
-      console.log('Slism検索エラー:', error);
-    }
+    // 3秒のタイムアウト付きで並列実行
+    const timeoutPromise = new Promise<ExternalFoodItem[]>((resolve) => {
+      setTimeout(() => {
+        console.log('外部サイト検索がタイムアウトしました');
+        resolve([]);
+      }, 3000);
+    });
     
-    // 2. 楽天レシピ（料理データベース）
-    try {
-      const rakutenResults = await searchFromRakuten(query);
-      results.push(...rakutenResults);
-    } catch (error) {
-      console.log('楽天レシピ検索エラー:', error);
-    }
+    const results = await Promise.race([
+      Promise.all(searchPromises),
+      timeoutPromise
+    ]);
     
-    // 3. クックパッド（料理データベース）
-    try {
-      const cookpadResults = await searchFromCookpad(query);
-      results.push(...cookpadResults);
-    } catch (error) {
-      console.log('クックパッド検索エラー:', error);
-    }
-    
-    // 4. FoodDB（食品成分データベース）
-    try {
-      const fooddbResults = await searchFromFoodDB(query);
-      results.push(...fooddbResults);
-    } catch (error) {
-      console.log('FoodDB検索エラー:', error);
-    }
-    
-    // 5. 楽天市場（商品検索）
-    try {
-      const rakutenMarketResults = await searchFromRakutenMarket(query);
-      results.push(...rakutenMarketResults);
-    } catch (error) {
-      console.log('楽天市場検索エラー:', error);
-    }
+    // 結果を統合
+    const allResults = results.flat();
     
     // 重複を除去
-    const uniqueResults = results.filter((food, index, self) => 
+    const uniqueResults = allResults.filter((food, index, self) => 
       index === self.findIndex(f => f.name.toLowerCase() === food.name.toLowerCase())
     );
     
-    console.log(`外部サイト検索結果: ${uniqueResults.length}件`);
+    const totalTime = Date.now() - startTime;
+    console.log(`外部サイト検索完了: ${uniqueResults.length}件 (${totalTime}ms)`);
     return uniqueResults;
     
   } catch (error) {
@@ -86,7 +85,7 @@ export async function searchFoodFromRealSites(query: string): Promise<ExternalFo
 }
 
 // カロリーSlismから検索
-async function searchFromSlism(query: string): Promise<ExternalFoodItem[]> {
+export async function searchFromSlism(query: string): Promise<ExternalFoodItem[]> {
   try {
     // Slismの検索ページをスクレイピング
     const searchUrl = `https://www.slism.jp/calorie/search/?keyword=${encodeURIComponent(query)}`;
@@ -147,7 +146,7 @@ async function searchFromSlism(query: string): Promise<ExternalFoodItem[]> {
 }
 
 // 楽天レシピから検索（実際のスクレイピング版）
-async function searchFromRakuten(query: string): Promise<ExternalFoodItem[]> {
+export async function searchFromRakuten(query: string): Promise<ExternalFoodItem[]> {
   try {
     const baseUrl = getBaseUrl();
     let allResults: ExternalFoodItem[] = [];
@@ -169,7 +168,15 @@ async function searchFromRakuten(query: string): Promise<ExternalFoodItem[]> {
         const fullUrl = `${baseUrl}/api/scrape?url=${encodeURIComponent(url)}`;
         console.log(`楽天レシピ検索URL: ${fullUrl}`);
         
-        const response = await fetch(fullUrl);
+        // 2秒のタイムアウト付きでfetch
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        
+        const response = await fetch(fullUrl, {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
         console.log(`楽天レシピ検索レスポンスステータス: ${response.status}`);
         
         if (!response.ok) {
@@ -229,7 +236,7 @@ async function searchFromRakuten(query: string): Promise<ExternalFoodItem[]> {
 }
 
 // クックパッドから検索（実際のスクレイピング版）
-async function searchFromCookpad(query: string): Promise<ExternalFoodItem[]> {
+export async function searchFromCookpad(query: string): Promise<ExternalFoodItem[]> {
   try {
     const baseUrl = getBaseUrl();
     let allResults: ExternalFoodItem[] = [];
@@ -259,7 +266,15 @@ async function searchFromCookpad(query: string): Promise<ExternalFoodItem[]> {
         const fullUrl = `${baseUrl}/api/scrape?url=${encodeURIComponent(url)}`;
         console.log(`クックパッド検索URL: ${fullUrl}`);
         
-        const response = await fetch(fullUrl);
+        // 2秒のタイムアウト付きでfetch
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        
+        const response = await fetch(fullUrl, {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
         console.log(`クックパッド検索レスポンスステータス: ${response.status}`);
         
         if (!response.ok) {
@@ -319,7 +334,7 @@ async function searchFromCookpad(query: string): Promise<ExternalFoodItem[]> {
 }
 
 // FoodDB（食品成分データベース）から検索
-async function searchFromFoodDB(query: string): Promise<ExternalFoodItem[]> {
+export async function searchFromFoodDB(query: string): Promise<ExternalFoodItem[]> {
   try {
     const baseUrl = getBaseUrl();
     let allResults: ExternalFoodItem[] = [];
@@ -340,7 +355,15 @@ async function searchFromFoodDB(query: string): Promise<ExternalFoodItem[]> {
         const fullUrl = `${baseUrl}/api/scrape?url=${encodeURIComponent(url)}`;
         console.log(`FoodDB検索URL: ${fullUrl}`);
         
-        const response = await fetch(fullUrl);
+        // 2秒のタイムアウト付きでfetch
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        
+        const response = await fetch(fullUrl, {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
         console.log(`FoodDB検索レスポンスステータス: ${response.status}`);
         
         if (!response.ok) {
@@ -397,7 +420,7 @@ async function searchFromFoodDB(query: string): Promise<ExternalFoodItem[]> {
 }
 
 // 楽天市場から検索（商品検索）
-async function searchFromRakutenMarket(query: string): Promise<ExternalFoodItem[]> {
+export async function searchFromRakutenMarket(query: string): Promise<ExternalFoodItem[]> {
   try {
     const baseUrl = getBaseUrl();
     let allResults: ExternalFoodItem[] = [];
@@ -420,7 +443,15 @@ async function searchFromRakutenMarket(query: string): Promise<ExternalFoodItem[
         const fullUrl = `${baseUrl}/api/scrape?url=${encodeURIComponent(url)}`;
         console.log(`楽天市場検索URL: ${fullUrl}`);
         
-        const response = await fetch(fullUrl);
+        // 2秒のタイムアウト付きでfetch
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        
+        const response = await fetch(fullUrl, {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
         console.log(`楽天市場検索レスポンスステータス: ${response.status}`);
         
         if (!response.ok) {
@@ -681,13 +712,15 @@ export async function searchFoodFromEdamam(query: string): Promise<ExternalFoodI
 export async function searchFoodFromMultipleSources(query: string): Promise<ExternalFoodItem[]> {
   try {
     console.log(`統合検索開始: "${query}"`);
+    const startTime = Date.now();
     
     // 外部サイト検索を優先（スクレイピング）
     let realSiteResults: ExternalFoodItem[] = [];
     try {
       console.log('外部サイト検索を開始...');
       realSiteResults = await searchFoodFromRealSites(query);
-      console.log(`外部サイト検索結果: ${realSiteResults.length}件`);
+      const searchTime = Date.now() - startTime;
+      console.log(`外部サイト検索完了: ${realSiteResults.length}件 (${searchTime}ms)`);
       
       // 外部サイトで結果が見つかった場合は、それを優先して返す
       if (realSiteResults.length > 0) {
@@ -701,7 +734,8 @@ export async function searchFoodFromMultipleSources(query: string): Promise<Exte
     // 外部サイトで結果が見つからない場合のみMEXTデータベースから検索
     console.log('外部サイトで結果が見つからないため、MEXTデータベースから検索します。');
     const mextResults = await searchFoodFromMEXT(query);
-    console.log(`MEXT検索結果: ${mextResults.length}件`);
+    const totalTime = Date.now() - startTime;
+    console.log(`MEXT検索結果: ${mextResults.length}件 (総時間: ${totalTime}ms)`);
 
     return mextResults;
   } catch (error) {
