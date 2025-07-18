@@ -5,11 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
-import { ja } from "date-fns/locale";
+
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { getIdealCalories } from "@/lib/utils";
@@ -42,8 +38,7 @@ export function SettingsPage() {
   const [newDislike, setNewDislike] = useState("");
   const [newAllergy, setNewAllergy] = useState("");
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
-  const [birthDateOpen, setBirthDateOpen] = useState(false);
-  const [goalDateOpen, setGoalDateOpen] = useState(false);
+
   const supabase = createClient();
   const router = useRouter();
 
@@ -435,78 +430,26 @@ export function SettingsPage() {
               <Label htmlFor="birth_date" className="text-sm font-medium text-gray-700">
                 生年月日 <span className="text-red-500">*</span>
               </Label>
-              <Popover open={birthDateOpen} onOpenChange={setBirthDateOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal h-12"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {profile.birth_date ? (
-                      format(new Date(profile.birth_date), "yyyy年MM月dd日", { locale: ja })
-                    ) : (
-                      <span className="text-muted-foreground">生年月日を選択</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={profile.birth_date ? new Date(profile.birth_date) : undefined}
-                    onSelect={(date) => {
-                      setProfile({ 
-                        ...profile, 
-                        birth_date: date ? format(date, "yyyy-MM-dd") : "" 
-                      });
-                      setBirthDateOpen(false);
-                    }}
-                    disabled={(date) =>
-                      date > new Date() || date < new Date("1900-01-01")
-                    }
-                    initialFocus
-                    locale={ja}
-                  />
-                </PopoverContent>
-              </Popover>
+              <Input
+                id="birth_date"
+                type="date"
+                value={profile.birth_date ? profile.birth_date.split('T')[0] : ''}
+                onChange={(e) => setProfile({ ...profile, birth_date: e.target.value })}
+                className="h-12"
+              />
               {validationErrors.birth_date && (
                 <p className="text-red-500 text-xs">{validationErrors.birth_date}</p>
               )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="goal_target_date" className="text-sm font-medium text-gray-700">目標達成日</Label>
-              <Popover open={goalDateOpen} onOpenChange={setGoalDateOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal h-12"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {profile.goal_target_date ? (
-                      format(new Date(profile.goal_target_date), "yyyy年MM月dd日", { locale: ja })
-                    ) : (
-                      <span className="text-muted-foreground">目標達成日を選択</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={profile.goal_target_date ? new Date(profile.goal_target_date) : undefined}
-                    onSelect={(date) => {
-                      setProfile({ 
-                        ...profile, 
-                        goal_target_date: date ? format(date, "yyyy-MM-dd") : "" 
-                      });
-                      setGoalDateOpen(false);
-                    }}
-                    disabled={(date) =>
-                      date < new Date()
-                    }
-                    initialFocus
-                    locale={ja}
-                  />
-                </PopoverContent>
-              </Popover>
+              <Input
+                id="goal_target_date"
+                type="date"
+                value={profile.goal_target_date ? profile.goal_target_date.split('T')[0] : ''}
+                onChange={(e) => setProfile({ ...profile, goal_target_date: e.target.value })}
+                className="h-12"
+              />
             </div>
           </div>
 
