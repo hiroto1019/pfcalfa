@@ -62,6 +62,9 @@ export const FOOD_DATABASE: Record<string, FoodItem> = {
   '鶏肉': { name: '鶏肉', calories: 165, protein: 25, fat: 3, carbs: 0, category: FOOD_CATEGORIES.MEAT, unit: '100g' },
   '鶏胸肉': { name: '鶏胸肉', calories: 165, protein: 25, fat: 3, carbs: 0, category: FOOD_CATEGORIES.MEAT, unit: '100g' },
   '鶏もも肉': { name: '鶏もも肉', calories: 200, protein: 22, fat: 12, carbs: 0, category: FOOD_CATEGORIES.MEAT, unit: '100g' },
+  '鶏ステーキ': { name: '鶏ステーキ', calories: 200, protein: 25, fat: 8, carbs: 0, category: FOOD_CATEGORIES.MEAT, unit: '100g' },
+  '鶏のステーキ': { name: '鶏のステーキ', calories: 200, protein: 25, fat: 8, carbs: 0, category: FOOD_CATEGORIES.MEAT, unit: '100g' },
+  '鶏肉ステーキ': { name: '鶏肉ステーキ', calories: 200, protein: 25, fat: 8, carbs: 0, category: FOOD_CATEGORIES.MEAT, unit: '100g' },
   '豚肉': { name: '豚肉', calories: 200, protein: 20, fat: 12, carbs: 0, category: FOOD_CATEGORIES.MEAT, unit: '100g' },
   '豚ロース': { name: '豚ロース', calories: 250, protein: 22, fat: 18, carbs: 0, category: FOOD_CATEGORIES.MEAT, unit: '100g' },
   '豚バラ': { name: '豚バラ', calories: 400, protein: 15, fat: 35, carbs: 0, category: FOOD_CATEGORIES.MEAT, unit: '100g' },
@@ -131,11 +134,16 @@ export const FOOD_DATABASE: Record<string, FoodItem> = {
   'ケーキ': { name: 'ケーキ', calories: 300, protein: 5, fat: 15, carbs: 40, category: FOOD_CATEGORIES.DESSERTS, unit: '1切れ' },
   'アイス': { name: 'アイス', calories: 200, protein: 3, fat: 10, carbs: 25, category: FOOD_CATEGORIES.DESSERTS, unit: '1個' },
   'アイスクリーム': { name: 'アイスクリーム', calories: 200, protein: 3, fat: 10, carbs: 25, category: FOOD_CATEGORIES.DESSERTS, unit: '1個' },
+  'ソフトクリーム': { name: 'ソフトクリーム', calories: 250, protein: 4, fat: 12, carbs: 35, category: FOOD_CATEGORIES.DESSERTS, unit: '1個' },
   'チョコレート': { name: 'チョコレート', calories: 250, protein: 3, fat: 15, carbs: 30, category: FOOD_CATEGORIES.DESSERTS, unit: '1枚(50g)' },
   'プリン': { name: 'プリン', calories: 150, protein: 4, fat: 5, carbs: 25, category: FOOD_CATEGORIES.DESSERTS, unit: '1個' },
   'シュークリーム': { name: 'シュークリーム', calories: 200, protein: 4, fat: 12, carbs: 20, category: FOOD_CATEGORIES.DESSERTS, unit: '1個' },
   'モンブラン': { name: 'モンブラン', calories: 350, protein: 6, fat: 18, carbs: 45, category: FOOD_CATEGORIES.DESSERTS, unit: '1個' },
   'ティラミス': { name: 'ティラミス', calories: 300, protein: 8, fat: 20, carbs: 30, category: FOOD_CATEGORIES.DESSERTS, unit: '1切れ' },
+  'みたらし団子': { name: 'みたらし団子', calories: 150, protein: 3, fat: 1, carbs: 35, category: FOOD_CATEGORIES.DESSERTS, unit: '1串(3個)' },
+  '団子': { name: '団子', calories: 120, protein: 2, fat: 0, carbs: 28, category: FOOD_CATEGORIES.DESSERTS, unit: '1串(3個)' },
+  'あんみつ': { name: 'あんみつ', calories: 200, protein: 4, fat: 1, carbs: 45, category: FOOD_CATEGORIES.DESSERTS, unit: '1杯' },
+  'わらびもち': { name: 'わらびもち', calories: 100, protein: 1, fat: 0, carbs: 25, category: FOOD_CATEGORIES.DESSERTS, unit: '1個' },
 
   // スープ
   'スープ': { name: 'スープ', calories: 150, protein: 8, fat: 5, carbs: 20, category: FOOD_CATEGORIES.SOUPS, unit: '1杯' },
@@ -170,23 +178,74 @@ export const FOOD_DATABASE: Record<string, FoodItem> = {
   '砂糖': { name: '砂糖', calories: 400, protein: 0, fat: 0, carbs: 100, category: FOOD_CATEGORIES.CONDIMENTS, unit: '100g' }
 };
 
-// 食品名から栄養成分を検索する関数
+// 食品名から栄養成分を検索する関数（改善版）
 export function findFoodByName(foodName: string): FoodItem | null {
+  const normalizedName = foodName.toLowerCase().trim();
+  
   // 完全一致を優先
   if (FOOD_DATABASE[foodName]) {
     return FOOD_DATABASE[foodName];
   }
-
-  // 部分一致で検索
-  for (const [key, food] of Object.entries(FOOD_DATABASE)) {
-    if (foodName.includes(key) || key.includes(foodName)) {
-      return food;
-    }
+  
+  // 正規化した名前での完全一致
+  if (FOOD_DATABASE[normalizedName]) {
+    return FOOD_DATABASE[normalizedName];
   }
 
-  // カテゴリ別の検索
+  // 部分一致で検索（改善版）
+  const matches: Array<{ key: string; food: FoodItem; score: number }> = [];
+  
   for (const [key, food] of Object.entries(FOOD_DATABASE)) {
-    if (food.category.toLowerCase().includes(foodName.toLowerCase())) {
+    const normalizedKey = key.toLowerCase();
+    
+    // 完全一致
+    if (normalizedName === normalizedKey) {
+      return food;
+    }
+    
+    // 前方一致
+    if (normalizedName.startsWith(normalizedKey) || normalizedKey.startsWith(normalizedName)) {
+      matches.push({ key, food, score: 10 });
+      continue;
+    }
+    
+    // 包含関係
+    if (normalizedName.includes(normalizedKey) || normalizedKey.includes(normalizedName)) {
+      const score = Math.min(normalizedName.length, normalizedKey.length) / Math.max(normalizedName.length, normalizedKey.length) * 8;
+      matches.push({ key, food, score });
+      continue;
+    }
+    
+    // 単語分割による検索
+    const nameWords = normalizedName.split(/[\s・]+/);
+    const keyWords = normalizedKey.split(/[\s・]+/);
+    
+    let wordMatchCount = 0;
+    for (const nameWord of nameWords) {
+      for (const keyWord of keyWords) {
+        if (nameWord.includes(keyWord) || keyWord.includes(nameWord)) {
+          wordMatchCount++;
+        }
+      }
+    }
+    
+    if (wordMatchCount > 0) {
+      const score = (wordMatchCount / Math.max(nameWords.length, keyWords.length)) * 6;
+      matches.push({ key, food, score });
+    }
+  }
+  
+  // スコア順にソートして最適なマッチを返す
+  if (matches.length > 0) {
+    matches.sort((a, b) => b.score - a.score);
+    console.log(`食品検索結果: "${foodName}" -> "${matches[0].food.name}" (スコア: ${matches[0].score})`);
+    return matches[0].food;
+  }
+
+  // カテゴリ別の検索（フォールバック）
+  for (const [key, food] of Object.entries(FOOD_DATABASE)) {
+    if (food.category.toLowerCase().includes(normalizedName)) {
+      console.log(`カテゴリ検索結果: "${foodName}" -> "${food.name}" (カテゴリ: ${food.category})`);
       return food;
     }
   }

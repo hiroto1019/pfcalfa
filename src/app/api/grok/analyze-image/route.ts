@@ -17,7 +17,7 @@ async function validateAndCorrectNutritionData(data: any) {
     corrected.food_name = '食品（詳細不明）';
   }
   
-  // カロリーが0の場合、食品名から推定を試行
+  // カロリーが0の場合、食品名から推定を試行（改善版）
   if (corrected.calories === 0) {
     try {
       const { findFoodByName } = await import('../../../../lib/food-database');
@@ -30,19 +30,104 @@ async function validateAndCorrectNutritionData(data: any) {
           carbs: foodData.carbs
         });
         console.log(`食品データベースから検索: ${foodData.name} -> ${foodData.calories}kcal`);
+      } else {
+        // 食品データベースにない場合、食品名から推定
+        const lowerFoodName = corrected.food_name.toLowerCase();
+        
+        // 鶏ステーキの特別処理
+        if (lowerFoodName.includes('鶏') && lowerFoodName.includes('ステーキ')) {
+          Object.assign(corrected, {
+            calories: 200,
+            protein: 25,
+            fat: 8,
+            carbs: 0
+          });
+          console.log('鶏ステーキとして推定: 200kcal');
+        }
+        // みたらし団子の特別処理
+        else if (lowerFoodName.includes('みたらし') && lowerFoodName.includes('団子')) {
+          Object.assign(corrected, {
+            calories: 150,
+            protein: 3,
+            fat: 1,
+            carbs: 35
+          });
+          console.log('みたらし団子として推定: 150kcal');
+        }
+        // ソフトクリームの特別処理
+        else if (lowerFoodName.includes('ソフト') && (lowerFoodName.includes('クリーム') || lowerFoodName.includes('アイス'))) {
+          Object.assign(corrected, {
+            calories: 250,
+            protein: 4,
+            fat: 12,
+            carbs: 35
+          });
+          console.log('ソフトクリームとして推定: 250kcal');
+        }
+        // 一般的な食品の推定
+        else if (lowerFoodName.includes('鶏') || lowerFoodName.includes('チキン')) {
+          Object.assign(corrected, {
+            calories: 165,
+            protein: 25,
+            fat: 3,
+            carbs: 0
+          });
+          console.log('鶏肉として推定: 165kcal');
+        }
+        else if (lowerFoodName.includes('豚') || lowerFoodName.includes('ポーク')) {
+          Object.assign(corrected, {
+            calories: 200,
+            protein: 20,
+            fat: 12,
+            carbs: 0
+          });
+          console.log('豚肉として推定: 200kcal');
+        }
+        else if (lowerFoodName.includes('牛') || lowerFoodName.includes('ビーフ')) {
+          Object.assign(corrected, {
+            calories: 250,
+            protein: 25,
+            fat: 15,
+            carbs: 0
+          });
+          console.log('牛肉として推定: 250kcal');
+        }
+        else if (lowerFoodName.includes('ご飯') || lowerFoodName.includes('白米') || lowerFoodName.includes('米')) {
+          Object.assign(corrected, {
+            calories: 250,
+            protein: 5,
+            fat: 0,
+            carbs: 55
+          });
+          console.log('ご飯として推定: 250kcal');
+        }
+        else if (lowerFoodName.includes('パン') || lowerFoodName.includes('ブレッド')) {
+          Object.assign(corrected, {
+            calories: 150,
+            protein: 5,
+            fat: 2,
+            carbs: 28
+          });
+          console.log('パンとして推定: 150kcal');
+        }
+        else {
+          // それでも見つからない場合、一般的な食事として推定
+          corrected.calories = 200;
+          corrected.protein = 10;
+          corrected.fat = 5;
+          corrected.carbs = 25;
+          console.log('一般的な食事としてカロリーを推定: 200kcal');
+        }
       }
     } catch (error) {
       console.log('食品データベースの読み込みに失敗:', error);
+      // エラーの場合も一般的な食事として推定
+      corrected.calories = 200;
+      corrected.protein = 10;
+      corrected.fat = 5;
+      corrected.carbs = 25;
+      console.log('エラー時の一般的な食事としてカロリーを推定: 200kcal');
     }
-  }
-  
-  // それでもカロリーが0の場合、一般的な食事として推定
-  if (corrected.calories === 0) {
-    corrected.calories = 200; // 一般的な食事の最低カロリー
-    corrected.protein = 10;
-    corrected.fat = 5;
-    corrected.carbs = 25;
-    console.log('一般的な食事としてカロリーを推定: 200kcal');
   }
   
   // カロリーが0だが他の栄養素がある場合の補正
@@ -147,28 +232,115 @@ function createFallbackResponse(content: string) {
     carbs: 25
   };
   
-  // 内容から食品名とカロリーを推測
-  if (content.includes('食べ物') || content.includes('食事') || content.includes('料理')) {
-    fallbackResponse.food_name = "食事（詳細不明）";
+  // 内容から食品名とカロリーを推測（改善版）
+  const lowerContent = content.toLowerCase();
+  
+  // 肉類
+  if (lowerContent.includes('鶏') || lowerContent.includes('チキン')) {
+    if (lowerContent.includes('ステーキ')) {
+      fallbackResponse.food_name = "鶏ステーキ";
+      fallbackResponse.calories = 200;
+      fallbackResponse.protein = 25;
+      fallbackResponse.fat = 8;
+      fallbackResponse.carbs = 0;
+    } else {
+      fallbackResponse.food_name = "鶏肉";
+      fallbackResponse.calories = 165;
+      fallbackResponse.protein = 25;
+      fallbackResponse.fat = 3;
+      fallbackResponse.carbs = 0;
+    }
+  } else if (lowerContent.includes('豚') || lowerContent.includes('ポーク')) {
+    fallbackResponse.food_name = "豚肉";
+    fallbackResponse.calories = 200;
+    fallbackResponse.protein = 20;
+    fallbackResponse.fat = 12;
+    fallbackResponse.carbs = 0;
+  } else if (lowerContent.includes('牛') || lowerContent.includes('ビーフ')) {
+    fallbackResponse.food_name = "牛肉";
     fallbackResponse.calories = 250;
-  } else if (content.includes('飲み物') || content.includes('ドリンク')) {
-    fallbackResponse.food_name = "飲み物";
-    fallbackResponse.calories = 100;
-    fallbackResponse.protein = 0;
+    fallbackResponse.protein = 25;
+    fallbackResponse.fat = 15;
+    fallbackResponse.carbs = 0;
+  }
+  // 主食
+  else if (lowerContent.includes('ご飯') || lowerContent.includes('白米') || lowerContent.includes('米')) {
+    fallbackResponse.food_name = "ご飯";
+    fallbackResponse.calories = 250;
+    fallbackResponse.protein = 5;
     fallbackResponse.fat = 0;
-    fallbackResponse.carbs = 25;
-  } else if (content.includes('サラダ') || content.includes('野菜')) {
+    fallbackResponse.carbs = 55;
+  } else if (lowerContent.includes('パン') || lowerContent.includes('ブレッド')) {
+    fallbackResponse.food_name = "パン";
+    fallbackResponse.calories = 150;
+    fallbackResponse.protein = 5;
+    fallbackResponse.fat = 2;
+    fallbackResponse.carbs = 28;
+  }
+  // デザート
+  else if (lowerContent.includes('団子') || lowerContent.includes('だんご')) {
+    if (lowerContent.includes('みたらし')) {
+      fallbackResponse.food_name = "みたらし団子";
+      fallbackResponse.calories = 150;
+      fallbackResponse.protein = 3;
+      fallbackResponse.fat = 1;
+      fallbackResponse.carbs = 35;
+    } else {
+      fallbackResponse.food_name = "団子";
+      fallbackResponse.calories = 120;
+      fallbackResponse.protein = 2;
+      fallbackResponse.fat = 0;
+      fallbackResponse.carbs = 28;
+    }
+  } else if (lowerContent.includes('アイス') || lowerContent.includes('アイスクリーム')) {
+    if (lowerContent.includes('ソフト')) {
+      fallbackResponse.food_name = "ソフトクリーム";
+      fallbackResponse.calories = 250;
+      fallbackResponse.protein = 4;
+      fallbackResponse.fat = 12;
+      fallbackResponse.carbs = 35;
+    } else {
+      fallbackResponse.food_name = "アイスクリーム";
+      fallbackResponse.calories = 200;
+      fallbackResponse.protein = 3;
+      fallbackResponse.fat = 10;
+      fallbackResponse.carbs = 25;
+    }
+  } else if (lowerContent.includes('ケーキ')) {
+    fallbackResponse.food_name = "ケーキ";
+    fallbackResponse.calories = 300;
+    fallbackResponse.protein = 5;
+    fallbackResponse.fat = 15;
+    fallbackResponse.carbs = 40;
+  }
+  // 野菜・サラダ
+  else if (lowerContent.includes('サラダ') || lowerContent.includes('野菜')) {
     fallbackResponse.food_name = "サラダ";
     fallbackResponse.calories = 80;
     fallbackResponse.protein = 3;
     fallbackResponse.fat = 2;
     fallbackResponse.carbs = 15;
-  } else if (content.includes('デザート') || content.includes('ケーキ') || content.includes('アイス')) {
-    fallbackResponse.food_name = "デザート";
-    fallbackResponse.calories = 300;
-    fallbackResponse.protein = 5;
-    fallbackResponse.fat = 15;
-    fallbackResponse.carbs = 40;
+  }
+  // 飲み物
+  else if (lowerContent.includes('飲み物') || lowerContent.includes('ドリンク') || lowerContent.includes('ジュース')) {
+    fallbackResponse.food_name = "飲み物";
+    fallbackResponse.calories = 100;
+    fallbackResponse.protein = 0;
+    fallbackResponse.fat = 0;
+    fallbackResponse.carbs = 25;
+  }
+  // スープ
+  else if (lowerContent.includes('スープ') || lowerContent.includes('汁')) {
+    fallbackResponse.food_name = "スープ";
+    fallbackResponse.calories = 150;
+    fallbackResponse.protein = 8;
+    fallbackResponse.fat = 5;
+    fallbackResponse.carbs = 20;
+  }
+  // 食べ物・食事
+  else if (lowerContent.includes('食べ物') || lowerContent.includes('食事') || lowerContent.includes('料理') || lowerContent.includes('食品')) {
+    fallbackResponse.food_name = "食事（詳細不明）";
+    fallbackResponse.calories = 250;
   }
   
   return fallbackResponse;
@@ -193,9 +365,10 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
   const prompt = `画像に写っている食品を詳細に分析し、栄養成分をJSON形式で返してください。
 
 【重要】
-- 食品が写っている場合は、必ずカロリーを含む栄養成分を推定してください
+- 画像に食品が写っている場合は、必ずカロリーを含む栄養成分を推定してください
 - 一般的な食品のカロリーを参考にして、適切な数値を設定してください
 - 食品が写っていない場合のみ、全て0を返してください
+- 複数の食品が写っている場合は、主要な食品を1つ選んで分析してください
 
 【返答形式】
 {
@@ -211,9 +384,18 @@ async function callGeminiAPI(base64Image: string, imageType: string, retryCount 
 - パン1枚: 約150kcal
 - 卵1個: 約80kcal
 - 鶏胸肉100g: 約165kcal
+- 鶏ステーキ100g: 約200kcal
 - サラダ: 約50-100kcal
 - スープ: 約100-200kcal
 - デザート: 約200-400kcal
+- みたらし団子: 約150kcal
+- ソフトクリーム: 約200-300kcal
+- アイスクリーム: 約200-300kcal
+
+【食品認識のポイント】
+- 調理方法（焼く、揚げる、蒸すなど）を考慮してカロリーを調整
+- サイズや量を考慮して適切なカロリーを設定
+- 一般的な食品の標準的なカロリーを参考にする
 
 必ず食品が写っている場合は、0kcalにならないよう適切な数値を設定してください。`;
 
