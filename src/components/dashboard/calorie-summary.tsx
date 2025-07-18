@@ -4,6 +4,18 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 
+interface Meal {
+  id: string;
+  user_id: string;
+  food_name: string;
+  calories: number;
+  protein: number;
+  fat: number;
+  carbs: number;
+  is_corrected_by_user: boolean;
+  created_at: string;
+}
+
 interface CalorieSummaryData {
   actualCalories: number;
   proteinRatio: number;
@@ -100,10 +112,11 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
       if (!dailySummary && todayMeals && todayMeals.length > 0) {
         console.log('daily_summaryが存在しないため、手動で作成します');
         
-        const totalCalories = todayMeals.reduce((sum, meal) => sum + meal.calories, 0);
-        const totalProtein = todayMeals.reduce((sum, meal) => sum + meal.protein, 0);
-        const totalFat = todayMeals.reduce((sum, meal) => sum + meal.fat, 0);
-        const totalCarbs = todayMeals.reduce((sum, meal) => sum + meal.carbs, 0);
+        const typedTodayMeals = todayMeals as Meal[];
+        const totalCalories = typedTodayMeals.reduce((sum: number, meal: Meal) => sum + meal.calories, 0);
+        const totalProtein = typedTodayMeals.reduce((sum: number, meal: Meal) => sum + meal.protein, 0);
+        const totalFat = typedTodayMeals.reduce((sum: number, meal: Meal) => sum + meal.fat, 0);
+        const totalCarbs = typedTodayMeals.reduce((sum: number, meal: Meal) => sum + meal.carbs, 0);
 
         const { data: newDailySummary, error: insertError } = await supabase
           .from('daily_summaries')
