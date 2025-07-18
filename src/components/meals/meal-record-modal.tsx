@@ -692,8 +692,9 @@ export function MealRecordModal() {
                 <Button 
                   type="button" 
                   onClick={handleFoodSearch}
-                  disabled={isSearching}
+                  disabled={isSearching || !searchQuery.trim()}
                   size="sm"
+                  className={!searchQuery.trim() ? "opacity-50" : ""}
                 >
                   {isSearching ? "検索中..." : "検索"}
                 </Button>
@@ -799,8 +800,8 @@ export function MealRecordModal() {
       </div>
       
       <div ref={modalRef} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
-        <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-[85vh] flex flex-col">
-          <div className="flex justify-between items-center p-6 border-b border-gray-200">
+        <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden">
+          <div className="flex justify-between items-center p-6 border-b border-gray-200 rounded-t-lg">
             <h2 className="text-xl font-bold">食事の記録</h2>
             <Button 
               variant="ghost" 
@@ -833,19 +834,21 @@ export function MealRecordModal() {
             {renderForm()}
           </div>
           
-          {/* 登録ボタンを常に表示 */}
-          <div className="border-t border-gray-200 p-6 bg-white">
-            <div className="flex justify-end gap-2">
-              <Button 
-                type="button" 
-                onClick={handleSubmit}
-                disabled={!isFormComplete || isSubmitting}
-                className="w-full sm:w-auto"
-              >
-                {isSubmitting ? "登録中..." : "登録"}
-              </Button>
+          {/* 登録ボタン（解析方法が選択されている場合のみ表示） */}
+          {analysisMethod && (
+            <div className="border-t border-gray-200 p-6 bg-white rounded-b-lg">
+              <div className="flex justify-end gap-2">
+                <Button 
+                  type="button" 
+                  onClick={handleSubmit}
+                  disabled={!isFormComplete || isSubmitting}
+                  className="w-full sm:w-auto"
+                >
+                  {isSubmitting ? "登録中..." : "登録"}
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
           
         </div>
       </div>
