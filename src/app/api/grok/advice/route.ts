@@ -205,13 +205,23 @@ export async function POST(request: NextRequest) {
       targetCalories = tdee + 300; // 300kcal増
     }
 
-    // プロンプトを最適化（超短縮版）
+    // 食事の好み情報を取得
+    const dislikes = userProfile.food_preferences?.dislikes || [];
+    const allergies = userProfile.food_preferences?.allergies || [];
+    const foodPreferencesText = dislikes.length > 0 || allergies.length > 0 
+      ? `嫌いな食べ物: ${dislikes.join(', ') || 'なし'}, アレルギー: ${allergies.join(', ') || 'なし'}` 
+      : '';
+
+    // プロンプトを最適化（食事の好みを含む）
     const prompt = `ユーザー情報に基づき、食事と運動のアドバイスを日本語で100文字以内で、以下のJSON形式で出力してください。
 
 {\"meal_advice\": \"食事アドバイス\", \"exercise_advice\": \"運動アドバイス\"}
 
 ユーザー: ${userProfile.username}, ${userProfile.gender}, ${userProfile.height_cm}cm, ${userProfile.initial_weight_kg}kg→${userProfile.target_weight_kg}kg, 目標:${userProfile.goal_type}, カロリー:${Math.round(targetCalories)}kcal
-${dailyData ? `今日の摂取: ${dailyData.total_calories || 0}kcal` : ''}`;
+${foodPreferencesText ? `${foodPreferencesText}` : ''}
+${dailyData ? `今日の摂取: ${dailyData.total_calories || 0}kcal` : ''}
+
+※食事アドバイスでは、嫌いな食べ物やアレルギー食材を避けたメニューを提案してください。`;
 
     console.log('GEMINI_API_KEY設定確認:', process.env.GEMINI_API_KEY ? '設定済み' : '未設定');
     
