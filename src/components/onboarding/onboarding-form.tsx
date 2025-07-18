@@ -38,6 +38,8 @@ interface OnboardingFormProps {
 export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [birthDateOpen, setBirthDateOpen] = useState(false);
+  const [goalDateOpen, setGoalDateOpen] = useState(false);
   const supabase = createClient();
   const router = useRouter();
 
@@ -151,7 +153,7 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label htmlFor="birth_date">生年月日 <span className="text-red-500">*</span></Label>
-            <Popover>
+            <Popover open={birthDateOpen} onOpenChange={setBirthDateOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -169,12 +171,13 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
                 <Calendar
                   mode="single"
                   selected={profile.birth_date ? new Date(profile.birth_date) : undefined}
-                  onSelect={(date) => 
+                  onSelect={(date) => {
                     setProfile({ 
                       ...profile, 
                       birth_date: date ? format(date, "yyyy-MM-dd") : "" 
-                    })
-                  }
+                    });
+                    setBirthDateOpen(false);
+                  }}
                   disabled={(date) =>
                     date > new Date() || date < new Date("1900-01-01")
                   }
@@ -186,7 +189,7 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
           </div>
           <div>
             <Label htmlFor="goal_target_date">目標達成日</Label>
-            <Popover>
+            <Popover open={goalDateOpen} onOpenChange={setGoalDateOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -204,12 +207,13 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
                 <Calendar
                   mode="single"
                   selected={profile.goal_target_date ? new Date(profile.goal_target_date) : undefined}
-                  onSelect={(date) => 
+                  onSelect={(date) => {
                     setProfile({ 
                       ...profile, 
                       goal_target_date: date ? format(date, "yyyy-MM-dd") : "" 
-                    })
-                  }
+                    });
+                    setGoalDateOpen(false);
+                  }}
                   disabled={(date) =>
                     date < new Date()
                   }
@@ -234,7 +238,7 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
             />
           </div>
           <div>
-            <Label htmlFor="initial_weight_kg">現在の体重 (kg) <span className="text-red-500">*</span></Label>
+            <Label htmlFor="initial_weight_kg" className="whitespace-nowrap">現在の体重 (kg) <span className="text-red-500">*</span></Label>
             <Input
               id="initial_weight_kg"
               type="number"

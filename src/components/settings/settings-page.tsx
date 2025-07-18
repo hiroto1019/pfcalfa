@@ -42,6 +42,8 @@ export function SettingsPage() {
   const [newDislike, setNewDislike] = useState("");
   const [newAllergy, setNewAllergy] = useState("");
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
+  const [birthDateOpen, setBirthDateOpen] = useState(false);
+  const [goalDateOpen, setGoalDateOpen] = useState(false);
   const supabase = createClient();
   const router = useRouter();
 
@@ -433,7 +435,7 @@ export function SettingsPage() {
               <Label htmlFor="birth_date" className="text-sm font-medium text-gray-700">
                 生年月日 <span className="text-red-500">*</span>
               </Label>
-              <Popover>
+              <Popover open={birthDateOpen} onOpenChange={setBirthDateOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -451,12 +453,13 @@ export function SettingsPage() {
                   <Calendar
                     mode="single"
                     selected={profile.birth_date ? new Date(profile.birth_date) : undefined}
-                    onSelect={(date) => 
+                    onSelect={(date) => {
                       setProfile({ 
                         ...profile, 
                         birth_date: date ? format(date, "yyyy-MM-dd") : "" 
-                      })
-                    }
+                      });
+                      setBirthDateOpen(false);
+                    }}
                     disabled={(date) =>
                       date > new Date() || date < new Date("1900-01-01")
                     }
@@ -471,7 +474,7 @@ export function SettingsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="goal_target_date" className="text-sm font-medium text-gray-700">目標達成日</Label>
-              <Popover>
+              <Popover open={goalDateOpen} onOpenChange={setGoalDateOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -489,12 +492,13 @@ export function SettingsPage() {
                   <Calendar
                     mode="single"
                     selected={profile.goal_target_date ? new Date(profile.goal_target_date) : undefined}
-                    onSelect={(date) => 
+                    onSelect={(date) => {
                       setProfile({ 
                         ...profile, 
                         goal_target_date: date ? format(date, "yyyy-MM-dd") : "" 
-                      })
-                    }
+                      });
+                      setGoalDateOpen(false);
+                    }}
                     disabled={(date) =>
                       date < new Date()
                     }
