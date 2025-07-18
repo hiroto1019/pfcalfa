@@ -63,11 +63,35 @@ export function getIdealCalories(
     const diffTime = Math.abs(targetDate.getTime() - today.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
+    // 目標設定日が非常に近い場合（7日以内）は従来の計算ロジックを使用
+    if (diffDays <= 7) {
+      if (profile.goal_type === 'lose_weight') {
+        return Math.round(tdee - 500);
+      } else if (profile.goal_type === 'gain_muscle') {
+        return Math.round(tdee + 500);
+      } else { // maintain
+        return Math.round(tdee);
+      }
+    }
+
     if (diffDays > 0) {
       const weightDiff = goalWeight - currentWeight;
       const totalCalorieDiff = weightDiff * 7200; // 脂肪1kg ≈ 7200 kcal
       const dailyCalorieAdjustment = totalCalorieDiff / diffDays;
-      return Math.round(tdee + dailyCalorieAdjustment);
+      
+      // カロリー調整を安全な範囲に制限
+      const adjustedCalories = tdee + dailyCalorieAdjustment;
+      
+      // 最小カロリー制限（基礎代謝の80%以上）
+      const minCalories = Math.round(bmr * 0.8);
+      
+      // 最大カロリー制限（TDEEの150%以下）
+      const maxCalories = Math.round(tdee * 1.5);
+      
+      // 安全な範囲内に収める
+      const safeCalories = Math.max(minCalories, Math.min(maxCalories, adjustedCalories));
+      
+      return Math.round(safeCalories);
     }
   }
 
