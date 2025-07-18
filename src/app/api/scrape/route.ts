@@ -18,7 +18,10 @@ export async function GET(request: NextRequest) {
       'www.slism.jp',
       'cookpad.com',
       'app.rakuten.co.jp',
-      'recipe.rakuten.co.jp'
+      'recipe.rakuten.co.jp',
+      'search.rakuten.co.jp',
+      'fooddb.mext.go.jp',
+      'www.mext.go.jp'
     ];
 
     const urlObj = new URL(url);
@@ -360,6 +363,120 @@ function extractDataFromHTML(html: string, hostname: string, originalUrl: string
           }
         }
       });
+    } else if (hostname.includes('fooddb.mext.go.jp') || hostname.includes('mext.go.jp')) {
+      // FoodDB（文部科学省食品成分データベース）の解析
+      console.log('FoodDBのスクレイピング開始');
+      
+      // テーブル形式のデータを解析
+      $('table tr').each((index, element) => {
+        const $el = $(element);
+        const cells = $el.find('td');
+        
+        if (cells.length >= 3) {
+          const title = $(cells[0]).text().trim();
+          const caloriesText = $(cells[1]).text().trim();
+          
+          if (title && caloriesText) {
+            const calorieMatch = caloriesText.match(/(\d+)/);
+            const calories = calorieMatch ? parseInt(calorieMatch[1]) : 0;
+            
+            if (calories > 0 && calories < 2000) {
+              results.push({
+                name: title,
+                calories: calories,
+                protein: Math.floor(calories * 0.15),
+                fat: Math.floor(calories * 0.25),
+                carbs: Math.floor(calories * 0.6),
+                unit: '100g',
+                source: 'FoodDB',
+                url: originalUrl
+              });
+            }
+          }
+        }
+      });
+      
+      // リスト形式のデータも解析
+      $('li, .item, .food-item').each((index, element) => {
+        const $el = $(element);
+        const title = $el.text().trim();
+        
+        if (title && title.length > 2 && title.length < 100) {
+          const estimatedCalories = estimateCaloriesFromTitle(title);
+          if (estimatedCalories > 0) {
+            results.push({
+              name: title,
+              calories: estimatedCalories,
+              protein: Math.floor(estimatedCalories * 0.15),
+              fat: Math.floor(estimatedCalories * 0.25),
+              carbs: Math.floor(estimatedCalories * 0.6),
+              unit: '100g',
+              source: 'FoodDB（推定）',
+              url: originalUrl
+            });
+          }
+        }
+      });
+      
+    } else if (hostname.includes('search.rakuten.co.jp')) {
+      // 楽天市場の商品検索結果を解析
+      console.log('楽天市場のスクレイピング開始');
+      
+      // 商品カードを解析
+      $('[class*="item"], [class*="product"], [class*="goods"]').each((index, element) => {
+        const $el = $(element);
+        
+        // 商品名の取得
+        const titleSelectors = [
+          '.item-name', '.product-name', '.goods-name', '.title',
+          'h3', 'h4', 'a[href*="/item/"]', '.name'
+        ];
+        
+        let title = '';
+        for (const titleSelector of titleSelectors) {
+          title = $el.find(titleSelector).text().trim();
+          if (title && title.length > 2 && title.length < 100) break;
+        }
+        
+        if (title) {
+          // 商品名から推定カロリーを計算
+          const estimatedCalories = estimateCaloriesFromTitle(title);
+          if (estimatedCalories > 0) {
+            results.push({
+              name: title,
+              calories: estimatedCalories,
+              protein: Math.floor(estimatedCalories * 0.15),
+              fat: Math.floor(estimatedCalories * 0.25),
+              carbs: Math.floor(estimatedCalories * 0.6),
+              unit: '1個',
+              source: '楽天市場',
+              url: originalUrl
+            });
+          }
+        }
+      });
+      
+      // リンクからも商品名を抽出
+      $('a[href*="/item/"]').each((index, element) => {
+        const $el = $(element);
+        const title = $el.text().trim();
+        
+        if (title && title.length > 2 && title.length < 100) {
+          const estimatedCalories = estimateCaloriesFromTitle(title);
+          if (estimatedCalories > 0) {
+            results.push({
+              name: title,
+              calories: estimatedCalories,
+              protein: Math.floor(estimatedCalories * 0.15),
+              fat: Math.floor(estimatedCalories * 0.25),
+              carbs: Math.floor(estimatedCalories * 0.6),
+              unit: '1個',
+              source: '楽天市場（リンク）',
+              url: originalUrl
+            });
+          }
+        }
+      });
     }
 
     console.log(`抽出されたデータ: ${results.length}件`);
@@ -387,27 +504,57 @@ function extractDataFromHTML(html: string, hostname: string, originalUrl: string
         console.log('.kcal:', $('.kcal').length);
         console.log('[class*="recipe"]:', $('[class*="recipe"]').length);
         
-        // 1文字でもヒットするように、より包括的な検索を試行
-        console.log('包括的検索を試行中...');
-        $('a[href*="/recipe/"]').each((index, element) => {
-          const $el = $(element);
-          const title = $el.text().trim();
-          if (title && title.length > 2 && title.length < 100) {
-            const estimatedCalories = estimateCaloriesFromTitle(title);
-            if (estimatedCalories > 0) {
-              results.push({
-                name: title,
-                calories: estimatedCalories,
-                protein: Math.floor(estimatedCalories * 0.15),
-                fat: Math.floor(estimatedCalories * 0.25),
-                carbs: Math.floor(estimatedCalories * 0.6),
-                unit: '1人前',
-                source: 'クックパッド（包括的検索）',
-                url: originalUrl
-              });
-            }
-          }
-        });
+                 // 1文字でもヒットするように、より包括的な検索を試行
+         console.log('包括的検索を試行中...');
+         
+         // レシピリンクから検索
+         $('a[href*="/recipe/"]').each((index, element) => {
+           const $el = $(element);
+           const title = $el.text().trim();
+           if (title && title.length > 2 && title.length < 100) {
+             const estimatedCalories = estimateCaloriesFromTitle(title);
+             if (estimatedCalories > 0) {
+               results.push({
+                 name: title,
+                 calories: estimatedCalories,
+                 protein: Math.floor(estimatedCalories * 0.15),
+                 fat: Math.floor(estimatedCalories * 0.25),
+                 carbs: Math.floor(estimatedCalories * 0.6),
+                 unit: '1人前',
+                 source: 'クックパッド（包括的検索）',
+                 url: originalUrl
+               });
+             }
+           }
+         });
+         
+         // より包括的な検索：すべてのリンクとテキストを確認
+         console.log('より包括的な検索を試行中...');
+         $('a, h1, h2, h3, h4, h5, h6, .title, .name, .recipe-title').each((index, element) => {
+           const $el = $(element);
+           const title = $el.text().trim();
+           
+           // 料理らしい名前かチェック
+           if (title && title.length > 2 && title.length < 100) {
+             const hasFoodKeywords = /(料理|レシピ|カレー|ラーメン|パスタ|サラダ|スープ|ケーキ|パン|ご飯|うどん|そば|ハンバーグ|唐揚げ|天ぷら|焼き魚|刺身|味噌汁|豆腐|納豆|卵|牛乳|チーズ|りんご|バナナ|いちご|チョコ|アイス|お菓子|スナック)/.test(title);
+             
+             if (hasFoodKeywords) {
+               const estimatedCalories = estimateCaloriesFromTitle(title);
+               if (estimatedCalories > 0) {
+                 results.push({
+                   name: title,
+                   calories: estimatedCalories,
+                   protein: Math.floor(estimatedCalories * 0.15),
+                   fat: Math.floor(estimatedCalories * 0.25),
+                   carbs: Math.floor(estimatedCalories * 0.6),
+                   unit: '1人前',
+                   source: 'クックパッド（キーワード検索）',
+                   url: originalUrl
+                 });
+               }
+             }
+           }
+         });
       }
       
       // 楽天レシピの場合の詳細デバッグ

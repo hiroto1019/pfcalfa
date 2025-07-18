@@ -55,6 +55,22 @@ export async function searchFoodFromRealSites(query: string): Promise<ExternalFo
       console.log('クックパッド検索エラー:', error);
     }
     
+    // 4. FoodDB（食品成分データベース）
+    try {
+      const fooddbResults = await searchFromFoodDB(query);
+      results.push(...fooddbResults);
+    } catch (error) {
+      console.log('FoodDB検索エラー:', error);
+    }
+    
+    // 5. 楽天市場（商品検索）
+    try {
+      const rakutenMarketResults = await searchFromRakutenMarket(query);
+      results.push(...rakutenMarketResults);
+    } catch (error) {
+      console.log('楽天市場検索エラー:', error);
+    }
+    
     // 重複を除去
     const uniqueResults = results.filter((food, index, self) => 
       index === self.findIndex(f => f.name.toLowerCase() === food.name.toLowerCase())
@@ -292,6 +308,154 @@ async function searchFromCookpad(query: string): Promise<ExternalFoodItem[]> {
     
   } catch (error) {
     console.error('クックパッド検索エラー:', error);
+    return [];
+  }
+}
+
+// FoodDB（食品成分データベース）から検索
+async function searchFromFoodDB(query: string): Promise<ExternalFoodItem[]> {
+  try {
+    const baseUrl = getBaseUrl();
+    let allResults: ExternalFoodItem[] = [];
+    
+    // FoodDBの検索URLを試行
+    const urlsToTry = [
+      `https://fooddb.mext.go.jp/search.pl?ITEM_NAME=${encodeURIComponent(query)}`,
+      `https://fooddb.mext.go.jp/search.pl?ITEM_NAME=${encodeURIComponent(query)}&CATEGORY=1`,
+      'https://fooddb.mext.go.jp/'
+    ];
+    
+    for (const url of urlsToTry) {
+      try {
+        const fullUrl = `${baseUrl}/api/scrape?url=${encodeURIComponent(url)}`;
+        console.log(`FoodDB検索URL: ${fullUrl}`);
+        
+        const response = await fetch(fullUrl);
+        console.log(`FoodDB検索レスポンスステータス: ${response.status}`);
+        
+        if (!response.ok) {
+          console.error(`FoodDB検索エラー: ${response.status} - ${response.statusText}`);
+          continue;
+        }
+
+        const data = await response.json();
+        console.log('FoodDB検索レスポンス:', JSON.stringify(data, null, 2));
+        
+        if (data.success && data.data && data.data.length > 0) {
+          console.log(`FoodDBから${data.data.length}件の食品を取得`);
+          
+          // クエリに基づいてフィルタリング
+          const filteredData = data.data.filter((item: any) => {
+            if (!item.name) return false;
+            const itemName = item.name.toLowerCase();
+            const queryLower = query.toLowerCase();
+            return itemName.includes(queryLower) || queryLower.includes(itemName);
+          });
+          
+          if (filteredData.length > 0) {
+            allResults.push(...filteredData.map((item: any) => ({
+              name: item.name,
+              calories: item.calories,
+              protein: item.protein,
+              fat: item.fat,
+              carbs: item.carbs,
+              unit: item.unit,
+              source: 'FoodDB'
+            })));
+            
+            if (allResults.length >= 10) break;
+          }
+        }
+      } catch (error) {
+        console.error(`FoodDB検索エラー (${url}):`, error);
+        continue;
+      }
+    }
+    
+    // 重複を除去
+    const uniqueResults = allResults.filter((item, index, self) => 
+      index === self.findIndex(t => t.name === item.name)
+    );
+    
+    console.log(`FoodDB最終結果: ${uniqueResults.length}件`);
+    return uniqueResults;
+    
+  } catch (error) {
+    console.error('FoodDB検索エラー:', error);
+    return [];
+  }
+}
+
+// 楽天市場から検索（商品検索）
+async function searchFromRakutenMarket(query: string): Promise<ExternalFoodItem[]> {
+  try {
+    const baseUrl = getBaseUrl();
+    let allResults: ExternalFoodItem[] = [];
+    
+    // 楽天市場の検索URLを試行
+    const urlsToTry = [
+      `https://search.rakuten.co.jp/search/mall/${encodeURIComponent(query)}/`,
+      `https://search.rakuten.co.jp/search/mall/${encodeURIComponent(query)}/?f=1&s=1&n=20`,
+      'https://search.rakuten.co.jp/search/mall/食品/'
+    ];
+    
+    for (const url of urlsToTry) {
+      try {
+        const fullUrl = `${baseUrl}/api/scrape?url=${encodeURIComponent(url)}`;
+        console.log(`楽天市場検索URL: ${fullUrl}`);
+        
+        const response = await fetch(fullUrl);
+        console.log(`楽天市場検索レスポンスステータス: ${response.status}`);
+        
+        if (!response.ok) {
+          console.error(`楽天市場検索エラー: ${response.status} - ${response.statusText}`);
+          continue;
+        }
+
+        const data = await response.json();
+        console.log('楽天市場検索レスポンス:', JSON.stringify(data, null, 2));
+        
+        if (data.success && data.data && data.data.length > 0) {
+          console.log(`楽天市場から${data.data.length}件の商品を取得`);
+          
+          // クエリに基づいてフィルタリング
+          const filteredData = data.data.filter((item: any) => {
+            if (!item.name) return false;
+            const itemName = item.name.toLowerCase();
+            const queryLower = query.toLowerCase();
+            return itemName.includes(queryLower) || queryLower.includes(itemName);
+          });
+          
+          if (filteredData.length > 0) {
+            allResults.push(...filteredData.map((item: any) => ({
+              name: item.name,
+              calories: item.calories,
+              protein: item.protein,
+              fat: item.fat,
+              carbs: item.carbs,
+              unit: item.unit,
+              source: '楽天市場'
+            })));
+            
+            if (allResults.length >= 10) break;
+          }
+        }
+      } catch (error) {
+        console.error(`楽天市場検索エラー (${url}):`, error);
+        continue;
+      }
+    }
+    
+    // 重複を除去
+    const uniqueResults = allResults.filter((item, index, self) => 
+      index === self.findIndex(t => t.name === item.name)
+    );
+    
+    console.log(`楽天市場最終結果: ${uniqueResults.length}件`);
+    return uniqueResults;
+    
+  } catch (error) {
+    console.error('楽天市場検索エラー:', error);
     return [];
   }
 }
