@@ -219,62 +219,134 @@ export function SettingsPage() {
     }
   };
 
-  const addDislike = () => {
+  const addDislike = async () => {
     if (!newDislike?.trim() || !profile) return;
     
     const dislikes = profile.food_preferences?.dislikes || [];
     if (!dislikes.includes(newDislike)) {
-      setProfile({
+      const updatedProfile = {
         ...profile,
         food_preferences: {
           dislikes: [...dislikes, newDislike],
           allergies: profile.food_preferences?.allergies || []
         }
-      });
+      };
+      
+      setProfile(updatedProfile);
+      
+      // データベースに即座に保存
+      try {
+        const { error } = await supabase
+          .from('profiles')
+          .update({ food_preferences: updatedProfile.food_preferences })
+          .eq('id', profile.id);
+        
+        if (error) {
+          console.error('食事の好み保存エラー:', error);
+          alert('食事の好みの保存に失敗しました');
+        }
+      } catch (error) {
+        console.error('食事の好み保存エラー:', error);
+        alert('食事の好みの保存に失敗しました');
+      }
     }
     setNewDislike("");
   };
 
-  const removeDislike = (dislike: string) => {
+  const removeDislike = async (dislike: string) => {
     if (!profile) return;
     
     const dislikes = profile.food_preferences?.dislikes || [];
-    setProfile({
+    const updatedProfile = {
       ...profile,
       food_preferences: {
         dislikes: dislikes.filter(d => d !== dislike),
         allergies: profile.food_preferences?.allergies || []
       }
-    });
+    };
+    
+    setProfile(updatedProfile);
+    
+    // データベースに即座に保存
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ food_preferences: updatedProfile.food_preferences })
+        .eq('id', profile.id);
+      
+      if (error) {
+        console.error('食事の好み削除エラー:', error);
+        alert('食事の好みの削除に失敗しました');
+      }
+    } catch (error) {
+      console.error('食事の好み削除エラー:', error);
+      alert('食事の好みの削除に失敗しました');
+    }
   };
 
-  const addAllergy = () => {
+  const addAllergy = async () => {
     if (!newAllergy?.trim() || !profile) return;
     
     const allergies = profile.food_preferences?.allergies || [];
     if (!allergies.includes(newAllergy)) {
-      setProfile({
+      const updatedProfile = {
         ...profile,
         food_preferences: {
           dislikes: profile.food_preferences?.dislikes || [],
           allergies: [...allergies, newAllergy]
         }
-      });
+      };
+      
+      setProfile(updatedProfile);
+      
+      // データベースに即座に保存
+      try {
+        const { error } = await supabase
+          .from('profiles')
+          .update({ food_preferences: updatedProfile.food_preferences })
+          .eq('id', profile.id);
+        
+        if (error) {
+          console.error('アレルギー保存エラー:', error);
+          alert('アレルギーの保存に失敗しました');
+        }
+      } catch (error) {
+        console.error('アレルギー保存エラー:', error);
+        alert('アレルギーの保存に失敗しました');
+      }
     }
     setNewAllergy("");
   };
 
-  const removeAllergy = (allergy: string) => {
+  const removeAllergy = async (allergy: string) => {
     if (!profile) return;
     
     const allergies = profile.food_preferences?.allergies || [];
-    setProfile({
+    const updatedProfile = {
       ...profile,
       food_preferences: {
         dislikes: profile.food_preferences?.dislikes || [],
         allergies: allergies.filter(a => a !== allergy)
       }
-    });
+    };
+    
+    setProfile(updatedProfile);
+    
+    // データベースに即座に保存
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ food_preferences: updatedProfile.food_preferences })
+        .eq('id', profile.id);
+      
+      if (error) {
+        console.error('アレルギー削除エラー:', error);
+        alert('アレルギーの削除に失敗しました');
+      }
+    } catch (error) {
+      console.error('アレルギー削除エラー:', error);
+      alert('アレルギーの削除に失敗しました');
+    }
   };
 
   if (isLoading) {
