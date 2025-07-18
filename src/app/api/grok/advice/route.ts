@@ -18,10 +18,27 @@ function cleanupCache() {
 setInterval(cleanupCache, 10 * 60 * 1000);
 
 // 高速なフォールバックレスポンス生成
-function createFallbackResponse() {
+function createFallbackResponse(userProfile?: any, dailyData?: any) {
+  let mealAdvice = "今日も健康的な食事を心がけましょう。";
+  let exerciseAdvice = "適度な運動を取り入れてください。";
+  
+  // ユーザープロファイルがある場合は少しカスタマイズ
+  if (userProfile) {
+    if (userProfile.goal_type === 'diet') {
+      mealAdvice = "ダイエット中は野菜を多めに、炭水化物を控えめにしましょう。\n\n具体的には、朝食にサラダと卵、昼食は鶏胸肉と野菜、夕食は魚と野菜を中心に。間食はナッツやヨーグルトを選び、水分も十分に摂りましょう。";
+      exerciseAdvice = "ウォーキングや軽い筋トレで代謝を上げましょう。\n\n毎日30分のウォーキング、週3回の筋トレ（スクワット、プッシュアップ、プランク）を習慣に。階段を使う、一駅分歩くなど、日常生活でも運動量を増やしましょう。";
+    } else if (userProfile.goal_type === 'bulk-up') {
+      mealAdvice = "筋肉をつけるためにタンパク質を多めに摂りましょう。\n\n朝食にプロテインシェイク、昼食は鶏胸肉や牛肉、夕食は魚や豆腐を中心に。間食にナッツやチーズ、運動後はプロテインを摂取。炭水化物も適度に摂ってエネルギーを確保しましょう。";
+      exerciseAdvice = "筋トレを中心に、有酸素運動も取り入れましょう。\n\n週4回の筋トレ（胸、背中、脚、肩をローテーション）、各部位8-12回×3セット。有酸素運動は週2回30分程度。十分な休息と栄養補給で筋肉の成長をサポートしましょう。";
+    } else {
+      mealAdvice = "バランスの良い食事で健康を維持しましょう。\n\n野菜、タンパク質、炭水化物をバランスよく摂取。朝食はしっかりと、昼食は適度に、夕食は軽めに。間食は果物やナッツを選び、水分補給も忘れずに。";
+      exerciseAdvice = "週3回程度の運動で体力を維持しましょう。\n\nウォーキング、ジョギング、サイクリングなどの有酸素運動を30分程度。筋トレも週2回取り入れて、全身の筋肉をバランスよく鍛えましょう。";
+    }
+  }
+  
   return {
-    meal_advice: "今日も健康的な食事を心がけましょう。",
-    exercise_advice: "適度な運動を取り入れてください。"
+    meal_advice: mealAdvice,
+    exercise_advice: exerciseAdvice
   };
 }
 
@@ -53,7 +70,7 @@ async function callGeminiAPI(prompt: string, retryCount = 0): Promise<any> {
           ],
           generationConfig: {
             temperature: 0.3, // 創造性を少し上げてより具体的なアドバイスを生成
-            maxOutputTokens: 500, // より詳細なアドバイスを生成できるように増加
+            maxOutputTokens: 800, // より詳細なアドバイスを生成できるように増加
             topP: 0.8,
             topK: 25,
             candidateCount: 1 // 候補数を1に制限
@@ -107,6 +124,7 @@ async function callGeminiAPI(prompt: string, retryCount = 0): Promise<any> {
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.log('JSONレスポンスが見つかりません。内容:', content);
+      // 内容から部分的な情報を抽出してフォールバックを改善
       const fallbackResponse = createFallbackResponse();
       console.log('フォールバックレスポンスを使用:', fallbackResponse);
       return fallbackResponse;
@@ -216,7 +234,7 @@ export async function POST(request: NextRequest) {
     const prompt = `ユーザー情報に基づき、具体的で実践的な食事と運動のアドバイスを日本語で生成してください。
 
 以下のJSON形式で出力してください：
-{\"meal_advice\": \"食事アドバイス（200文字程度、段落分けして具体的に）\", \"exercise_advice\": \"運動アドバイス（200文字程度、段落分けして具体的に）\"}
+{\"meal_advice\": \"食事アドバイス（300文字程度、段落分けして具体的に）\", \"exercise_advice\": \"運動アドバイス（300文字程度、段落分けして具体的に）\"}
 
 ユーザー情報: ${userProfile.username}, ${userProfile.gender}, ${userProfile.height_cm}cm, ${userProfile.initial_weight_kg}kg→${userProfile.target_weight_kg}kg, 目標:${userProfile.goal_type}, 目標カロリー:${Math.round(targetCalories)}kcal
 ${foodPreferencesText ? `${foodPreferencesText}` : ''}
@@ -227,7 +245,8 @@ ${dailyData ? `今日の摂取: ${dailyData.total_calories || 0}kcal (目標と�
 - 運動: 具体的な運動種目、時間、頻度を提案する。段落分けして読みやすくする
 - 食事の好みがある場合は、それらを自然に考慮した提案をする（明示的に「避けてください」とは言わない）
 - ユーザーの目標に合わせた実践的なアドバイスを提供する
-- 各アドバイスは200文字程度で、具体的で実行しやすい内容にする`;
+- 各アドバイスは300文字程度で、具体的で実行しやすい内容にする
+- 要約表示用に40-60文字程度の簡潔なアドバイスも含める`;
 
     console.log('GEMINI_API_KEY設定確認:', process.env.GEMINI_API_KEY ? '設定済み' : '未設定');
     
@@ -245,23 +264,32 @@ ${dailyData ? `今日の摂取: ${dailyData.total_calories || 0}kcal (目標と�
     } catch (apiError: any) {
       console.error('Gemini API最終エラー:', apiError);
 
+      // エラーが発生した場合はフォールバックレスポンスを使用
+      const fallbackResponse = createFallbackResponse(userProfile, dailyData);
+      
+      // キャッシュに保存（フォールバックでもキャッシュする）
+      adviceCache.set(cacheKey, {
+        data: fallbackResponse,
+        timestamp: Date.now()
+      });
+      
       // 503エラーの場合は特別なメッセージを返す
       if (apiError.message.includes('503')) {
         return NextResponse.json(
           { 
-            error: 'Gemini APIが一時的に過負荷状態です。しばらく時間をおいて再度お試しください。',
-            fallback: {
-          meal_advice: "今日も健康的な食事を心がけましょう。", 
-          exercise_advice: "適度な運動を取り入れてください。" 
-            }
+            error: 'Gemini APIが一時的に過負荷状態です。フォールバックアドバイスを表示します。',
+            fallback: fallbackResponse
           },
           { status: 503 }
         );
       }
       
-      // その他のエラー
+      // その他のエラーでもフォールバックレスポンスを返す
       return NextResponse.json(
-        { error: apiError.message },
+        { 
+          error: 'AIアドバイスの生成に失敗しました。フォールバックアドバイスを表示します。',
+          fallback: fallbackResponse
+        },
         { status: 500 }
       );
     }

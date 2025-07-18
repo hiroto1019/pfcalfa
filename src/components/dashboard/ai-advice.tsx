@@ -201,8 +201,10 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
                       <div className="whitespace-pre-line">
                         {advice.meal_advice}
                       </div>
-                    ) : advice.meal_advice.length > 50 ? 
-                      `${advice.meal_advice.substring(0, 50)}...` : advice.meal_advice}
+                    ) : (
+                      // 要約表示: 全ての文字を表示（40-60文字程度の簡潔な要約）
+                      advice.meal_advice
+                    )}
                   </p>
                 </div>
                 <div>
@@ -212,22 +214,22 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
                       <div className="whitespace-pre-line">
                         {advice.exercise_advice}
                       </div>
-                    ) : advice.exercise_advice.length > 50 ? 
-                      `${advice.exercise_advice.substring(0, 50)}...` : advice.exercise_advice}
+                    ) : (
+                      // 要約表示: 全ての文字を表示（40-60文字程度の簡潔な要約）
+                      advice.exercise_advice
+                    )}
                   </p>
                 </div>
                 
-                {/* 詳細表示切り替えボタン */}
-                {(advice.meal_advice.length > 50 || advice.exercise_advice.length > 50) && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowDetails(!showDetails)}
-                    className="w-full mt-2"
-                  >
-                    {showDetails ? "要約を表示" : "詳細を見る"}
-                  </Button>
-                )}
+                {/* 詳細表示切り替えボタン - 常に表示 */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowDetails(!showDetails)}
+                  className="w-full mt-2"
+                >
+                  {showDetails ? "要約を表示" : "詳細を見る"}
+                </Button>
               </div>
               
               <div className="text-xs text-gray-400 mt-2">※前回生成したアドバイスを表示中</div>
