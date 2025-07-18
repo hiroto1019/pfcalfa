@@ -52,10 +52,10 @@ async function callGeminiAPI(prompt: string, retryCount = 0): Promise<any> {
             }
           ],
           generationConfig: {
-            temperature: 0.2, // 適度な温度で創造性を保ちつつ一貫性を向上
-            maxOutputTokens: 200, // 出力トークンを制限して高速化
-            topP: 0.7,
-            topK: 20,
+            temperature: 0.3, // 創造性を少し上げてより具体的なアドバイスを生成
+            maxOutputTokens: 500, // より詳細なアドバイスを生成できるように増加
+            topP: 0.8,
+            topK: 25,
             candidateCount: 1 // 候補数を1に制限
           }
         }),
@@ -209,19 +209,24 @@ export async function POST(request: NextRequest) {
     const dislikes = userProfile.food_preferences?.dislikes || [];
     const allergies = userProfile.food_preferences?.allergies || [];
     const foodPreferencesText = dislikes.length > 0 || allergies.length > 0 
-      ? `嫌いな食べ物: ${dislikes.join(', ') || 'なし'}, アレルギー: ${allergies.join(', ') || 'なし'}` 
+      ? `食事の好み: 嫌いな食べ物(${dislikes.join(', ') || 'なし'}), アレルギー(${allergies.join(', ') || 'なし'})` 
       : '';
 
-    // プロンプトを最適化（食事の好みを含む）
-    const prompt = `ユーザー情報に基づき、食事と運動のアドバイスを日本語で100文字以内で、以下のJSON形式で出力してください。
+    // より詳細で効果的なアドバイスを生成するプロンプト
+    const prompt = `ユーザー情報に基づき、具体的で実践的な食事と運動のアドバイスを日本語で生成してください。
 
-{\"meal_advice\": \"食事アドバイス\", \"exercise_advice\": \"運動アドバイス\"}
+以下のJSON形式で出力してください：
+{\"meal_advice\": \"食事アドバイス（具体的なメニューや食材を含む）\", \"exercise_advice\": \"運動アドバイス（具体的な運動や時間を含む）\"}
 
-ユーザー: ${userProfile.username}, ${userProfile.gender}, ${userProfile.height_cm}cm, ${userProfile.initial_weight_kg}kg→${userProfile.target_weight_kg}kg, 目標:${userProfile.goal_type}, カロリー:${Math.round(targetCalories)}kcal
+ユーザー情報: ${userProfile.username}, ${userProfile.gender}, ${userProfile.height_cm}cm, ${userProfile.initial_weight_kg}kg→${userProfile.target_weight_kg}kg, 目標:${userProfile.goal_type}, 目標カロリー:${Math.round(targetCalories)}kcal
 ${foodPreferencesText ? `${foodPreferencesText}` : ''}
-${dailyData ? `今日の摂取: ${dailyData.total_calories || 0}kcal` : ''}
+${dailyData ? `今日の摂取: ${dailyData.total_calories || 0}kcal (目標との差: ${Math.round(targetCalories - (dailyData.total_calories || 0))}kcal)` : ''}
 
-※食事アドバイスでは、嫌いな食べ物やアレルギー食材を避けたメニューを提案してください。`;
+アドバイスのポイント:
+- 食事: 具体的な食材やメニューを提案し、栄養バランスを考慮する
+- 運動: 具体的な運動種目、時間、頻度を提案する
+- 食事の好みがある場合は、それらを自然に考慮した提案をする（明示的に「避けてください」とは言わない）
+- ユーザーの目標に合わせた実践的なアドバイスを提供する`;
 
     console.log('GEMINI_API_KEY設定確認:', process.env.GEMINI_API_KEY ? '設定済み' : '未設定');
     

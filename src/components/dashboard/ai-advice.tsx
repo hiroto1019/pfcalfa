@@ -16,6 +16,7 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [dailyData, setDailyData] = useState<any>(null);
   const [canUpdate, setCanUpdate] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const supabase = createClient();
   const lastProfileHash = useRef<string | null>(null);
   const lastDailyHash = useRef<string | null>(null);
@@ -191,18 +192,36 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
             </div>
           ) : advice ? (
             <>
-              <div>
-                <h3 className="font-semibold text-green-700 mb-2">🍽️ 食事アドバイス</h3>
-                <p className="text-sm text-gray-700 leading-relaxed">
-                  {advice.meal_advice}
-                </p>
+              {/* 要約表示 */}
+              <div className="space-y-3">
+                <div>
+                  <h3 className="font-semibold text-green-700 mb-2">🍽️ 食事アドバイス</h3>
+                  <p className="text-sm text-gray-700 leading-relaxed">
+                    {showDetails ? advice.meal_advice : advice.meal_advice.length > 100 ? 
+                      `${advice.meal_advice.substring(0, 100)}...` : advice.meal_advice}
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-blue-700 mb-2">🏃‍♂️ 運動アドバイス</h3>
+                  <p className="text-sm text-gray-700 leading-relaxed">
+                    {showDetails ? advice.exercise_advice : advice.exercise_advice.length > 100 ? 
+                      `${advice.exercise_advice.substring(0, 100)}...` : advice.exercise_advice}
+                  </p>
+                </div>
+                
+                {/* 詳細表示切り替えボタン */}
+                {(advice.meal_advice.length > 100 || advice.exercise_advice.length > 100) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowDetails(!showDetails)}
+                    className="w-full mt-2"
+                  >
+                    {showDetails ? "要約を表示" : "詳細を見る"}
+                  </Button>
+                )}
               </div>
-              <div>
-                <h3 className="font-semibold text-blue-700 mb-2">🏃‍♂️ 運動アドバイス</h3>
-                <p className="text-sm text-gray-700 leading-relaxed">
-                  {advice.exercise_advice}
-                </p>
-              </div>
+              
               <div className="text-xs text-gray-400 mt-2">※前回生成したアドバイスを表示中</div>
             </>
           ) : (
