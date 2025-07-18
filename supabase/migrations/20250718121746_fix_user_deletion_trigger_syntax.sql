@@ -1,6 +1,10 @@
--- Supabase管理者画面でユーザーを削除した際に、関連データも自動削除されるトリガー
+-- 構文エラーを修正したユーザー削除トリガー関数
 
--- ユーザー削除時に関連データを削除する関数
+-- 既存のトリガーを削除
+DROP TRIGGER IF EXISTS on_auth_user_deleted ON auth.users;
+DROP FUNCTION IF EXISTS handle_user_deletion();
+
+-- 修正されたユーザー削除時に関連データを削除する関数
 CREATE OR REPLACE FUNCTION handle_user_deletion()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -38,8 +42,7 @@ END;
 $$;
 
 -- auth.usersテーブルにトリガーを設定
-DROP TRIGGER IF EXISTS on_auth_user_deleted ON auth.users;
 CREATE TRIGGER on_auth_user_deleted
   AFTER DELETE ON auth.users
   FOR EACH ROW
-  EXECUTE FUNCTION handle_user_deletion(); 
+  EXECUTE FUNCTION handle_user_deletion();
