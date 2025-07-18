@@ -26,9 +26,23 @@ serve(async (req) => {
       )
     }
 
-    // Supabaseクライアントを作成
+    // Supabaseクライアントを作成（サービスロールキーを使用）
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('環境変数が設定されていません:', { 
+        supabaseUrl: !!supabaseUrl, 
+        supabaseServiceKey: !!supabaseServiceKey 
+      })
+      return new Response(
+        JSON.stringify({ error: 'サーバー設定エラー' }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
@@ -37,7 +51,9 @@ serve(async (req) => {
       }
     })
 
-    // 1. 関連データを削除（CASCADEにより関連データも削除される）
+    console.log('ユーザー削除開始:', userId)
+
+    // 1. まず関連データを削除（CASCADEにより関連データも削除される）
     const { error: deleteDataError } = await supabase
       .from('profiles')
       .delete()
@@ -58,6 +74,8 @@ serve(async (req) => {
       )
     }
 
+    console.log('プロフィール削除完了')
+
     // 2. 食事記録を削除
     const { error: deleteMealsError } = await supabase
       .from('meals')
@@ -67,6 +85,8 @@ serve(async (req) => {
     if (deleteMealsError) {
       console.error('食事記録削除エラー:', deleteMealsError)
       // 食事記録の削除エラーは致命的ではないので続行
+    } else {
+      console.log('食事記録削除完了')
     }
 
     // 3. 日次サマリーを削除
@@ -78,6 +98,8 @@ serve(async (req) => {
     if (deleteSummariesError) {
       console.error('日次サマリー削除エラー:', deleteSummariesError)
       // 日次サマリーの削除エラーは致命的ではないので続行
+    } else {
+      console.log('日次サマリー削除完了')
     }
 
     // 4. 体重ログを削除
@@ -89,6 +111,8 @@ serve(async (req) => {
     if (deleteWeightLogsError) {
       console.error('体重ログ削除エラー:', deleteWeightLogsError)
       // 体重ログの削除エラーは致命的ではないので続行
+    } else {
+      console.log('体重ログ削除完了')
     }
 
     // 5. 活動ログを削除
@@ -100,6 +124,8 @@ serve(async (req) => {
     if (deleteActivityLogsError) {
       console.error('活動ログ削除エラー:', deleteActivityLogsError)
       // 活動ログの削除エラーは致命的ではないので続行
+    } else {
+      console.log('活動ログ削除完了')
     }
 
     // 6. 目標設定を削除
@@ -111,9 +137,12 @@ serve(async (req) => {
     if (deleteGoalsError) {
       console.error('目標設定削除エラー:', deleteGoalsError)
       // 目標設定の削除エラーは致命的ではないので続行
+    } else {
+      console.log('目標設定削除完了')
     }
 
     // 7. Authユーザーを削除（サービスロールキーを使用）
+    console.log('Authユーザー削除開始')
     const { error: deleteUserError } = await supabase.auth.admin.deleteUser(userId)
 
     if (deleteUserError) {
@@ -131,6 +160,8 @@ serve(async (req) => {
         }
       )
     }
+
+    console.log('Authユーザー削除完了')
 
     return new Response(
       JSON.stringify({ 
