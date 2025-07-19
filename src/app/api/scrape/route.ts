@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     // セキュリティチェック：許可されたドメインのみ
     const allowedDomains = [
       'www.slism.jp',
+      'calorie.slism.jp',
       'cookpad.com',
       'app.rakuten.co.jp',
       'recipe.rakuten.co.jp',
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     // 実際のスクレイピング処理
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒タイムアウト
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15秒タイムアウト（楽天市場対応）
 
     const response = await fetch(url, {
       headers: {
