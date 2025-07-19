@@ -77,7 +77,7 @@ export function DashboardGrid({ profile }: { profile: any }) {
   );
 
   return (
-    <main className="grid flex-1 grid-cols-1 md:grid-cols-3 gap-4 h-full overflow-y-auto">
+    <main className="grid flex-1 grid-cols-1 md:grid-cols-3 gap-4 p-4 min-h-0">
       {/* Top Row */}
       <AiAdvice />
       <CalorieSummary idealCalories={idealCalories ?? 0} />

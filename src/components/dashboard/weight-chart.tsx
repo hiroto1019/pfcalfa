@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   LineChart,
   Line,
@@ -56,36 +56,42 @@ export function WeightChart({ profile, weightLogs, isLoading }: { profile: any; 
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader>
         <CardTitle className="text-base font-semibold">体重推移</CardTitle>
-        <div className="flex gap-2">
-          <Button size="sm" variant={timeRange === 'daily' ? 'default' : 'outline'} onClick={() => setTimeRange('daily')}>日別</Button>
-          <Button size="sm" variant={timeRange === 'weekly' ? 'default' : 'outline'} onClick={() => setTimeRange('weekly')}>週別</Button>
-          <Button size="sm" variant={timeRange === 'monthly' ? 'default' : 'outline'} onClick={() => setTimeRange('monthly')}>月別</Button>
-        </div>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <div className="flex items-center justify-center h-60">読み込み中...</div>
-        ) : (
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={formattedData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis domain={yDomain} width={30} />
-              <Tooltip />
-              <Line type="monotone" dataKey="weight_kg" name="体重 (kg)" stroke="#8884d8" />
-              {profile?.target_weight_kg && (
-                <ReferenceLine
-                  y={profile.target_weight_kg}
-                  label={{ value: '目標', position: 'insideTopLeft' }}
-                  stroke="red"
-                  strokeDasharray="3 3"
-                />
-              )}
-            </LineChart>
-          </ResponsiveContainer>
-        )}
+        <div className="w-full h-full flex flex-col">
+          <div className="flex justify-center mb-2">
+            <Tabs value={timeRange} onValueChange={(v) => setTimeRange(v as "daily"|"weekly"|"monthly")} className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="daily">日別</TabsTrigger>
+                <TabsTrigger value="weekly">週別</TabsTrigger>
+                <TabsTrigger value="monthly">月別</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+          {isLoading ? (
+            <div className="flex items-center justify-center h-60">読み込み中...</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={formattedData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis domain={yDomain} width={30} />
+                <Tooltip />
+                <Line type="monotone" dataKey="weight_kg" name="体重 (kg)" stroke="#8884d8" />
+                {profile?.target_weight_kg && (
+                  <ReferenceLine
+                    y={profile.target_weight_kg}
+                    label={{ value: '目標', position: 'insideTopLeft' }}
+                    stroke="red"
+                    strokeDasharray="3 3"
+                  />
+                )}
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
