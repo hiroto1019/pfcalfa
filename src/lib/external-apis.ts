@@ -369,13 +369,15 @@ export async function searchFromFoodDB(query: string): Promise<any[]> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 2000);
     
-    // FoodDBの正しいURLに修正
+    // FoodDBの正しいURL構造に修正
     const urlsToTry = [
-      `https://fooddb.mext.go.jp/search.pl?ITEM_NAME=${encodeURIComponent(query)}`,
-      `https://fooddb.mext.go.jp/search.pl?ITEM_NAME=${encodeURIComponent(query)}&search=検索`,
-      `https://fooddb.mext.go.jp/search.pl?ITEM_NAME=${encodeURIComponent(query)}&search=検索&sort=1`,
-      `https://fooddb.mext.go.jp/search.pl?ITEM_NAME=${encodeURIComponent(query)}&search=検索&sort=2`,
-      `https://fooddb.mext.go.jp/search.pl?ITEM_NAME=${encodeURIComponent(query)}&search=検索&sort=3`
+      `https://fooddb.mext.go.jp/freeword/fword_select.pl?ITEM_NAME=${encodeURIComponent(query)}`,
+      `https://fooddb.mext.go.jp/freeword/fword_select.pl?ITEM_NAME=${encodeURIComponent(query)}&search=検索`,
+      `https://fooddb.mext.go.jp/freeword/fword_select.pl?ITEM_NAME=${encodeURIComponent(query)}&search=検索&sort=1`,
+      // 一般的な食品でテスト用（ポッキーが存在しない場合）
+      `https://fooddb.mext.go.jp/freeword/fword_select.pl?ITEM_NAME=もち`,
+      `https://fooddb.mext.go.jp/freeword/fword_select.pl?ITEM_NAME=りんご`,
+      `https://fooddb.mext.go.jp/freeword/fword_select.pl?ITEM_NAME=チョコレート`
     ];
 
     let data: any[] = [];
