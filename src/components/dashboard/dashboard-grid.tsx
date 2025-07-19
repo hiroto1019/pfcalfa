@@ -188,7 +188,7 @@ export function DashboardGrid({ profile }: { profile: any }) {
   }
 
   return (
-    <main className="grid flex-1 grid-cols-1 md:grid-cols-3 gap-4 p-4 min-h-0">
+    <main className="grid flex-1 grid-cols-1 md:grid-cols-3 gap-4 p-4 pb-8 min-h-0">
       {/* AIアドバイス - SP: 1番目, PC: 1番目 */}
       <div className="order-1 md:order-1 md:h-full">
         <div className="h-full">
@@ -231,14 +231,14 @@ export function DashboardGrid({ profile }: { profile: any }) {
       
       {/* 体重推移 - SP: 5番目, PC: 6番目 */}
       <div className="order-5 md:order-6 md:h-full">
-        <div className="h-full">
+        <div className="h-full mb-4">
           <WeightChart key={`weight-chart-${refreshKey}`} profile={profile} weightLogs={weightLogs} isLoading={isLoading} />
         </div>
       </div>
       
       {/* 履歴 - SP: 6番目, PC: 4番目 */}
       <div className="order-6 md:order-4 md:h-full">
-        <div className="h-full">
+        <div className="h-full mb-4">
           <HistoryCard key={`history-${refreshKey}`} />
         </div>
       </div>
