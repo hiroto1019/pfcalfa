@@ -33,7 +33,7 @@ export function MealRecordModal() {
     fat: "",
     carbs: ""
   });
-  const [isCorrectedByUser, setIsCorrectedByUser] = useState(false);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -317,55 +317,10 @@ export function MealRecordModal() {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     
-    // ユーザーが食品名を修正した場合
-    if (name === 'food_name' && nutritionData && value !== nutritionData.food_name) {
-      setIsCorrectedByUser(true);
-    }
+
   };
 
-  const handleFoodNameCorrection = async () => {
-    if (!formData.food_name || !isCorrectedByUser) return;
 
-    setIsAnalyzing(true);
-    try {
-      // まず食品データベースから検索
-      const foodData = findFoodByName(formData.food_name);
-      if (foodData) {
-        setNutritionData({
-          food_name: foodData.name,
-          calories: foodData.calories,
-          protein: foodData.protein,
-          fat: foodData.fat,
-          carbs: foodData.carbs
-        });
-        setFormData(prev => ({
-          ...prev,
-          calories: foodData.calories.toString(),
-          protein: foodData.protein.toString(),
-          fat: foodData.fat.toString(),
-          carbs: foodData.carbs.toString()
-        }));
-        setIsCorrectedByUser(false);
-        return;
-      }
-
-      // データベースにない場合はAI解析
-      const result = await analyzeTextNutrition(formData.food_name);
-      setNutritionData(result);
-      setFormData(prev => ({
-        ...prev,
-        calories: result.calories.toString(),
-        protein: result.protein.toString(),
-        fat: result.fat.toString(),
-        carbs: result.carbs.toString()
-      }));
-      setIsCorrectedByUser(false);
-    } catch (error) {
-      console.error('再解析エラー:', error);
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
 
   // 外部API検索機能
   const handleFoodSelect = (food: any) => {
@@ -393,7 +348,6 @@ export function MealRecordModal() {
     });
     setSelectedFood(null);
     setSearchQuery("");
-    setIsCorrectedByUser(true);
   };
 
   // 過去履歴から選択
@@ -415,7 +369,7 @@ export function MealRecordModal() {
     setHistoryResults([]);
     setHistoryQuery("");
     setShowHistory(false);
-    setIsCorrectedByUser(true);
+
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -445,7 +399,7 @@ export function MealRecordModal() {
         protein: parseFloat(formData.protein),
         fat: parseFloat(formData.fat),
         carbs: parseFloat(formData.carbs),
-        is_corrected_by_user: isCorrectedByUser
+        is_corrected_by_user: false
       };
 
       console.log('保存する食事データ:', mealData);
@@ -581,7 +535,6 @@ export function MealRecordModal() {
       setHistoryResults([]);
       setShowHistory(false);
       setTextInput("");
-      setIsCorrectedByUser(false);
       setAnalysisMethod(null);
       setImageErrorMessage("");
       setTextErrorMessage("");
@@ -907,17 +860,7 @@ export function MealRecordModal() {
               placeholder="食品名を入力"
             />
             
-            {isCorrectedByUser && (
-              <Button 
-                type="button" 
-                onClick={handleFoodNameCorrection}
-                disabled={isAnalyzing}
-                size="sm"
-                className="mt-1"
-              >
-                {isAnalyzing ? "再解析中..." : "再解析"}
-              </Button>
-            )}
+
           </div>
         </div>
         
@@ -1016,7 +959,6 @@ export function MealRecordModal() {
                 });
                 setSearchQuery("");
                 setSelectedFood(null);
-                setIsCorrectedByUser(false);
                 setImageErrorMessage("");
                 setTextErrorMessage("");
               }}
