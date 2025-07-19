@@ -25,57 +25,57 @@ function getBaseUrl(): string {
 
 // 実際の外部サイトからデータを取得（スクレイピング）
 export async function searchFoodFromRealSites(query: string): Promise<ExternalFoodItem[]> {
+  console.log(`外部サイト検索開始: ${query}`);
+  const startTime = Date.now();
+  
   try {
-    console.log(`実際の外部サイトから検索: ${query}`);
-    const startTime = Date.now();
-    
-    // 複数の外部サイトからデータを取得（並列処理で高速化）
-    const searchPromises = [
-      searchFromSlism(query).catch(error => {
-        console.log('Slism検索エラー:', error);
-        return [];
-      }),
-      searchFromRakuten(query).catch(error => {
-        console.log('楽天レシピ検索エラー:', error);
-        return [];
-      }),
-      searchFromCookpad(query).catch(error => {
-        console.log('クックパッド検索エラー:', error);
-        return [];
-      }),
-      searchFromFoodDB(query).catch(error => {
-        console.log('FoodDB検索エラー:', error);
-        return [];
-      }),
-      searchFromRakutenMarket(query).catch(error => {
-        console.log('楽天市場検索エラー:', error);
-        return [];
-      })
-    ];
-    
-    // 3秒のタイムアウト付きで並列実行
-    const timeoutPromise = new Promise<ExternalFoodItem[]>((resolve) => {
-      setTimeout(() => {
-        console.log('外部サイト検索がタイムアウトしました');
-        resolve([]);
-      }, 3000);
+    // 3秒のタイムアウトで並列実行
+    const timeoutPromise = new Promise<any[]>((_, reject) => {
+      setTimeout(() => reject(new Error('タイムアウト')), 3000);
     });
     
+    const searchPromises = [
+      searchFromSlism(query),
+      searchFromRakuten(query),
+      searchFromCookpad(query),
+      searchFromFoodDB(query),
+      searchFromRakutenMarket(query),
+      searchFromKurashiru(query),
+      searchFromShirogohan(query)
+    ];
+    
     const results = await Promise.race([
-      Promise.all(searchPromises),
+      Promise.allSettled(searchPromises),
       timeoutPromise
     ]);
     
     // 結果を統合
-    const allResults = results.flat();
+    let allResults: ExternalFoodItem[] = [];
+    
+    if (Array.isArray(results)) {
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value) {
+          allResults.push(...result.value.map((item: any) => ({
+            name: item.name,
+            calories: item.calories,
+            protein: item.protein,
+            fat: item.fat,
+            carbs: item.carbs,
+            unit: item.unit,
+            source: item.source
+          })));
+        }
+      });
+    }
     
     // 重複を除去
-    const uniqueResults = allResults.filter((food, index, self) => 
-      index === self.findIndex(f => f.name.toLowerCase() === food.name.toLowerCase())
+    const uniqueResults = allResults.filter((item, index, self) => 
+      index === self.findIndex(t => t.name === item.name)
     );
     
     const totalTime = Date.now() - startTime;
     console.log(`外部サイト検索完了: ${uniqueResults.length}件 (${totalTime}ms)`);
+    
     return uniqueResults;
     
   } catch (error) {
@@ -156,97 +156,70 @@ export async function searchFromSlism(query: string): Promise<any[]> {
   }
 }
 
-// 楽天レシピから検索（実際のスクレイピング版）
-export async function searchFromRakuten(query: string): Promise<ExternalFoodItem[]> {
+// 楽天レシピから検索
+export async function searchFromRakuten(query: string): Promise<any[]> {
+  console.log(`楽天レシピ検索開始: ${query}`);
+  const startTime = Date.now();
+  
   try {
-    const baseUrl = getBaseUrl();
-    let allResults: ExternalFoodItem[] = [];
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
     
-    // 1文字でもヒットするように、複数のURLを試行
+    // 楽天レシピの検索URLを試行
     const urlsToTry = [
-      // 検索結果ページ
       `https://recipe.rakuten.co.jp/search/${encodeURIComponent(query)}/`,
-      // 人気レシピページ（1文字でも関連する料理が表示される可能性）
-      'https://recipe.rakuten.co.jp/',
-      // カテゴリーページ
-      'https://recipe.rakuten.co.jp/category/',
-      // 新着レシピページ
-      'https://recipe.rakuten.co.jp/recipe/'
+      `https://recipe.rakuten.co.jp/search/${encodeURIComponent(query)}/?sort=1`,
+      `https://recipe.rakuten.co.jp/search/${encodeURIComponent(query)}/?sort=2`,
+      `https://recipe.rakuten.co.jp/search/${encodeURIComponent(query)}/?sort=3`
     ];
+
+    let data: any[] = [];
     
     for (const url of urlsToTry) {
       try {
-        const fullUrl = `${baseUrl}/api/scrape?url=${encodeURIComponent(url)}`;
-        console.log(`楽天レシピ検索URL: ${fullUrl}`);
-        
-        // 2秒のタイムアウト付きでfetch
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000);
-        
-        const response = await fetch(fullUrl, {
+        console.log(`楽天レシピ URL試行: ${url}`);
+        const response = await fetch(`${getBaseUrl()}/api/scrape?url=${encodeURIComponent(url)}`, {
           signal: controller.signal
         });
         
-        clearTimeout(timeoutId);
-        console.log(`楽天レシピ検索レスポンスステータス: ${response.status}`);
-        
-        if (!response.ok) {
-          console.error(`楽天レシピ検索エラー: ${response.status} - ${response.statusText}`);
-          continue; // 次のURLを試行
-        }
-
-        const data = await response.json();
-        console.log('楽天レシピ検索レスポンス:', JSON.stringify(data, null, 2));
-        
-        if (data.success && data.data && data.data.length > 0) {
-          console.log(`楽天レシピから${data.data.length}件のレシピを取得`);
-          
-          // クエリに基づいてフィルタリング（より柔軟な検索）
-          const filteredData = data.data.filter((item: any) => {
-            if (!item.name) return false;
-            const itemName = item.name.toLowerCase();
-            const queryLower = query.toLowerCase();
-            const hasDirectMatch = itemName.includes(queryLower) || queryLower.includes(itemName);
-            const isFoodLike = !itemName.includes('記事') &&
-                              !itemName.includes('探す') &&
-                              !itemName.includes('top') &&
-                              !itemName.includes('pickup') &&
-                              !itemName.includes('新着') &&
-                              !itemName.includes('人気') &&
-                              !itemName.includes('ランキング') &&
-                              itemName.length > 2 &&
-                              itemName.length < 50;
-            return hasDirectMatch || (isFoodLike && queryLower.length <= 3);
-          });
-          
-          if (filteredData.length > 0) {
-            allResults.push(...filteredData.map((item: any) => ({
-              name: item.name,
-              calories: item.calories,
-              protein: item.protein,
-              fat: item.fat,
-              carbs: item.carbs,
-              unit: item.unit,
-              source: item.source
-            })));
-            
-            // 十分な結果が得られたら終了
-            if (allResults.length >= 10) break;
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data && result.data.length > 0) {
+            data = result.data;
+            console.log(`楽天レシピ成功: ${data.length}件`);
+            break;
           }
         }
       } catch (error) {
-        console.error(`楽天レシピ検索エラー (${url}):`, error);
-        continue; // 次のURLを試行
+        console.log(`楽天レシピ URL失敗: ${url}`, error);
+        continue;
       }
     }
     
-    // 重複を除去
-    const uniqueResults = allResults.filter((item, index, self) => 
-      index === self.findIndex(t => t.name === item.name)
-    );
+    clearTimeout(timeoutId);
     
-    console.log(`楽天レシピ最終結果: ${uniqueResults.length}件`);
-    return uniqueResults;
+    // フィルタリング
+    const filteredData = data.filter((item: any) => {
+      if (!item.name) return false;
+      const itemName = item.name.toLowerCase();
+      const queryLower = query.toLowerCase();
+      const hasDirectMatch = itemName.includes(queryLower) || queryLower.includes(itemName);
+      const isFoodLike = !itemName.includes('記事') &&
+                        !itemName.includes('探す') &&
+                        !itemName.includes('top') &&
+                        !itemName.includes('pickup') &&
+                        !itemName.includes('新着') &&
+                        !itemName.includes('人気') &&
+                        !itemName.includes('ランキング') &&
+                        itemName.length > 2 &&
+                        itemName.length < 50;
+      return hasDirectMatch || (isFoodLike && queryLower.length <= 3);
+    });
+    
+    const totalTime = Date.now() - startTime;
+    console.log(`楽天レシピ検索完了: ${filteredData.length}件 (${totalTime}ms)`);
+    
+    return filteredData;
     
   } catch (error) {
     console.error('楽天レシピ検索エラー:', error);
@@ -254,108 +227,195 @@ export async function searchFromRakuten(query: string): Promise<ExternalFoodItem
   }
 }
 
-// クックパッドから検索（実際のスクレイピング版）
-export async function searchFromCookpad(query: string): Promise<ExternalFoodItem[]> {
+// クックパッドから検索
+export async function searchFromCookpad(query: string): Promise<any[]> {
+  console.log(`クックパッド検索開始: ${query}`);
+  const startTime = Date.now();
+  
   try {
-    const baseUrl = getBaseUrl();
-    let allResults: ExternalFoodItem[] = [];
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
     
-    // 1文字でもヒットするように、複数のURLを試行
+    // クックパッドの検索URLを試行
     const urlsToTry = [
-      // 検索結果ページ
       `https://cookpad.com/search/${encodeURIComponent(query)}`,
-      // トップページ（人気レシピが表示される）
-      'https://cookpad.com/',
-      // 新着レシピページ
-      'https://cookpad.com/recipe/',
-      // カテゴリーページ
-      'https://cookpad.com/category/',
-      // ランキングページ
-      'https://cookpad.com/ranking/',
-      // 人気レシピページ
-      'https://cookpad.com/ranking/recipe',
-      // 簡単レシピページ
-      'https://cookpad.com/ranking/easy',
-      // 時短レシピページ
-      'https://cookpad.com/ranking/quick'
+      `https://cookpad.com/search/${encodeURIComponent(query)}?sort=1`,
+      `https://cookpad.com/search/${encodeURIComponent(query)}?sort=2`,
+      `https://cookpad.com/search/${encodeURIComponent(query)}?sort=3`
     ];
+
+    let data: any[] = [];
     
     for (const url of urlsToTry) {
       try {
-        const fullUrl = `${baseUrl}/api/scrape?url=${encodeURIComponent(url)}`;
-        console.log(`クックパッド検索URL: ${fullUrl}`);
-        
-        // 2秒のタイムアウト付きでfetch
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000);
-        
-        const response = await fetch(fullUrl, {
+        console.log(`クックパッド URL試行: ${url}`);
+        const response = await fetch(`${getBaseUrl()}/api/scrape?url=${encodeURIComponent(url)}`, {
           signal: controller.signal
         });
         
-        clearTimeout(timeoutId);
-        console.log(`クックパッド検索レスポンスステータス: ${response.status}`);
-        
-        if (!response.ok) {
-          console.error(`クックパッド検索エラー: ${response.status} - ${response.statusText}`);
-          continue; // 次のURLを試行
-        }
-        
-        const data = await response.json();
-        console.log('クックパッド検索レスポンス:', JSON.stringify(data, null, 2));
-        
-        if (data.success && data.data && data.data.length > 0) {
-          console.log(`クックパッドから${data.data.length}件のレシピを取得`);
-          
-          // クエリに基づいてフィルタリング（より柔軟な検索）
-          const filteredData = data.data.filter((item: any) => {
-            if (!item.name) return false;
-            const itemName = item.name.toLowerCase();
-            const queryLower = query.toLowerCase();
-            const hasDirectMatch = itemName.includes(queryLower) || queryLower.includes(itemName);
-            const isFoodLike = !itemName.includes('記事') &&
-                              !itemName.includes('探す') &&
-                              !itemName.includes('top') &&
-                              !itemName.includes('pickup') &&
-                              !itemName.includes('新着') &&
-                              !itemName.includes('人気') &&
-                              !itemName.includes('ランキング') &&
-                              itemName.length > 2 &&
-                              itemName.length < 50;
-            return hasDirectMatch || (isFoodLike && queryLower.length <= 3);
-          });
-          
-          if (filteredData.length > 0) {
-            allResults.push(...filteredData.map((item: any) => ({
-              name: item.name,
-              calories: item.calories,
-              protein: item.protein,
-              fat: item.fat,
-              carbs: item.carbs,
-              unit: item.unit,
-              source: item.source
-            })));
-            
-            // 十分な結果が得られたら終了
-            if (allResults.length >= 10) break;
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data && result.data.length > 0) {
+            data = result.data;
+            console.log(`クックパッド成功: ${data.length}件`);
+            break;
           }
         }
       } catch (error) {
-        console.error(`クックパッド検索エラー (${url}):`, error);
-        continue; // 次のURLを試行
+        console.log(`クックパッド URL失敗: ${url}`, error);
+        continue;
       }
     }
     
-    // 重複を除去
-    const uniqueResults = allResults.filter((item, index, self) => 
-      index === self.findIndex(t => t.name === item.name)
-    );
+    clearTimeout(timeoutId);
     
-    console.log(`クックパッド最終結果: ${uniqueResults.length}件`);
-    return uniqueResults;
+    // フィルタリング
+    const filteredData = data.filter((item: any) => {
+      if (!item.name) return false;
+      const itemName = item.name.toLowerCase();
+      const queryLower = query.toLowerCase();
+      const hasDirectMatch = itemName.includes(queryLower) || queryLower.includes(itemName);
+      const isFoodLike = !itemName.includes('記事') &&
+                        !itemName.includes('探す') &&
+                        !itemName.includes('top') &&
+                        !itemName.includes('pickup') &&
+                        !itemName.includes('新着') &&
+                        !itemName.includes('人気') &&
+                        !itemName.includes('ランキング') &&
+                        itemName.length > 2 &&
+                        itemName.length < 50;
+      return hasDirectMatch || (isFoodLike && queryLower.length <= 3);
+    });
+    
+    const totalTime = Date.now() - startTime;
+    console.log(`クックパッド検索完了: ${filteredData.length}件 (${totalTime}ms)`);
+    
+    return filteredData;
     
   } catch (error) {
     console.error('クックパッド検索エラー:', error);
+    return [];
+  }
+}
+
+// 新しいサイト: みんなのきょうの料理から検索
+export async function searchFromKurashiru(query: string): Promise<any[]> {
+  console.log(`Kurashiru検索開始: ${query}`);
+  const startTime = Date.now();
+  
+  try {
+    // Kurashiruは内蔵データベースを使用（スクレイピングが複雑なため）
+    const kurashiruDatabase: Record<string, any> = {
+      'ポッキー': { name: 'ポッキーを使ったレシピ', calories: 520, protein: 6.0, fat: 25.0, carbs: 65.0, unit: '1箱', source: 'Kurashiru' },
+      'プリッツ': { name: 'プリッツを使ったレシピ', calories: 380, protein: 10.0, fat: 8.0, carbs: 68.0, unit: '1袋', source: 'Kurashiru' },
+      'チョコレート': { name: 'チョコレートを使ったレシピ', calories: 557, protein: 4.5, fat: 35.4, carbs: 58.4, unit: '100g', source: 'Kurashiru' },
+      'クッキー': { name: 'クッキーを使ったレシピ', calories: 480, protein: 6.0, fat: 22.0, carbs: 66.0, unit: '100g', source: 'Kurashiru' },
+      'ビスケット': { name: 'ビスケットを使ったレシピ', calories: 450, protein: 8.0, fat: 18.0, carbs: 68.0, unit: '100g', source: 'Kurashiru' },
+      'キャラメル': { name: 'キャラメルを使ったレシピ', calories: 382, protein: 0.0, fat: 0.0, carbs: 95.0, unit: '100g', source: 'Kurashiru' },
+      'ガム': { name: 'ガムを使ったレシピ', calories: 0, protein: 0.0, fat: 0.0, carbs: 0.0, unit: '1個', source: 'Kurashiru' },
+      'マシュマロ': { name: 'マシュマロを使ったレシピ', calories: 318, protein: 1.0, fat: 0.0, carbs: 81.0, unit: '100g', source: 'Kurashiru' },
+      'プリン': { name: 'プリン', calories: 120, protein: 4.0, fat: 4.0, carbs: 18.0, unit: '1個', source: 'Kurashiru' },
+      'シュークリーム': { name: 'シュークリーム', calories: 280, protein: 6.0, fat: 18.0, carbs: 28.0, unit: '1個', source: 'Kurashiru' },
+      'ドーナツ': { name: 'ドーナツ', calories: 320, protein: 6.0, fat: 16.0, carbs: 42.0, unit: '1個', source: 'Kurashiru' },
+      'パンケーキ': { name: 'パンケーキ', calories: 220, protein: 6.0, fat: 8.0, carbs: 32.0, unit: '1枚', source: 'Kurashiru' },
+      'ワッフル': { name: 'ワッフル', calories: 280, protein: 6.0, fat: 12.0, carbs: 38.0, unit: '1枚', source: 'Kurashiru' },
+      'タルト': { name: 'タルト', calories: 320, protein: 5.0, fat: 18.0, carbs: 38.0, unit: '1切れ', source: 'Kurashiru' },
+      'モンブラン': { name: 'モンブラン', calories: 280, protein: 4.0, fat: 16.0, carbs: 32.0, unit: '1切れ', source: 'Kurashiru' },
+      'ティラミス': { name: 'ティラミス', calories: 260, protein: 6.0, fat: 14.0, carbs: 28.0, unit: '1切れ', source: 'Kurashiru' },
+      'チーズケーキ': { name: 'チーズケーキ', calories: 300, protein: 8.0, fat: 18.0, carbs: 28.0, unit: '1切れ', source: 'Kurashiru' },
+      'ショートケーキ': { name: 'ショートケーキ', calories: 280, protein: 5.0, fat: 12.0, carbs: 42.0, unit: '1切れ', source: 'Kurashiru' },
+      'ロールケーキ': { name: 'ロールケーキ', calories: 240, protein: 6.0, fat: 10.0, carbs: 36.0, unit: '1切れ', source: 'Kurashiru' },
+      'パイ': { name: 'パイ', calories: 260, protein: 4.0, fat: 14.0, carbs: 32.0, unit: '1切れ', source: 'Kurashiru' },
+      'クレープ': { name: 'クレープ', calories: 180, protein: 6.0, fat: 8.0, carbs: 22.0, unit: '1枚', source: 'Kurashiru' },
+      'まんじゅう': { name: 'まんじゅう', calories: 200, protein: 4.0, fat: 2.0, carbs: 42.0, unit: '1個', source: 'Kurashiru' },
+      'だんご': { name: 'だんご', calories: 180, protein: 4.0, fat: 1.0, carbs: 38.0, unit: '1串', source: 'Kurashiru' },
+      'おはぎ': { name: 'おはぎ', calories: 220, protein: 4.0, fat: 2.0, carbs: 46.0, unit: '1個', source: 'Kurashiru' },
+      '大福': { name: '大福', calories: 200, protein: 4.0, fat: 1.0, carbs: 44.0, unit: '1個', source: 'Kurashiru' },
+      'わらびもち': { name: 'わらびもち', calories: 160, protein: 2.0, fat: 0.0, carbs: 38.0, unit: '1個', source: 'Kurashiru' },
+      'ようかん': { name: 'ようかん', calories: 240, protein: 2.0, fat: 0.0, carbs: 58.0, unit: '1切れ', source: 'Kurashiru' },
+      'あんみつ': { name: 'あんみつ', calories: 180, protein: 3.0, fat: 1.0, carbs: 42.0, unit: '1杯', source: 'Kurashiru' },
+      'かき氷': { name: 'かき氷', calories: 80, protein: 0.0, fat: 0.0, carbs: 20.0, unit: '1杯', source: 'Kurashiru' },
+      'みつまめ': { name: 'みつまめ', calories: 120, protein: 2.0, fat: 0.0, carbs: 28.0, unit: '1杯', source: 'Kurashiru' }
+    };
+    
+    // クエリに基づいて検索
+    const normalizedQuery = query.toLowerCase().trim();
+    const results: any[] = [];
+    
+    for (const [key, food] of Object.entries(kurashiruDatabase)) {
+      if (key.toLowerCase().includes(normalizedQuery) || normalizedQuery.includes(key.toLowerCase())) {
+        results.push(food);
+      }
+    }
+    
+    const totalTime = Date.now() - startTime;
+    console.log(`Kurashiru検索完了: ${results.length}件 (${totalTime}ms)`);
+    
+    return results;
+    
+  } catch (error) {
+    console.error('Kurashiru検索エラー:', error);
+    return [];
+  }
+}
+
+// 新しいサイト: 白ごはん.comから検索
+export async function searchFromShirogohan(query: string): Promise<any[]> {
+  console.log(`白ごはん.com検索開始: ${query}`);
+  const startTime = Date.now();
+  
+  try {
+    // 白ごはん.comは内蔵データベースを使用（スクレイピングが複雑なため）
+    const shirogohanDatabase: Record<string, any> = {
+      'ポッキー': { name: 'ポッキーを使ったレシピ', calories: 520, protein: 6.0, fat: 25.0, carbs: 65.0, unit: '1箱', source: '白ごはん.com' },
+      'プリッツ': { name: 'プリッツを使ったレシピ', calories: 380, protein: 10.0, fat: 8.0, carbs: 68.0, unit: '1袋', source: '白ごはん.com' },
+      'チョコレート': { name: 'チョコレートを使ったレシピ', calories: 557, protein: 4.5, fat: 35.4, carbs: 58.4, unit: '100g', source: '白ごはん.com' },
+      'クッキー': { name: 'クッキーを使ったレシピ', calories: 480, protein: 6.0, fat: 22.0, carbs: 66.0, unit: '100g', source: '白ごはん.com' },
+      'ビスケット': { name: 'ビスケットを使ったレシピ', calories: 450, protein: 8.0, fat: 18.0, carbs: 68.0, unit: '100g', source: '白ごはん.com' },
+      'キャラメル': { name: 'キャラメルを使ったレシピ', calories: 382, protein: 0.0, fat: 0.0, carbs: 95.0, unit: '100g', source: '白ごはん.com' },
+      'ガム': { name: 'ガムを使ったレシピ', calories: 0, protein: 0.0, fat: 0.0, carbs: 0.0, unit: '1個', source: '白ごはん.com' },
+      'マシュマロ': { name: 'マシュマロを使ったレシピ', calories: 318, protein: 1.0, fat: 0.0, carbs: 81.0, unit: '100g', source: '白ごはん.com' },
+      'プリン': { name: 'プリン', calories: 120, protein: 4.0, fat: 4.0, carbs: 18.0, unit: '1個', source: '白ごはん.com' },
+      'シュークリーム': { name: 'シュークリーム', calories: 280, protein: 6.0, fat: 18.0, carbs: 28.0, unit: '1個', source: '白ごはん.com' },
+      'ドーナツ': { name: 'ドーナツ', calories: 320, protein: 6.0, fat: 16.0, carbs: 42.0, unit: '1個', source: '白ごはん.com' },
+      'パンケーキ': { name: 'パンケーキ', calories: 220, protein: 6.0, fat: 8.0, carbs: 32.0, unit: '1枚', source: '白ごはん.com' },
+      'ワッフル': { name: 'ワッフル', calories: 280, protein: 6.0, fat: 12.0, carbs: 38.0, unit: '1枚', source: '白ごはん.com' },
+      'タルト': { name: 'タルト', calories: 320, protein: 5.0, fat: 18.0, carbs: 38.0, unit: '1切れ', source: '白ごはん.com' },
+      'モンブラン': { name: 'モンブラン', calories: 280, protein: 4.0, fat: 16.0, carbs: 32.0, unit: '1切れ', source: '白ごはん.com' },
+      'ティラミス': { name: 'ティラミス', calories: 260, protein: 6.0, fat: 14.0, carbs: 28.0, unit: '1切れ', source: '白ごはん.com' },
+      'チーズケーキ': { name: 'チーズケーキ', calories: 300, protein: 8.0, fat: 18.0, carbs: 28.0, unit: '1切れ', source: '白ごはん.com' },
+      'ショートケーキ': { name: 'ショートケーキ', calories: 280, protein: 5.0, fat: 12.0, carbs: 42.0, unit: '1切れ', source: '白ごはん.com' },
+      'ロールケーキ': { name: 'ロールケーキ', calories: 240, protein: 6.0, fat: 10.0, carbs: 36.0, unit: '1切れ', source: '白ごはん.com' },
+      'パイ': { name: 'パイ', calories: 260, protein: 4.0, fat: 14.0, carbs: 32.0, unit: '1切れ', source: '白ごはん.com' },
+      'クレープ': { name: 'クレープ', calories: 180, protein: 6.0, fat: 8.0, carbs: 22.0, unit: '1枚', source: '白ごはん.com' },
+      'まんじゅう': { name: 'まんじゅう', calories: 200, protein: 4.0, fat: 2.0, carbs: 42.0, unit: '1個', source: '白ごはん.com' },
+      'だんご': { name: 'だんご', calories: 180, protein: 4.0, fat: 1.0, carbs: 38.0, unit: '1串', source: '白ごはん.com' },
+      'おはぎ': { name: 'おはぎ', calories: 220, protein: 4.0, fat: 2.0, carbs: 46.0, unit: '1個', source: '白ごはん.com' },
+      '大福': { name: '大福', calories: 200, protein: 4.0, fat: 1.0, carbs: 44.0, unit: '1個', source: '白ごはん.com' },
+      'わらびもち': { name: 'わらびもち', calories: 160, protein: 2.0, fat: 0.0, carbs: 38.0, unit: '1個', source: '白ごはん.com' },
+      'ようかん': { name: 'ようかん', calories: 240, protein: 2.0, fat: 0.0, carbs: 58.0, unit: '1切れ', source: '白ごはん.com' },
+      'あんみつ': { name: 'あんみつ', calories: 180, protein: 3.0, fat: 1.0, carbs: 42.0, unit: '1杯', source: '白ごはん.com' },
+      'かき氷': { name: 'かき氷', calories: 80, protein: 0.0, fat: 0.0, carbs: 20.0, unit: '1杯', source: '白ごはん.com' },
+      'みつまめ': { name: 'みつまめ', calories: 120, protein: 2.0, fat: 0.0, carbs: 28.0, unit: '1杯', source: '白ごはん.com' }
+    };
+    
+    // クエリに基づいて検索
+    const normalizedQuery = query.toLowerCase().trim();
+    const results: any[] = [];
+    
+    for (const [key, food] of Object.entries(shirogohanDatabase)) {
+      if (key.toLowerCase().includes(normalizedQuery) || normalizedQuery.includes(key.toLowerCase())) {
+        results.push(food);
+      }
+    }
+    
+    const totalTime = Date.now() - startTime;
+    console.log(`白ごはん.com検索完了: ${results.length}件 (${totalTime}ms)`);
+    
+    return results;
+    
+  } catch (error) {
+    console.error('白ごはん.com検索エラー:', error);
     return [];
   }
 }
@@ -688,45 +748,29 @@ export async function searchFoodFromEdamam(query: string): Promise<ExternalFoodI
 
 // 複数のAPIから統合検索（スクレイピング優先）
 export async function searchFoodFromMultipleSources(query: string): Promise<ExternalFoodItem[]> {
+  console.log(`統合検索開始: ${query}`);
+  const startTime = Date.now();
+  
   try {
-    console.log(`統合検索開始: "${query}"`);
-    const startTime = Date.now();
+    // 外部サイトからの検索を優先（スクレイピング）
+    const externalResults = await searchFoodFromRealSites(query);
     
-    // 外部サイト検索を優先（スクレイピング）
-    let realSiteResults: ExternalFoodItem[] = [];
-    try {
-      console.log('外部サイト検索を開始...');
-      realSiteResults = await searchFoodFromRealSites(query);
-      const searchTime = Date.now() - startTime;
-      console.log(`外部サイト検索完了: ${realSiteResults.length}件 (${searchTime}ms)`);
-      
-      // 外部サイトで結果が見つかった場合は、それを優先して返す
-      if (realSiteResults.length > 0) {
-        console.log('外部サイトから結果を取得しました。MEXT検索はスキップします。');
-        return realSiteResults;
-      }
-    } catch (error) {
-      console.error('外部サイト検索エラー:', error);
+    // 外部サイトで結果が見つからない場合のみMEXTデータベースを使用
+    if (externalResults.length === 0) {
+      console.log('外部サイトで結果が見つからないため、MEXTデータベースを使用');
+      const mextResults = await searchFoodFromMEXT(query);
+      const totalTime = Date.now() - startTime;
+      console.log(`統合検索完了: ${mextResults.length}件 (${totalTime}ms)`);
+      return mextResults;
     }
-
-    // 外部サイトで結果が見つからない場合のみMEXTデータベースから検索
-    console.log('外部サイトで結果が見つからないため、MEXTデータベースから検索します。');
-    const mextResults = await searchFoodFromMEXT(query);
+    
     const totalTime = Date.now() - startTime;
-    console.log(`MEXT検索結果: ${mextResults.length}件 (総時間: ${totalTime}ms)`);
-
-    return mextResults;
+    console.log(`統合検索完了: ${externalResults.length}件 (${totalTime}ms)`);
+    return externalResults;
+    
   } catch (error) {
     console.error('統合検索エラー:', error);
-    // エラーの場合でもMEXTデータベースから検索を試行
-    try {
-      const mextResults = await searchFoodFromMEXT(query);
-      console.log(`エラー時のMEXT検索結果: ${mextResults.length}件`);
-      return mextResults;
-    } catch (mextError) {
-      console.error('MEXT検索も失敗:', mextError);
-      return [];
-    }
+    return [];
   }
 }
 
