@@ -60,7 +60,7 @@ export function Dashboard({ profile }: { profile: any }) {
             </Link>
           </div>
         </header>
-        <div className="flex-1 overflow-hidden pb-6">
+        <div className="flex-1 overflow-hidden pb-4">
           <DashboardGrid profile={profile} />
         </div>
         

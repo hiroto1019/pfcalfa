@@ -231,14 +231,14 @@ export function DashboardGrid({ profile }: { profile: any }) {
       
       {/* 体重推移 - SP: 5番目, PC: 6番目 */}
       <div className="order-5 md:order-6 md:h-full">
-        <div className="h-full mb-4">
+        <div className="h-full">
           <WeightChart key={`weight-chart-${refreshKey}`} profile={profile} weightLogs={weightLogs} isLoading={isLoading} />
         </div>
       </div>
       
       {/* 履歴 - SP: 6番目, PC: 4番目 */}
       <div className="order-6 md:order-4 md:h-full">
-        <div className="h-full mb-4">
+        <div className="h-full">
           <HistoryCard key={`history-${refreshKey}`} />
         </div>
       </div>
