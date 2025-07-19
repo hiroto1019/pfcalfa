@@ -188,7 +188,7 @@ export function DashboardGrid({ profile }: { profile: any }) {
   }
 
   return (
-    <main className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 pb-6 pl-6 pr-6" style={{ paddingBottom: '0px' }}>
+    <main className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 pb-6 px-4 md:pl-6 md:pr-6" style={{ paddingBottom: '0px' }}>
       {/* AIアドバイス - SP: 1番目, PC: 1番目 */}
       <div className="order-1 md:order-1 h-full">
         <AiAdvice key={`ai-advice-${refreshKey}`} />

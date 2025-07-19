@@ -47,9 +47,10 @@ export function Dashboard({ profile }: { profile: any }) {
   };
 
   return (
-    <div className="bg-gray-50 relative pt-4 pb-4 px-8 flex items-center justify-center min-h-screen">
-      <div className="w-full max-w-screen-xl mx-auto bg-white rounded-xl shadow-lg flex flex-col pt-6 pb-8 px-6">
-        <header className="flex justify-between items-center mb-2 px-6">
+    <div className="bg-gray-50 relative pt-4 pb-4 px-2 md:px-8 flex items-center justify-center min-h-screen">
+      {/* PC時: 白いボックスで囲む, SP時: 直接表示 */}
+      <div className="w-full max-w-screen-xl mx-auto md:bg-white md:rounded-xl md:shadow-lg flex flex-col md:pt-6 md:pb-8 md:px-6">
+        <header className="flex justify-between items-center mb-2 px-4 md:px-6">
           <h1 className="text-2xl font-bold">ダッシュボード</h1>
           <div className="flex gap-2">
             <Link href="/settings">

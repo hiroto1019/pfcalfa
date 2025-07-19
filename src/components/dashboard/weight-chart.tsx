@@ -55,12 +55,12 @@ export function WeightChart({ profile, weightLogs, isLoading }: { profile: any; 
   ];
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="h-full flex flex-col min-h-[300px]">
       <CardHeader className="flex-shrink-0">
         <CardTitle className="text-base font-semibold">体重推移</CardTitle>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col">
-        <div className="w-full h-full flex flex-col">
+        <div className="w-full h-full flex flex-col min-h-[200px]">
           <div className="flex justify-center mb-2 flex-shrink-0">
             <Tabs value={timeRange} onValueChange={(v) => setTimeRange(v as "daily"|"weekly"|"monthly")} className="w-full">
               <TabsList className="grid w-full grid-cols-3">
