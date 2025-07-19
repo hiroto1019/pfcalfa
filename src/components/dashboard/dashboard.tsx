@@ -48,8 +48,8 @@ export function Dashboard({ profile }: { profile: any }) {
 
   return (
     <div className="bg-gray-50 relative py-8 flex items-center justify-center min-h-screen">
-      <div className="w-full max-w-screen-xl mx-auto bg-white rounded-xl shadow-lg flex flex-col p-4" style={{ margin: '0 16px' }}>
-        <header className="flex justify-between items-center mb-4">
+      <div className="w-full max-w-screen-xl mx-auto bg-white rounded-xl shadow-lg flex flex-col" style={{ margin: '0 16px' }}>
+        <header className="flex justify-between items-center mb-2 px-4">
           <h1 className="text-2xl font-bold">ダッシュボード</h1>
           <div className="flex gap-2">
             <Link href="/settings">
