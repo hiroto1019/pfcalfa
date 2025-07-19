@@ -410,8 +410,11 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
             variant={canUpdate ? "default" : "outline"}
             size="sm" 
             onClick={fetchAdvice}
-            disabled={isLoading || !isDataReady}
-            className={canUpdate ? "bg-black text-white hover:bg-gray-800" : ""}
+            disabled={isLoading || !isDataReady || !canUpdate}
+            className={canUpdate 
+              ? "bg-blue-600 text-white hover:bg-blue-700" 
+              : "text-gray-400 bg-gray-100 border-gray-200 cursor-not-allowed"
+            }
           >
             {isLoading ? "更新中..." : canUpdate ? "更新" : "最新"}
           </Button>
