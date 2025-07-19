@@ -85,60 +85,71 @@ export async function searchFoodFromRealSites(query: string): Promise<ExternalFo
 }
 
 // カロリーSlismから検索
-export async function searchFromSlism(query: string): Promise<ExternalFoodItem[]> {
+export async function searchFromSlism(query: string): Promise<any[]> {
+  console.log(`Slism検索開始: ${query}`);
+  const startTime = Date.now();
+  
   try {
-    // Slismの検索ページをスクレイピング
-    const searchUrl = `https://www.slism.jp/calorie/search/?keyword=${encodeURIComponent(query)}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
     
-    // 注意: 実際のスクレイピングはCORSの問題があるため、プロキシ経由で実行
-    const baseUrl = getBaseUrl();
-    const response = await fetch(`${baseUrl}/api/scrape?url=${encodeURIComponent(searchUrl)}`);
-    
-    if (!response.ok) {
-      throw new Error(`Slism検索エラー: ${response.status}`);
-    }
+    // Slismの正しい検索URLに修正
+    const urlsToTry = [
+      `https://calorie.slism.jp/?searchWord=${encodeURIComponent(query)}&search=検索`,
+      `https://calorie.slism.jp/?searchWord=${encodeURIComponent(query)}`,
+      `https://calorie.slism.jp/search/?searchWord=${encodeURIComponent(query)}`,
+      `https://calorie.slism.jp/search/?searchWord=${encodeURIComponent(query)}&search=検索`,
+      `https://www.slism.jp/?searchWord=${encodeURIComponent(query)}&search=検索`
+    ];
 
-    const data = await response.json();
+    let data: any[] = [];
     
-    // より実際的な食品データを返す
-    const slismDatabase: Record<string, ExternalFoodItem> = {
-      '麻婆豆腐': { name: '麻婆豆腐', calories: 380, protein: 22, fat: 20, carbs: 18, unit: '1人前', source: 'Slism' },
-      'カレー': { name: 'カレー', calories: 550, protein: 18, fat: 22, carbs: 70, unit: '1人前', source: 'Slism' },
-      'ラーメン': { name: 'ラーメン', calories: 480, protein: 16, fat: 20, carbs: 65, unit: '1人前', source: 'Slism' },
-      'うどん': { name: 'うどん', calories: 220, protein: 7, fat: 2, carbs: 42, unit: '1人前', source: 'Slism' },
-      'そば': { name: 'そば', calories: 190, protein: 9, fat: 1, carbs: 38, unit: '1人前', source: 'Slism' },
-      'ハンバーグ': { name: 'ハンバーグ', calories: 320, protein: 28, fat: 18, carbs: 12, unit: '1個(150g)', source: 'Slism' },
-      'とんかつ': { name: 'とんかつ', calories: 420, protein: 26, fat: 24, carbs: 22, unit: '1枚', source: 'Slism' },
-      '唐揚げ': { name: '唐揚げ', calories: 280, protein: 22, fat: 16, carbs: 18, unit: '1人前', source: 'Slism' },
-      '天ぷら': { name: '天ぷら', calories: 260, protein: 16, fat: 18, carbs: 20, unit: '1人前', source: 'Slism' },
-      '焼き魚': { name: '焼き魚', calories: 180, protein: 26, fat: 6, carbs: 4, unit: '1尾', source: 'Slism' },
-      '刺身': { name: '刺身', calories: 110, protein: 24, fat: 2, carbs: 1, unit: '1人前', source: 'Slism' },
-      'サラダ': { name: 'サラダ', calories: 85, protein: 4, fat: 3, carbs: 16, unit: '1人前', source: 'Slism' },
-      '味噌汁': { name: '味噌汁', calories: 95, protein: 6, fat: 4, carbs: 14, unit: '1杯', source: 'Slism' },
-      'ご飯': { name: 'ご飯', calories: 260, protein: 5, fat: 0, carbs: 57, unit: '1杯(150g)', source: 'Slism' },
-      '食パン': { name: '食パン', calories: 155, protein: 6, fat: 2, carbs: 29, unit: '1枚(6枚切り)', source: 'Slism' },
-      '卵': { name: '卵', calories: 82, protein: 7, fat: 6, carbs: 1, unit: '1個(60g)', source: 'Slism' },
-      '牛乳': { name: '牛乳', calories: 68, protein: 3, fat: 4, carbs: 5, unit: '100ml', source: 'Slism' },
-      '豆腐': { name: '豆腐', calories: 75, protein: 7, fat: 4, carbs: 2, unit: '100g', source: 'Slism' },
-      '納豆': { name: '納豆', calories: 195, protein: 17, fat: 10, carbs: 13, unit: '1パック(50g)', source: 'Slism' },
-      'りんご': { name: 'りんご', calories: 56, protein: 0, fat: 0, carbs: 15, unit: '1個(200g)', source: 'Slism' },
-      'バナナ': { name: 'バナナ', calories: 92, protein: 1, fat: 0, carbs: 23, unit: '1本(120g)', source: 'Slism' },
-      'ケーキ': { name: 'ケーキ', calories: 310, protein: 5, fat: 16, carbs: 42, unit: '1切れ', source: 'Slism' },
-      'アイスクリーム': { name: 'アイスクリーム', calories: 185, protein: 3, fat: 9, carbs: 26, unit: '1個', source: 'Slism' }
-    };
-    
-    // クエリに基づいて検索
-    const normalizedQuery = query.toLowerCase().trim();
-    const results: ExternalFoodItem[] = [];
-    
-    for (const [key, food] of Object.entries(slismDatabase)) {
-      if (key.toLowerCase().includes(normalizedQuery) || normalizedQuery.includes(key.toLowerCase())) {
-        results.push(food);
+    for (const url of urlsToTry) {
+      try {
+        console.log(`Slism URL試行: ${url}`);
+        const response = await fetch(`${getBaseUrl()}/api/scrape?url=${encodeURIComponent(url)}`, {
+          signal: controller.signal
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data && result.data.length > 0) {
+            data = result.data;
+            console.log(`Slism成功: ${data.length}件`);
+            break;
+          }
+        }
+      } catch (error) {
+        console.log(`Slism URL失敗: ${url}`, error);
+        continue;
       }
     }
     
-    console.log(`Slism検索結果: "${query}" -> ${results.length}件`);
-    return results;
+    clearTimeout(timeoutId);
+    
+    // フィルタリング
+    const filteredData = data.filter((item: any) => {
+      if (!item.name) return false;
+      const itemName = item.name.toLowerCase();
+      const queryLower = query.toLowerCase();
+      const hasDirectMatch = itemName.includes(queryLower) || queryLower.includes(itemName);
+      const isFoodLike = !itemName.includes('記事') &&
+                        !itemName.includes('探す') &&
+                        !itemName.includes('top') &&
+                        !itemName.includes('pickup') &&
+                        !itemName.includes('新着') &&
+                        !itemName.includes('人気') &&
+                        !itemName.includes('ランキング') &&
+                        itemName.length > 2 &&
+                        itemName.length < 50;
+      return hasDirectMatch || (isFoodLike && queryLower.length <= 3);
+    });
+    
+    const totalTime = Date.now() - startTime;
+    console.log(`Slism検索完了: ${filteredData.length}件 (${totalTime}ms)`);
+    
+    return filteredData;
+    
   } catch (error) {
     console.error('Slism検索エラー:', error);
     return [];
@@ -350,94 +361,70 @@ export async function searchFromCookpad(query: string): Promise<ExternalFoodItem
 }
 
 // FoodDB（食品成分データベース）から検索
-export async function searchFromFoodDB(query: string): Promise<ExternalFoodItem[]> {
+export async function searchFromFoodDB(query: string): Promise<any[]> {
+  console.log(`FoodDB検索開始: ${query}`);
+  const startTime = Date.now();
+  
   try {
-    const baseUrl = getBaseUrl();
-    let allResults: ExternalFoodItem[] = [];
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
     
-    // FoodDBの検索URLを試行
+    // FoodDBの正しいURLに修正
     const urlsToTry = [
       `https://fooddb.mext.go.jp/search.pl?ITEM_NAME=${encodeURIComponent(query)}`,
-      `https://fooddb.mext.go.jp/search.pl?ITEM_NAME=${encodeURIComponent(query)}&CATEGORY=1`,
-      'https://fooddb.mext.go.jp/',
-      // 食品成分データベースのトップページ
-      'https://fooddb.mext.go.jp/index.pl',
-      // 食品成分検索ページ
-      'https://fooddb.mext.go.jp/search.pl'
+      `https://fooddb.mext.go.jp/search.pl?ITEM_NAME=${encodeURIComponent(query)}&search=検索`,
+      `https://fooddb.mext.go.jp/search.pl?ITEM_NAME=${encodeURIComponent(query)}&search=検索&sort=1`,
+      `https://fooddb.mext.go.jp/search.pl?ITEM_NAME=${encodeURIComponent(query)}&search=検索&sort=2`,
+      `https://fooddb.mext.go.jp/search.pl?ITEM_NAME=${encodeURIComponent(query)}&search=検索&sort=3`
     ];
+
+    let data: any[] = [];
     
     for (const url of urlsToTry) {
       try {
-        const fullUrl = `${baseUrl}/api/scrape?url=${encodeURIComponent(url)}`;
-        console.log(`FoodDB検索URL: ${fullUrl}`);
-        
-        // 2秒のタイムアウト付きでfetch
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000);
-        
-        const response = await fetch(fullUrl, {
+        console.log(`FoodDB URL試行: ${url}`);
+        const response = await fetch(`${getBaseUrl()}/api/scrape?url=${encodeURIComponent(url)}`, {
           signal: controller.signal
         });
         
-        clearTimeout(timeoutId);
-        console.log(`FoodDB検索レスポンスステータス: ${response.status}`);
-        
-        if (!response.ok) {
-          console.error(`FoodDB検索エラー: ${response.status} - ${response.statusText}`);
-          continue;
-        }
-
-        const data = await response.json();
-        console.log('FoodDB検索レスポンス:', JSON.stringify(data, null, 2));
-        
-        if (data.success && data.data && data.data.length > 0) {
-          console.log(`FoodDBから${data.data.length}件の食品を取得`);
-          
-          // クエリに基づいてフィルタリング（より柔軟な検索）
-          const filteredData = data.data.filter((item: any) => {
-            if (!item.name) return false;
-            const itemName = item.name.toLowerCase();
-            const queryLower = query.toLowerCase();
-            const hasDirectMatch = itemName.includes(queryLower) || queryLower.includes(itemName);
-            const isFoodLike = !itemName.includes('記事') &&
-                              !itemName.includes('探す') &&
-                              !itemName.includes('top') &&
-                              !itemName.includes('pickup') &&
-                              !itemName.includes('新着') &&
-                              !itemName.includes('人気') &&
-                              !itemName.includes('ランキング') &&
-                              itemName.length > 2 &&
-                              itemName.length < 50;
-            return hasDirectMatch || (isFoodLike && queryLower.length <= 3);
-          });
-          
-          if (filteredData.length > 0) {
-            allResults.push(...filteredData.map((item: any) => ({
-              name: item.name,
-              calories: item.calories,
-              protein: item.protein,
-              fat: item.fat,
-              carbs: item.carbs,
-              unit: item.unit,
-              source: 'FoodDB'
-            })));
-            
-            if (allResults.length >= 10) break;
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data && result.data.length > 0) {
+            data = result.data;
+            console.log(`FoodDB成功: ${data.length}件`);
+            break;
           }
         }
       } catch (error) {
-        console.error(`FoodDB検索エラー (${url}):`, error);
+        console.log(`FoodDB URL失敗: ${url}`, error);
         continue;
       }
     }
     
-    // 重複を除去
-    const uniqueResults = allResults.filter((item, index, self) => 
-      index === self.findIndex(t => t.name === item.name)
-    );
+    clearTimeout(timeoutId);
     
-    console.log(`FoodDB最終結果: ${uniqueResults.length}件`);
-    return uniqueResults;
+    // フィルタリング
+    const filteredData = data.filter((item: any) => {
+      if (!item.name) return false;
+      const itemName = item.name.toLowerCase();
+      const queryLower = query.toLowerCase();
+      const hasDirectMatch = itemName.includes(queryLower) || queryLower.includes(itemName);
+      const isFoodLike = !itemName.includes('記事') &&
+                        !itemName.includes('探す') &&
+                        !itemName.includes('top') &&
+                        !itemName.includes('pickup') &&
+                        !itemName.includes('新着') &&
+                        !itemName.includes('人気') &&
+                        !itemName.includes('ランキング') &&
+                        itemName.length > 2 &&
+                        itemName.length < 50;
+      return hasDirectMatch || (isFoodLike && queryLower.length <= 3);
+    });
+    
+    const totalTime = Date.now() - startTime;
+    console.log(`FoodDB検索完了: ${filteredData.length}件 (${totalTime}ms)`);
+    
+    return filteredData;
     
   } catch (error) {
     console.error('FoodDB検索エラー:', error);

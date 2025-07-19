@@ -131,11 +131,11 @@ function extractDataFromHTML(html: string, hostname: string, originalUrl: string
     if (hostname.includes('cookpad.com')) {
       console.log('クックパッドのスクレイピング開始');
       
-      // より柔軟なアプローチ：recipeを含むクラスを持つ要素をすべて検索
-      $('[class*="recipe"]').each((index, element) => {
+      // クックパッドの新しい構造に対応
+      $('.recipe-preview, .recipe-card, .recipe-item, .search_result, [class*="recipe"]').each((index, element) => {
         const $el = $(element);
         
-        // タイトルの取得（より包括的なセレクタ）
+        // タイトルの取得（より具体的なセレクタ）
         const titleSelectors = [
           '.recipe-title', '.title', 'h3', 'h4', '.recipe_name', '.name',
           '.recipe-title a', '.title a', 'h3 a', 'h4 a',
@@ -147,7 +147,9 @@ function extractDataFromHTML(html: string, hostname: string, originalUrl: string
         let title = '';
         for (const titleSelector of titleSelectors) {
           title = $el.find(titleSelector).first().text().trim();
-          if (title && title.length > 2 && title.length < 100) break;
+          if (title && title.length > 2 && title.length < 100 && 
+              !title.includes('絞り込む') && !title.includes('検索') && 
+              !title.includes('新着') && !title.includes('人気')) break;
         }
         
         // カロリーの取得（より包括的なセレクタ）
@@ -194,7 +196,7 @@ function extractDataFromHTML(html: string, hostname: string, originalUrl: string
       if (results.length === 0) {
         console.log('カロリー情報が見つからないため、タイトルから推定を開始');
         
-        $('[class*="recipe"]').each((index, element) => {
+        $('.recipe-preview, .recipe-card, .recipe-item, .search_result, [class*="recipe"]').each((index, element) => {
           const $el = $(element);
           
           const titleSelectors = [
@@ -208,7 +210,9 @@ function extractDataFromHTML(html: string, hostname: string, originalUrl: string
           let title = '';
           for (const titleSelector of titleSelectors) {
             title = $el.find(titleSelector).first().text().trim();
-            if (title && title.length > 2 && title.length < 100) break;
+            if (title && title.length > 2 && title.length < 100 && 
+                !title.includes('絞り込む') && !title.includes('検索') && 
+                !title.includes('新着') && !title.includes('人気')) break;
           }
           
           if (title) {
@@ -234,7 +238,7 @@ function extractDataFromHTML(html: string, hostname: string, originalUrl: string
         });
       }
 
-    } else if (hostname.includes('rakuten.co.jp')) {
+    } else if (hostname.includes('recipe.rakuten.co.jp')) {
       console.log('楽天レシピのスクレイピング開始');
       
       // 楽天レシピの検索結果を解析（より柔軟なアプローチ）
@@ -340,15 +344,25 @@ function extractDataFromHTML(html: string, hostname: string, originalUrl: string
       }
 
     } else if (hostname.includes('slism.jp')) {
-      // Slismのカロリー検索結果を解析
-      $('.food-item, .calorie-item').each((index, element) => {
+      console.log('Slismのスクレイピング開始');
+      
+      // Slismの新しい構造に対応
+      $('.food-item, .calorie-item, .search-result, .result-item, [class*="food"], [class*="calorie"]').each((index, element) => {
         const $el = $(element);
-        const title = $el.find('.food-name, .name, h3').text().trim();
-        const caloriesText = $el.find('.calorie, .kcal').text().trim();
+        const title = $el.find('.food-name, .name, h3, h4, .title, a').text().trim();
+        const caloriesText = $el.find('.calorie, .kcal, .energy, [class*="calorie"], [class*="kcal"]').text().trim();
         
-        if (title && caloriesText) {
-          const calorieMatch = caloriesText.match(/(\d+)/);
-          const calories = calorieMatch ? parseInt(calorieMatch[1]) : 0;
+        if (title && title.length > 2 && title.length < 100) {
+          let calories = 0;
+          if (caloriesText) {
+            const calorieMatch = caloriesText.match(/(\d+)/);
+            calories = calorieMatch ? parseInt(calorieMatch[1]) : 0;
+          }
+          
+          if (calories === 0) {
+            // カロリーが見つからない場合は推定
+            calories = estimateCaloriesFromTitle(title);
+          }
           
           if (calories > 0) {
             results.push({
@@ -364,6 +378,35 @@ function extractDataFromHTML(html: string, hostname: string, originalUrl: string
           }
         }
       });
+      
+      // より包括的な検索
+      if (results.length === 0) {
+        $('a, h1, h2, h3, h4, h5, h6, .title, .name').each((index, element) => {
+          const $el = $(element);
+          const title = $el.text().trim();
+          
+          if (title && title.length > 2 && title.length < 100) {
+            const hasFoodKeywords = /(ポッキー|プリッツ|チョコレート|クッキー|ビスケット|キャラメル|ガム|マシュマロ|プリン|シュークリーム|ドーナツ|パンケーキ|ワッフル|タルト|モンブラン|ティラミス|チーズケーキ|ショートケーキ|ロールケーキ|パイ|クレープ|まんじゅう|だんご|おはぎ|大福|わらびもち|ようかん|あんみつ|かき氷|みつまめ)/.test(title);
+            
+            if (hasFoodKeywords) {
+              const estimatedCalories = estimateCaloriesFromTitle(title);
+              if (estimatedCalories > 0) {
+                results.push({
+                  name: title,
+                  calories: estimatedCalories,
+                  protein: Math.floor(estimatedCalories * 0.15),
+                  fat: Math.floor(estimatedCalories * 0.25),
+                  carbs: Math.floor(estimatedCalories * 0.6),
+                  unit: '100g',
+                  source: 'Slism（推定）',
+                  url: originalUrl
+                });
+              }
+            }
+          }
+        });
+      }
+      
     } else if (hostname.includes('fooddb.mext.go.jp') || hostname.includes('mext.go.jp')) {
       // FoodDB（文部科学省食品成分データベース）の解析
       console.log('FoodDBのスクレイピング開始');
@@ -424,7 +467,7 @@ function extractDataFromHTML(html: string, hostname: string, originalUrl: string
       console.log('楽天市場のスクレイピング開始');
       
       // 商品カードを解析
-      $('[class*="item"], [class*="product"], [class*="goods"]').each((index, element) => {
+      $('[class*="item"], [class*="product"], [class*="goods"], .item, .product, .goods').each((index, element) => {
         const $el = $(element);
         
         // 商品名の取得
@@ -457,55 +500,55 @@ function extractDataFromHTML(html: string, hostname: string, originalUrl: string
         }
       });
       
-             // リンクからも商品名を抽出
-       $('a[href*="/item/"]').each((index, element) => {
-         const $el = $(element);
-         const title = $el.text().trim();
-         
-         if (title && title.length > 2 && title.length < 100) {
-           const estimatedCalories = estimateCaloriesFromTitle(title);
-           if (estimatedCalories > 0) {
-             results.push({
-               name: title,
-               calories: estimatedCalories,
-               protein: Math.floor(estimatedCalories * 0.15),
-               fat: Math.floor(estimatedCalories * 0.25),
-               carbs: Math.floor(estimatedCalories * 0.6),
-               unit: '1個',
-               source: '楽天市場（リンク）',
-               url: originalUrl
-             });
-           }
-         }
-       });
-       
-       // より包括的な商品名検索
-       console.log('楽天市場包括的検索を試行中...');
-       $('a, h1, h2, h3, h4, h5, h6, .title, .name, .product-name, .item-name').each((index, element) => {
-         const $el = $(element);
-         const title = $el.text().trim();
-         
-         // 食品関連のキーワードを含む商品名を検索
-         if (title && title.length > 2 && title.length < 100) {
-           const hasFoodKeywords = /(ポッキー|プリッツ|チョコレート|クッキー|ビスケット|キャラメル|ガム|マシュマロ|プリン|シュークリーム|ドーナツ|パンケーキ|ワッフル|タルト|モンブラン|ティラミス|チーズケーキ|ショートケーキ|ロールケーキ|パイ|クレープ|まんじゅう|だんご|おはぎ|大福|わらびもち|ようかん|あんみつ|かき氷|みつまめ|お菓子|スナック|チョコ|アイス|ケーキ|パン|飲料|ジュース|コーラ|お茶|コーヒー|紅茶)/.test(title);
-           
-           if (hasFoodKeywords) {
-             const estimatedCalories = estimateCaloriesFromTitle(title);
-             if (estimatedCalories > 0) {
-               results.push({
-                 name: title,
-                 calories: estimatedCalories,
-                 protein: Math.floor(estimatedCalories * 0.15),
-                 fat: Math.floor(estimatedCalories * 0.25),
-                 carbs: Math.floor(estimatedCalories * 0.6),
-                 unit: '1個',
-                 source: '楽天市場（キーワード検索）',
-                 url: originalUrl
-               });
-             }
-           }
-         }
-       });
+      // リンクからも商品名を抽出
+      $('a[href*="/item/"]').each((index, element) => {
+        const $el = $(element);
+        const title = $el.text().trim();
+        
+        if (title && title.length > 2 && title.length < 100) {
+          const estimatedCalories = estimateCaloriesFromTitle(title);
+          if (estimatedCalories > 0) {
+            results.push({
+              name: title,
+              calories: estimatedCalories,
+              protein: Math.floor(estimatedCalories * 0.15),
+              fat: Math.floor(estimatedCalories * 0.25),
+              carbs: Math.floor(estimatedCalories * 0.6),
+              unit: '1個',
+              source: '楽天市場（リンク）',
+              url: originalUrl
+            });
+          }
+        }
+      });
+      
+      // より包括的な商品名検索
+      console.log('楽天市場包括的検索を試行中...');
+      $('a, h1, h2, h3, h4, h5, h6, .title, .name, .product-name, .item-name').each((index, element) => {
+        const $el = $(element);
+        const title = $el.text().trim();
+        
+        // 食品関連のキーワードを含む商品名を検索
+        if (title && title.length > 2 && title.length < 100) {
+          const hasFoodKeywords = /(ポッキー|プリッツ|チョコレート|クッキー|ビスケット|キャラメル|ガム|マシュマロ|プリン|シュークリーム|ドーナツ|パンケーキ|ワッフル|タルト|モンブラン|ティラミス|チーズケーキ|ショートケーキ|ロールケーキ|パイ|クレープ|まんじゅう|だんご|おはぎ|大福|わらびもち|ようかん|あんみつ|かき氷|みつまめ|お菓子|スナック|チョコ|アイス|ケーキ|パン|飲料|ジュース|コーラ|お茶|コーヒー|紅茶)/.test(title);
+          
+          if (hasFoodKeywords) {
+            const estimatedCalories = estimateCaloriesFromTitle(title);
+            if (estimatedCalories > 0) {
+              results.push({
+                name: title,
+                calories: estimatedCalories,
+                protein: Math.floor(estimatedCalories * 0.15),
+                fat: Math.floor(estimatedCalories * 0.25),
+                carbs: Math.floor(estimatedCalories * 0.6),
+                unit: '1個',
+                source: '楽天市場（キーワード検索）',
+                url: originalUrl
+              });
+            }
+          }
+        }
+      });
     }
 
     console.log(`抽出されたデータ: ${results.length}件`);
@@ -533,85 +576,61 @@ function extractDataFromHTML(html: string, hostname: string, originalUrl: string
         console.log('.kcal:', $('.kcal').length);
         console.log('[class*="recipe"]:', $('[class*="recipe"]').length);
         
-                 // 1文字でもヒットするように、より包括的な検索を試行
-         console.log('包括的検索を試行中...');
-         
-         // レシピリンクから検索
-         $('a[href*="/recipe/"]').each((index, element) => {
-           const $el = $(element);
-           const title = $el.text().trim();
-           if (title && title.length > 2 && title.length < 100) {
-             const estimatedCalories = estimateCaloriesFromTitle(title);
-             if (estimatedCalories > 0) {
-               results.push({
-                 name: title,
-                 calories: estimatedCalories,
-                 protein: Math.floor(estimatedCalories * 0.15),
-                 fat: Math.floor(estimatedCalories * 0.25),
-                 carbs: Math.floor(estimatedCalories * 0.6),
-                 unit: '1人前',
-                 source: 'クックパッド（包括的検索）',
-                 url: originalUrl
-               });
-             }
-           }
-         });
-         
-         // より包括的な検索：すべてのリンクとテキストを確認
-         console.log('より包括的な検索を試行中...');
-         $('a, h1, h2, h3, h4, h5, h6, .title, .name, .recipe-title, .recipe-name, .recipe_title').each((index, element) => {
-           const $el = $(element);
-           const title = $el.text().trim();
-           
-           // 料理らしい名前かチェック（より包括的なキーワード）
-           if (title && title.length > 2 && title.length < 100) {
-             const hasFoodKeywords = /(料理|レシピ|カレー|ラーメン|パスタ|サラダ|スープ|ケーキ|パン|ご飯|うどん|そば|ハンバーグ|唐揚げ|天ぷら|焼き魚|刺身|味噌汁|豆腐|納豆|卵|牛乳|チーズ|りんご|バナナ|いちご|チョコ|アイス|お菓子|スナック|ポッキー|プリッツ|チョコレート|クッキー|ビスケット|キャラメル|ガム|マシュマロ|プリン|シュークリーム|ドーナツ|パンケーキ|ワッフル|タルト|モンブラン|ティラミス|チーズケーキ|ショートケーキ|ロールケーキ|パイ|クレープ|まんじゅう|だんご|おはぎ|大福|わらびもち|ようかん|あんみつ|かき氷|みつまめ)/.test(title);
-             
-             if (hasFoodKeywords) {
-               const estimatedCalories = estimateCaloriesFromTitle(title);
-               if (estimatedCalories > 0) {
-                 results.push({
-                   name: title,
-                   calories: estimatedCalories,
-                   protein: Math.floor(estimatedCalories * 0.15),
-                   fat: Math.floor(estimatedCalories * 0.25),
-                   carbs: Math.floor(estimatedCalories * 0.6),
-                   unit: '1人前',
-                   source: 'クックパッド（キーワード検索）',
-                   url: originalUrl
-                 });
-               }
-             }
-           }
-         });
-         
-         // さらに包括的な検索：すべてのテキスト要素を確認
-         console.log('さらに包括的な検索を試行中...');
-         $('*').each((index, element) => {
-           const $el = $(element);
-           const title = $el.text().trim();
-           
-           // 子要素がない場合のみ処理（重複を避ける）
-           if (title && title.length > 2 && title.length < 100 && $el.children().length === 0) {
-             const hasFoodKeywords = /(ポッキー|プリッツ|チョコレート|クッキー|ビスケット|キャラメル|ガム|マシュマロ|プリン|シュークリーム|ドーナツ|パンケーキ|ワッフル|タルト|モンブラン|ティラミス|チーズケーキ|ショートケーキ|ロールケーキ|パイ|クレープ|まんじゅう|だんご|おはぎ|大福|わらびもち|ようかん|あんみつ|かき氷|みつまめ)/.test(title);
-             
-             if (hasFoodKeywords) {
-               const estimatedCalories = estimateCaloriesFromTitle(title);
-               if (estimatedCalories > 0) {
-                 results.push({
-                   name: title,
-                   calories: estimatedCalories,
-                   protein: Math.floor(estimatedCalories * 0.15),
-                   fat: Math.floor(estimatedCalories * 0.25),
-                   carbs: Math.floor(estimatedCalories * 0.6),
-                   unit: '1人前',
-                   source: 'クックパッド（包括的検索）',
-                   url: originalUrl
-                 });
-               }
-             }
-           }
-         });
+        // 1文字でもヒットするように、より包括的な検索を試行
+        console.log('包括的検索を試行中...');
+        
+        // レシピリンクから検索
+        $('a[href*="/recipe/"]').each((index, element) => {
+          const $el = $(element);
+          const title = $el.text().trim();
+          if (title && title.length > 2 && title.length < 100 && 
+              !title.includes('絞り込む') && !title.includes('検索') && 
+              !title.includes('新着') && !title.includes('人気')) {
+            const estimatedCalories = estimateCaloriesFromTitle(title);
+            if (estimatedCalories > 0) {
+              results.push({
+                name: title,
+                calories: estimatedCalories,
+                protein: Math.floor(estimatedCalories * 0.15),
+                fat: Math.floor(estimatedCalories * 0.25),
+                carbs: Math.floor(estimatedCalories * 0.6),
+                unit: '1人前',
+                source: 'クックパッド（包括的検索）',
+                url: originalUrl
+              });
+            }
+          }
+        });
+        
+        // より包括的な検索：すべてのリンクとテキストを確認
+        console.log('より包括的な検索を試行中...');
+        $('a, h1, h2, h3, h4, h5, h6, .title, .name, .recipe-title, .recipe-name, .recipe_title').each((index, element) => {
+          const $el = $(element);
+          const title = $el.text().trim();
+          
+          // 料理らしい名前かチェック（より包括的なキーワード）
+          if (title && title.length > 2 && title.length < 100 && 
+              !title.includes('絞り込む') && !title.includes('検索') && 
+              !title.includes('新着') && !title.includes('人気')) {
+            const hasFoodKeywords = /(料理|レシピ|カレー|ラーメン|パスタ|サラダ|スープ|ケーキ|パン|ご飯|うどん|そば|ハンバーグ|唐揚げ|天ぷら|焼き魚|刺身|味噌汁|豆腐|納豆|卵|牛乳|チーズ|りんご|バナナ|いちご|チョコ|アイス|お菓子|スナック|ポッキー|プリッツ|チョコレート|クッキー|ビスケット|キャラメル|ガム|マシュマロ|プリン|シュークリーム|ドーナツ|パンケーキ|ワッフル|タルト|モンブラン|ティラミス|チーズケーキ|ショートケーキ|ロールケーキ|パイ|クレープ|まんじゅう|だんご|おはぎ|大福|わらびもち|ようかん|あんみつ|かき氷|みつまめ)/.test(title);
+            
+            if (hasFoodKeywords) {
+              const estimatedCalories = estimateCaloriesFromTitle(title);
+              if (estimatedCalories > 0) {
+                results.push({
+                  name: title,
+                  calories: estimatedCalories,
+                  protein: Math.floor(estimatedCalories * 0.15),
+                  fat: Math.floor(estimatedCalories * 0.25),
+                  carbs: Math.floor(estimatedCalories * 0.6),
+                  unit: '1人前',
+                  source: 'クックパッド（キーワード検索）',
+                  url: originalUrl
+                });
+              }
+            }
+          }
+        });
       }
       
       // 楽天レシピの場合の詳細デバッグ
