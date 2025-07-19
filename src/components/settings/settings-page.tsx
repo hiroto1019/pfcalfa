@@ -43,6 +43,42 @@ export function SettingsPage() {
   const supabase = createClient();
   const router = useRouter();
 
+  // モバイルでの入力時の自動スクロールを防ぐ
+  useEffect(() => {
+    const inputs = document.querySelectorAll('input, select, textarea');
+    
+    const handleFocus = (e: Event) => {
+      const target = e.target as HTMLElement;
+      // モバイルでのみ適用
+      if (window.innerWidth <= 768) {
+        // 少し遅延を入れてからスクロール位置を調整
+        setTimeout(() => {
+          const rect = target.getBoundingClientRect();
+          const isInViewport = rect.top >= 0 && rect.bottom <= window.innerHeight;
+          
+          if (!isInViewport) {
+            // 入力フィールドが画面外にある場合のみ、最小限のスクロール
+            target.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center',
+              inline: 'nearest'
+            });
+          }
+        }, 100);
+      }
+    };
+
+    inputs.forEach(input => {
+      input.addEventListener('focus', handleFocus);
+    });
+
+    return () => {
+      inputs.forEach(input => {
+        input.removeEventListener('focus', handleFocus);
+      });
+    };
+  }, []);
+
   useEffect(() => {
     loadProfile();
   }, []);
@@ -249,35 +285,31 @@ export function SettingsPage() {
       
       // データベースに即座に保存
       try {
-        const { error } = await supabase
-          .from('profiles')
-          .update({ food_preferences: updatedProfile.food_preferences })
-          .eq('id', profile.id);
-        
-        if (error) {
-          console.error('食事の好み保存エラー:', error);
-          alert('食事の好みの保存に失敗しました');
-        } else {
-          // 食事の好み更新イベントを発火
-          window.dispatchEvent(new CustomEvent('foodPreferencesUpdated'));
-          console.log('食事の好み追加でイベントを発火しました');
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase
+            .from('profiles')
+            .update({ food_preferences: updatedProfile.food_preferences })
+            .eq('id', user.id);
         }
       } catch (error) {
-        console.error('食事の好み保存エラー:', error);
-        alert('食事の好みの保存に失敗しました');
+        console.error('嫌いな食べ物の保存エラー:', error);
       }
+      
+      setNewDislike("");
     }
-    setNewDislike("");
   };
 
   const removeDislike = async (dislike: string) => {
     if (!profile) return;
     
     const dislikes = profile.food_preferences?.dislikes || [];
+    const updatedDislikes = dislikes.filter(d => d !== dislike);
+    
     const updatedProfile = {
       ...profile,
       food_preferences: {
-        dislikes: dislikes.filter(d => d !== dislike),
+        dislikes: updatedDislikes,
         allergies: profile.food_preferences?.allergies || []
       }
     };
@@ -286,22 +318,15 @@ export function SettingsPage() {
     
     // データベースに即座に保存
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ food_preferences: updatedProfile.food_preferences })
-        .eq('id', profile.id);
-      
-      if (error) {
-        console.error('食事の好み削除エラー:', error);
-        alert('食事の好みの削除に失敗しました');
-      } else {
-        // 食事の好み更新イベントを発火
-        window.dispatchEvent(new CustomEvent('foodPreferencesUpdated'));
-        console.log('食事の好み削除でイベントを発火しました');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from('profiles')
+          .update({ food_preferences: updatedProfile.food_preferences })
+          .eq('id', user.id);
       }
     } catch (error) {
-      console.error('食事の好み削除エラー:', error);
-      alert('食事の好みの削除に失敗しました');
+      console.error('嫌いな食べ物の削除エラー:', error);
     }
   };
 
@@ -322,36 +347,32 @@ export function SettingsPage() {
       
       // データベースに即座に保存
       try {
-        const { error } = await supabase
-          .from('profiles')
-          .update({ food_preferences: updatedProfile.food_preferences })
-          .eq('id', profile.id);
-        
-        if (error) {
-          console.error('アレルギー保存エラー:', error);
-          alert('アレルギーの保存に失敗しました');
-        } else {
-          // 食事の好み更新イベントを発火
-          window.dispatchEvent(new CustomEvent('foodPreferencesUpdated'));
-          console.log('アレルギー追加でイベントを発火しました');
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase
+            .from('profiles')
+            .update({ food_preferences: updatedProfile.food_preferences })
+            .eq('id', user.id);
         }
       } catch (error) {
-        console.error('アレルギー保存エラー:', error);
-        alert('アレルギーの保存に失敗しました');
+        console.error('アレルギーの保存エラー:', error);
       }
+      
+      setNewAllergy("");
     }
-    setNewAllergy("");
   };
 
   const removeAllergy = async (allergy: string) => {
     if (!profile) return;
     
     const allergies = profile.food_preferences?.allergies || [];
+    const updatedAllergies = allergies.filter(a => a !== allergy);
+    
     const updatedProfile = {
       ...profile,
       food_preferences: {
         dislikes: profile.food_preferences?.dislikes || [],
-        allergies: allergies.filter(a => a !== allergy)
+        allergies: updatedAllergies
       }
     };
     
@@ -359,43 +380,24 @@ export function SettingsPage() {
     
     // データベースに即座に保存
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ food_preferences: updatedProfile.food_preferences })
-        .eq('id', profile.id);
-      
-      if (error) {
-        console.error('アレルギー削除エラー:', error);
-        alert('アレルギーの削除に失敗しました');
-      } else {
-        // 食事の好み更新イベントを発火
-        window.dispatchEvent(new CustomEvent('foodPreferencesUpdated'));
-        console.log('アレルギー削除でイベントを発火しました');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from('profiles')
+          .update({ food_preferences: updatedProfile.food_preferences })
+          .eq('id', user.id);
       }
     } catch (error) {
-      console.error('アレルギー削除エラー:', error);
-      alert('アレルギーの削除に失敗しました');
+      console.error('アレルギーの削除エラー:', error);
     }
   };
 
   if (isLoading) {
-    return (
-      <div className="container mx-auto p-4">
-        <div className="flex items-center justify-center h-64">
-          <p>読み込み中...</p>
-        </div>
-      </div>
-    );
+    return <div className="flex items-center justify-center h-full">データを読み込んでいます...</div>;
   }
 
   if (!profile) {
-    return (
-      <div className="container mx-auto p-4">
-        <div className="flex items-center justify-center h-64">
-          <p>プロフィールが見つかりません</p>
-        </div>
-      </div>
-    );
+    return <div className="flex items-center justify-center h-full">プロフィールが見つかりません</div>;
   }
 
   const idealCalories = profile && currentWeight ? getIdealCalories(profile, currentWeight, profile.activity_level) : 2000;
@@ -429,8 +431,12 @@ export function SettingsPage() {
                 id="username"
                 value={profile.username}
                 onChange={(e) => setProfile({ ...profile, username: e.target.value })}
-                className="h-12"
+                className="h-12 mobile-input-fix"
                 placeholder="お名前を入力"
+                style={{ 
+                  fontSize: '16px',
+                  transform: 'translateZ(0)',
+                }}
               />
               {validationErrors.username && (
                 <p className="text-red-500 text-xs">{validationErrors.username}</p>
@@ -442,7 +448,11 @@ export function SettingsPage() {
                 id="gender"
                 value={profile.gender}
                 onChange={(e) => setProfile({ ...profile, gender: e.target.value })}
-                className="w-full h-12 px-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full h-12 px-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mobile-input-fix"
+                style={{ 
+                  fontSize: '16px',
+                  transform: 'translateZ(0)',
+                }}
               >
                 <option value="male">男性</option>
                 <option value="female">女性</option>
@@ -462,7 +472,11 @@ export function SettingsPage() {
                 type="date"
                 value={profile.birth_date ? profile.birth_date.split('T')[0] : ''}
                 onChange={(e) => setProfile({ ...profile, birth_date: e.target.value })}
-                className="h-12"
+                className="h-12 mobile-input-fix"
+                style={{ 
+                  fontSize: '16px',
+                  transform: 'translateZ(0)',
+                }}
               />
               {validationErrors.birth_date && (
                 <p className="text-red-500 text-xs">{validationErrors.birth_date}</p>
@@ -475,7 +489,11 @@ export function SettingsPage() {
                 type="date"
                 value={profile.goal_target_date ? profile.goal_target_date.split('T')[0] : ''}
                 onChange={(e) => setProfile({ ...profile, goal_target_date: e.target.value })}
-                className="h-12"
+                className="h-12 mobile-input-fix"
+                style={{ 
+                  fontSize: '16px',
+                  transform: 'translateZ(0)',
+                }}
               />
             </div>
           </div>
@@ -491,8 +509,12 @@ export function SettingsPage() {
                 type="number"
                 value={profile.height_cm}
                 onChange={(e) => setProfile({ ...profile, height_cm: Number(e.target.value) })}
-                className="h-12"
+                className="h-12 mobile-input-fix"
                 placeholder="170"
+                style={{ 
+                  fontSize: '16px',
+                  transform: 'translateZ(0)',
+                }}
               />
               {validationErrors.height_cm && (
                 <p className="text-red-500 text-xs">{validationErrors.height_cm}</p>
@@ -508,8 +530,12 @@ export function SettingsPage() {
                 value={currentWeight ?? ''}
                 onChange={(e) => setCurrentWeight(parseFloat(e.target.value) || null)}
                 step="0.1"
-                className="h-12"
+                className="h-12 mobile-input-fix"
                 placeholder="65.0"
+                style={{ 
+                  fontSize: '16px',
+                  transform: 'translateZ(0)',
+                }}
               />
               {validationErrors.currentWeight && (
                 <p className="text-red-500 text-xs">{validationErrors.currentWeight}</p>
@@ -524,8 +550,12 @@ export function SettingsPage() {
                 type="number"
                 value={profile.target_weight_kg}
                 onChange={(e) => setProfile({ ...profile, target_weight_kg: Number(e.target.value) })}
-                className="h-12"
+                className="h-12 mobile-input-fix"
                 placeholder="60.0"
+                style={{ 
+                  fontSize: '16px',
+                  transform: 'translateZ(0)',
+                }}
               />
               {validationErrors.target_weight_kg && (
                 <p className="text-red-500 text-xs">{validationErrors.target_weight_kg}</p>
@@ -541,7 +571,11 @@ export function SettingsPage() {
                 id="activity_level"
                 value={profile.activity_level}
                 onChange={(e) => setProfile({ ...profile, activity_level: Number(e.target.value) })}
-                className="w-full h-12 px-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full h-12 px-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mobile-input-fix"
+                style={{ 
+                  fontSize: '16px',
+                  transform: 'translateZ(0)',
+                }}
               >
                 <option value={1}>座り仕事中心（運動なし）</option>
                 <option value={2}>軽い運動（週1-2回）</option>
@@ -556,10 +590,10 @@ export function SettingsPage() {
                 value={profile.goal_type}
                 onValueChange={(value) => setProfile({ ...profile, goal_type: value })}
               >
-                <SelectTrigger id="goal_type" className="h-12">
+                <SelectTrigger id="goal_type" className="h-12 mobile-input-fix">
                   <SelectValue placeholder="目標を選択" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="mobile-select-fix">
                   <SelectItem value="lose_weight">ダイエット</SelectItem>
                   <SelectItem value="maintain">維持</SelectItem>
                   <SelectItem value="gain_muscle">増量</SelectItem>
@@ -599,7 +633,11 @@ export function SettingsPage() {
                 onChange={(e) => setNewDislike(e.target.value)}
                 placeholder="例: トマト"
                 onKeyPress={(e) => e.key === 'Enter' && addDislike()}
-                className="flex-1 h-12"
+                className="flex-1 h-12 mobile-input-fix"
+                style={{ 
+                  fontSize: '16px',
+                  transform: 'translateZ(0)',
+                }}
               />
               <Button onClick={addDislike} className="w-full sm:w-auto px-6 h-12">追加</Button>
             </div>
@@ -630,7 +668,11 @@ export function SettingsPage() {
                 onChange={(e) => setNewAllergy(e.target.value)}
                 placeholder="例: えび"
                 onKeyPress={(e) => e.key === 'Enter' && addAllergy()}
-                className="flex-1 h-12"
+                className="flex-1 h-12 mobile-input-fix"
+                style={{ 
+                  fontSize: '16px',
+                  transform: 'translateZ(0)',
+                }}
               />
               <Button onClick={addAllergy} className="w-full sm:w-auto px-6 h-12">追加</Button>
             </div>
@@ -683,7 +725,7 @@ export function SettingsPage() {
 
       {/* アカウント削除確認モーダル */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md mx-4 shadow-2xl">
             <CardHeader>
               <CardTitle className="text-red-600">アカウント削除の確認</CardTitle>
@@ -701,7 +743,11 @@ export function SettingsPage() {
                   value={deleteText}
                   onChange={(e) => setDeleteText(e.target.value)}
                   placeholder="削除"
-                  className="h-12"
+                  className="h-12 mobile-input-fix"
+                  style={{ 
+                    fontSize: '16px',
+                    transform: 'translateZ(0)',
+                  }}
                 />
               </div>
               <div className="flex flex-col sm:flex-row justify-end gap-3">
@@ -728,6 +774,28 @@ export function SettingsPage() {
           </Card>
         </div>
       )}
+      
+      <style jsx>{`
+        .mobile-input-fix {
+          /* モバイルでの入力時の自動スクロールを防ぐ */
+          -webkit-overflow-scrolling: touch;
+          -webkit-transform: translateZ(0);
+          transform: translateZ(0);
+        }
+        
+        .mobile-select-fix {
+          /* セレクトボックスのモバイル対応 */
+          -webkit-overflow-scrolling: touch;
+        }
+        
+        /* モバイルでの入力フィールドフォーカス時の動作を改善 */
+        @media (max-width: 768px) {
+          .mobile-input-fix:focus {
+            position: relative;
+            z-index: 1;
+          }
+        }
+      `}</style>
     </div>
   );
 }

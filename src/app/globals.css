@@ -141,6 +141,37 @@
     font-size: 16px !important;
   }
   
+  /* モバイルでの入力時の自動スクロール防止 */
+  input:focus, textarea:focus, select:focus {
+    /* iOSでの自動ズームを防ぐ */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    /* フォーカス時の位置固定 */
+    position: relative;
+    z-index: 1;
+  }
+  
+  /* モバイルでのセレクトボックス改善 */
+  select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+  }
+  
+  /* モバイルでの日付入力改善 */
+  input[type="date"] {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+  }
+  
+  /* モバイルでの数値入力改善 */
+  input[type="number"] {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+  }
+  
   /* テキスト選択時のハイライトスタイル */
   ::selection {
     background-color: #3b82f6; /* 青いハイライト */
