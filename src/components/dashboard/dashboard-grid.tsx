@@ -190,57 +190,45 @@ export function DashboardGrid({ profile }: { profile: any }) {
   return (
     <main className="grid flex-1 grid-cols-1 md:grid-cols-3 gap-4 p-4 min-h-0" style={{ paddingBottom: '8px' }}>
       {/* AIアドバイス - SP: 1番目, PC: 1番目 */}
-      <div className="order-1 md:order-1 md:h-full">
-        <div className="h-full">
-          <AiAdvice key={`ai-advice-${refreshKey}`} />
-        </div>
+      <div className="order-1 md:order-1 h-full">
+        <AiAdvice key={`ai-advice-${refreshKey}`} />
       </div>
       
       {/* カロリーサマリー - SP: 2番目, PC: 2番目 */}
-      <div className="order-2 md:order-2 md:h-full">
-        <div className="h-full">
-          <CalorieSummary key={`calorie-summary-${refreshKey}`} idealCalories={idealCalories ?? 0} />
-        </div>
+      <div className="order-2 md:order-2 h-full">
+        <CalorieSummary key={`calorie-summary-${refreshKey}`} idealCalories={idealCalories ?? 0} />
       </div>
       
       {/* PFCバランス - SP: 3番目, PC: 3番目 */}
-      <div className="order-3 md:order-3 md:h-full">
-        <div className="h-full">
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle className="text-base font-semibold">PFCバランス</CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1">
-              <PFCChart key={`pfc-chart-${refreshKey}`} idealCalories={idealCalories ?? 0} />
-            </CardContent>
-          </Card>
-        </div>
+      <div className="order-3 md:order-3 h-full">
+        <Card className="h-full">
+          <CardHeader>
+            <CardTitle className="text-base font-semibold">PFCバランス</CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1">
+            <PFCChart key={`pfc-chart-${refreshKey}`} idealCalories={idealCalories ?? 0} />
+          </CardContent>
+        </Card>
       </div>
       
       {/* 今日のサマリーと目標 - SP: 4番目, PC: 5番目 */}
-      <div className="order-4 md:order-5 md:h-full">
-        <div className="h-full">
-          <OverviewCard 
-            key={`overview-${refreshKey}`}
-            formData={editableData}
-            setFormData={setEditableData}
-            onUpdate={handleUpdate} 
-          />
-        </div>
+      <div className="order-4 md:order-5 h-full">
+        <OverviewCard 
+          key={`overview-${refreshKey}`}
+          formData={editableData}
+          setFormData={setEditableData}
+          onUpdate={handleUpdate} 
+        />
       </div>
       
       {/* 体重推移 - SP: 5番目, PC: 6番目 */}
-      <div className="order-5 md:order-6 md:h-full">
-        <div className="h-full">
-          <WeightChart key={`weight-chart-${refreshKey}`} profile={profile} weightLogs={weightLogs} isLoading={isLoading} />
-        </div>
+      <div className="order-5 md:order-6 h-full">
+        <WeightChart key={`weight-chart-${refreshKey}`} profile={profile} weightLogs={weightLogs} isLoading={isLoading} />
       </div>
       
       {/* 履歴 - SP: 6番目, PC: 4番目 */}
-      <div className="order-6 md:order-4 md:h-full">
-        <div className="h-full">
-          <HistoryCard key={`history-${refreshKey}`} />
-        </div>
+      <div className="order-6 md:order-4 h-full">
+        <HistoryCard key={`history-${refreshKey}`} />
       </div>
     </main>
   );
