@@ -8,6 +8,7 @@ export interface ExternalFoodItem {
   carbs: number;
   unit: string;
   source: string;
+  priority?: number; // 優先順位を追加
 }
 
 // 本番環境でのベースURLを取得する関数
@@ -21,6 +22,51 @@ function getBaseUrl(): string {
       ? (process.env.NEXT_PUBLIC_BASE_URL || 'https://pfcalfa.vercel.app') // 実際の本番環境のドメイン
       : 'http://localhost:3000';
   }
+}
+
+// 検索結果の優先順位を計算する関数
+function calculatePriority(item: any, query: string): number {
+  const itemName = item.name.toLowerCase();
+  const queryLower = query.toLowerCase();
+  
+  // 完全一致（最高優先度）
+  if (itemName === queryLower) return 100;
+  
+  // 単語の開始位置での一致（高優先度）
+  if (itemName.startsWith(queryLower)) return 90;
+  
+  // 単語の終了位置での一致（高優先度）
+  if (itemName.endsWith(queryLower)) return 85;
+  
+  // 単語境界での一致（中優先度）
+  const words = itemName.split(/[\s\-_]+/);
+  if (words.some((word: string) => word === queryLower)) return 80;
+  
+  // 部分一致（低優先度）
+  if (itemName.includes(queryLower)) return 70;
+  
+  // レシピ系のキーワードを含む場合（さらに低優先度）
+  const recipeKeywords = ['レシピ', '作り方', '料理', 'おやつ', 'スイーツ', 'デザート', 'ケーキ'];
+  if (recipeKeywords.some(keyword => itemName.includes(keyword))) return 50;
+  
+  // その他（最低優先度）
+  return 30;
+}
+
+// 検索結果を優先順位でソートする関数
+function sortByPriority(results: ExternalFoodItem[], query: string): ExternalFoodItem[] {
+  return results.map(item => ({
+    ...item,
+    priority: calculatePriority(item, query)
+  })).sort((a, b) => {
+    // 優先順位の高い順
+    if (b.priority! !== a.priority!) {
+      return b.priority! - a.priority!;
+    }
+    
+    // 優先順位が同じ場合は、より短い名前を優先
+    return a.name.length - b.name.length;
+  });
 }
 
 // 実際の外部サイトからデータを取得（スクレイピング）
@@ -73,10 +119,13 @@ export async function searchFoodFromRealSites(query: string): Promise<ExternalFo
       index === self.findIndex(t => t.name === item.name)
     );
     
-    const totalTime = Date.now() - startTime;
-    console.log(`外部サイト検索完了: ${uniqueResults.length}件 (${totalTime}ms)`);
+    // 優先順位でソート
+    const sortedResults = sortByPriority(uniqueResults, query);
     
-    return uniqueResults;
+    const totalTime = Date.now() - startTime;
+    console.log(`外部サイト検索完了: ${sortedResults.length}件 (${totalTime}ms)`);
+    
+    return sortedResults;
     
   } catch (error) {
     console.error('外部サイト検索エラー:', error);
@@ -723,8 +772,11 @@ export async function searchFoodFromMEXT(query: string): Promise<ExternalFoodIte
       return false;
     });
 
-    console.log(`MEXT検索結果: "${query}" -> ${filteredFoods.length}件`);
-    return filteredFoods;
+    // 優先順位でソート
+    const sortedResults = sortByPriority(filteredFoods, query);
+    
+    console.log(`MEXT検索結果: "${query}" -> ${sortedResults.length}件`);
+    return sortedResults;
   } catch (error) {
     console.error('MEXT食品データベース検索エラー:', error);
     return [];
