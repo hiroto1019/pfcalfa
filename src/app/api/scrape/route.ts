@@ -462,18 +462,49 @@ function extractDataFromHTML(html: string, hostname: string, originalUrl: string
         }
       });
       
+      // より包括的な検索：すべてのテキスト要素を確認
+      if (results.length === 0) {
+        console.log('FoodDB包括的検索を試行中...');
+        $('a, h1, h2, h3, h4, h5, h6, .title, .name, span, div').each((index, element) => {
+          const $el = $(element);
+          const title = $el.text().trim();
+          
+          // 食品らしい名前かチェック
+          if (title && title.length > 2 && title.length < 100 && $el.children().length === 0) {
+            const hasFoodKeywords = /(もち|りんご|チョコレート|ポッキー|プリッツ|クッキー|ビスケット|キャラメル|ガム|マシュマロ|プリン|シュークリーム|ドーナツ|パンケーキ|ワッフル|タルト|モンブラン|ティラミス|チーズケーキ|ショートケーキ|ロールケーキ|パイ|クレープ|まんじゅう|だんご|おはぎ|大福|わらびもち|ようかん|あんみつ|かき氷|みつまめ|穀類|野菜類|果実類|魚介類|肉類|乳類|卵類|豆類|藻類|きのこ類|調味料|香辛料|飲料|酒類|菓子類|嗜好飲料|調理加工食品)/.test(title);
+            
+            if (hasFoodKeywords) {
+              const estimatedCalories = estimateCaloriesFromTitle(title);
+              if (estimatedCalories > 0) {
+                results.push({
+                  name: title,
+                  calories: estimatedCalories,
+                  protein: Math.floor(estimatedCalories * 0.15),
+                  fat: Math.floor(estimatedCalories * 0.25),
+                  carbs: Math.floor(estimatedCalories * 0.6),
+                  unit: '100g',
+                  source: 'FoodDB（包括的検索）',
+                  url: originalUrl
+                });
+              }
+            }
+          }
+        });
+      }
+      
     } else if (hostname.includes('search.rakuten.co.jp')) {
       // 楽天市場の商品検索結果を解析
       console.log('楽天市場のスクレイピング開始');
       
       // 商品カードを解析
-      $('[class*="item"], [class*="product"], [class*="goods"], .item, .product, .goods').each((index, element) => {
+      $('[class*="item"], [class*="product"], [class*="goods"], .item, .product, .goods, .search-result-item, .product-item').each((index, element) => {
         const $el = $(element);
         
         // 商品名の取得
         const titleSelectors = [
           '.item-name', '.product-name', '.goods-name', '.title',
-          'h3', 'h4', 'a[href*="/item/"]', '.name'
+          'h3', 'h4', 'a[href*="/item/"]', '.name', '.product-title',
+          '.item-title', '.goods-title', '.search-result-item-title'
         ];
         
         let title = '';
@@ -524,7 +555,7 @@ function extractDataFromHTML(html: string, hostname: string, originalUrl: string
       
       // より包括的な商品名検索
       console.log('楽天市場包括的検索を試行中...');
-      $('a, h1, h2, h3, h4, h5, h6, .title, .name, .product-name, .item-name').each((index, element) => {
+      $('a, h1, h2, h3, h4, h5, h6, .title, .name, .product-name, .item-name, .search-result-item-title').each((index, element) => {
         const $el = $(element);
         const title = $el.text().trim();
         
@@ -549,6 +580,36 @@ function extractDataFromHTML(html: string, hostname: string, originalUrl: string
           }
         }
       });
+      
+      // さらに包括的な検索：すべてのテキスト要素を確認
+      if (results.length === 0) {
+        console.log('楽天市場さらに包括的検索を試行中...');
+        $('*').each((index, element) => {
+          const $el = $(element);
+          const title = $el.text().trim();
+          
+          // 子要素がない場合のみ処理（重複を避ける）
+          if (title && title.length > 2 && title.length < 100 && $el.children().length === 0) {
+            const hasFoodKeywords = /(ポッキー|プリッツ|チョコレート|クッキー|ビスケット|キャラメル|ガム|マシュマロ|プリン|シュークリーム|ドーナツ|パンケーキ|ワッフル|タルト|モンブラン|ティラミス|チーズケーキ|ショートケーキ|ロールケーキ|パイ|クレープ|まんじゅう|だんご|おはぎ|大福|わらびもち|ようかん|あんみつ|かき氷|みつまめ)/.test(title);
+            
+            if (hasFoodKeywords) {
+              const estimatedCalories = estimateCaloriesFromTitle(title);
+              if (estimatedCalories > 0) {
+                results.push({
+                  name: title,
+                  calories: estimatedCalories,
+                  protein: Math.floor(estimatedCalories * 0.15),
+                  fat: Math.floor(estimatedCalories * 0.25),
+                  carbs: Math.floor(estimatedCalories * 0.6),
+                  unit: '1個',
+                  source: '楽天市場（包括的検索）',
+                  url: originalUrl
+                });
+              }
+            }
+          }
+        });
+      }
     }
 
     console.log(`抽出されたデータ: ${results.length}件`);
