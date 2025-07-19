@@ -60,7 +60,7 @@ export function Dashboard({ profile }: { profile: any }) {
             </Link>
           </div>
         </header>
-        <div className="flex-1 overflow-hidden" style={{ paddingBottom: '0px' }}>
+        <div className="overflow-hidden" style={{ paddingBottom: '0px' }}>
           <DashboardGrid profile={profile} />
         </div>
         
