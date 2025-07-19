@@ -420,7 +420,7 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
               size="sm" 
               onClick={fetchAdvice}
               disabled={isLoading}
-              className="text-xs h-6 px-2 bg-black text-white hover:bg-gray-800"
+              className="text-xs h-6 px-2 bg-blue-600 text-white hover:bg-blue-700"
             >
               {isLoading ? "生成中" : "アドバイスを生成"}
             </Button>
@@ -443,7 +443,7 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
             size="sm" 
             onClick={fetchAdvice}
             disabled={isLoading}
-            className="bg-black text-white hover:bg-gray-800"
+            className="bg-blue-600 text-white hover:bg-blue-700"
           >
             {isLoading ? "生成中..." : "アドバイスを生成"}
           </Button>
