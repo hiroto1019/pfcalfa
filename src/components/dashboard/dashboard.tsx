@@ -47,8 +47,8 @@ export function Dashboard({ profile }: { profile: any }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 relative py-4">
-      <div className="w-full max-w-screen-xl mx-auto bg-white rounded-xl shadow-lg flex flex-col p-4 min-h-[calc(100vh-2rem)]">
+    <div className="bg-gray-50 relative py-4">
+      <div className="w-full max-w-screen-xl mx-auto bg-white rounded-xl shadow-lg flex flex-col p-4">
         <header className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold">ダッシュボード</h1>
           <div className="flex gap-2">
