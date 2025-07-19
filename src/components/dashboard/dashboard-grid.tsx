@@ -188,7 +188,7 @@ export function DashboardGrid({ profile }: { profile: any }) {
   }
 
   return (
-    <main className="grid flex-1 grid-cols-1 md:grid-cols-3 gap-4 p-4 pb-2 min-h-0">
+    <main className="grid flex-1 grid-cols-1 md:grid-cols-3 gap-4 p-4 min-h-0" style={{ paddingBottom: '16px' }}>
       {/* AIアドバイス - SP: 1番目, PC: 1番目 */}
       <div className="order-1 md:order-1 md:h-full">
         <div className="h-full">
