@@ -112,6 +112,9 @@ export function WeightLogger({ compact = false }: WeightLoggerProps) {
       }
 
       setIsEditing(false);
+      
+      // グローバルイベントを発火してダッシュボードの更新を促す
+      window.dispatchEvent(new CustomEvent('weightRecorded'));
     } catch (error) {
       console.error('体重ログ保存エラー:', error);
     } finally {

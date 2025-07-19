@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, X, Loader2 } from "lucide-react";
+import { Activity, X, Loader2, Edit, Plus } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 interface ExerciseAnalysisModalProps {
   open: boolean;
@@ -24,8 +25,10 @@ interface ExerciseAnalysisResult {
 export function ExerciseAnalysisModal({ open, onClose }: ExerciseAnalysisModalProps) {
   const [exerciseText, setExerciseText] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<ExerciseAnalysisResult | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const supabase = createClient();
 
   if (!open) return null;
 
@@ -52,8 +55,8 @@ export function ExerciseAnalysisModal({ open, onClose }: ExerciseAnalysisModalPr
 
       if (data.success) {
         setAnalysisResult(data.data);
-        // 運動記録イベントを発火
-        window.dispatchEvent(new CustomEvent('exerciseRecorded'));
+        // 運動解析完了イベントを発火
+        window.dispatchEvent(new CustomEvent('exerciseAnalyzed', { detail: data.data }));
       } else {
         setErrorMessage(data.error || '解析に失敗しました');
       }
@@ -63,6 +66,50 @@ export function ExerciseAnalysisModal({ open, onClose }: ExerciseAnalysisModalPr
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleRecord = async () => {
+    if (!analysisResult) return;
+
+    setIsRecording(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('ユーザーが認証されていません');
+      }
+
+      const { error } = await supabase
+        .from('exercise_logs')
+        .insert({
+          user_id: user.id,
+          exercise_name: analysisResult.exercise_name,
+          duration_minutes: analysisResult.duration_minutes,
+          calories_burned: analysisResult.calories_burned,
+          exercise_type: analysisResult.exercise_type,
+          notes: analysisResult.notes
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      // 運動記録イベントを発火
+      window.dispatchEvent(new CustomEvent('exerciseRecorded'));
+      
+      // モーダルを閉じる
+      handleClose();
+    } catch (error) {
+      console.error('運動記録エラー:', error);
+      setErrorMessage('記録に失敗しました');
+    } finally {
+      setIsRecording(false);
+    }
+  };
+
+  const handleEdit = () => {
+    // 解析結果をクリアして編集モードに戻る
+    setAnalysisResult(null);
+    setErrorMessage("");
   };
 
   const handleClose = () => {
@@ -134,7 +181,28 @@ export function ExerciseAnalysisModal({ open, onClose }: ExerciseAnalysisModalPr
 
           {/* 解析結果 */}
           {analysisResult && (
-            <Card className="bg-green-50 border-green-200">
+            <Card className="bg-green-50 border-green-200 relative">
+              {/* 右上のボタン群 */}
+              <div className="absolute top-2 right-2 flex gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleEdit}
+                  className="h-6 px-2 text-xs"
+                >
+                  <Edit className="h-3 w-3 mr-1" />
+                  編集
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClose}
+                  className="h-6 px-2 text-xs"
+                >
+                  キャンセル
+                </Button>
+              </div>
+              
               <CardHeader>
                 <CardTitle className="text-lg text-green-800">解析完了</CardTitle>
               </CardHeader>
@@ -158,25 +226,14 @@ export function ExerciseAnalysisModal({ open, onClose }: ExerciseAnalysisModalPr
                   </div>
                 </div>
                 {analysisResult.notes && (
-                  <div>
+                  <div className="mt-4">
                     <p className="text-sm text-gray-600">補足</p>
-                    <p className="text-sm">{analysisResult.notes}</p>
+                    <p className="text-sm mt-1">{analysisResult.notes}</p>
                   </div>
                 )}
-                <div className="p-3 bg-green-100 rounded-lg">
-                  <p className="text-sm text-green-800 font-medium">
-                    ✓ 運動記録が保存されました
-                  </p>
-                </div>
               </CardContent>
             </Card>
           )}
-        </div>
-
-        <div className="mt-6 flex justify-end space-x-2">
-          <Button variant="outline" onClick={handleClose}>
-            閉じる
-          </Button>
         </div>
       </div>
     </div>

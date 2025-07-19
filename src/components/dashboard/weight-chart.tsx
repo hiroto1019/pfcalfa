@@ -55,13 +55,13 @@ export function WeightChart({ profile, weightLogs, isLoading }: { profile: any; 
   ];
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="h-full flex flex-col">
+      <CardHeader className="flex-shrink-0">
         <CardTitle className="text-base font-semibold">体重推移</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 flex flex-col">
         <div className="w-full h-full flex flex-col">
-          <div className="flex justify-center mb-2">
+          <div className="flex justify-center mb-2 flex-shrink-0">
             <Tabs value={timeRange} onValueChange={(v) => setTimeRange(v as "daily"|"weekly"|"monthly")} className="w-full">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="daily">日別</TabsTrigger>
@@ -71,9 +71,9 @@ export function WeightChart({ profile, weightLogs, isLoading }: { profile: any; 
             </Tabs>
           </div>
           {isLoading ? (
-            <div className="flex items-center justify-center h-60">読み込み中...</div>
+            <div className="flex items-center justify-center flex-1">読み込み中...</div>
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height="100%">
               <LineChart data={formattedData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />

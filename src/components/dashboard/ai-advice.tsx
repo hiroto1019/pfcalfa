@@ -1,16 +1,18 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { useState, useEffect, useRef } from "react";
-import { getAiAdvice, UserProfile } from "@/lib/grok";
-import { createClient } from "@/lib/supabase/client";
+import React, { useState, useEffect, useRef } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { createClient } from '@/lib/supabase/client';
+import { getAiAdvice } from '@/lib/grok';
+import { UserProfile } from '@/lib/grok';
 
 interface AiAdviceProps {
   compact?: boolean;
 }
 
 export function AiAdvice({ compact = false }: AiAdviceProps) {
+  console.log('AIアドバイスコンポーネントがレンダリングされました');
   const [advice, setAdvice] = useState<{ 
     meal_summary: string; 
     meal_detail: string; 
@@ -20,44 +22,57 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [dailyData, setDailyData] = useState<any>(null);
-  const [canUpdate, setCanUpdate] = useState(false);
+  const [updateButtonEnabled, setUpdateButtonEnabled] = useState(true); // 常に生成可能
   const [showDetails, setShowDetails] = useState(false);
   const [isDataReady, setIsDataReady] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [lastUpdateTime, setLastUpdateTime] = useState<number>(0);
+  const [hasEverUpdated, setHasEverUpdated] = useState(false);
   const supabase = createClient();
   const lastProfileHash = useRef<string | null>(null);
   const lastDailyHash = useRef<string | null>(null);
   const dataLoadAttempts = useRef(0);
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const forceUpdateRef = useRef(false);
   const isFirstLoad = useRef(true);
 
-  // ハッシュ生成関数（最適化版）
+  // ハッシュ生成関数
   const getHash = (obj: any) => {
     if (!obj) return 'null';
-    // 重要なフィールドのみをハッシュ化（高速化）
-    const keyFields = obj.username ? {
-      username: obj.username,
-      goal_type: obj.goal_type,
-      activity_level: obj.activity_level,
-      total_calories: obj.total_calories || 0,
-      total_protein: obj.total_protein || 0,
-      total_fat: obj.total_fat || 0,
-      total_carbs: obj.total_carbs || 0
-    } : obj;
-    return JSON.stringify(keyFields);
+    if (obj.username) {
+      const keyFields = {
+        username: obj.username,
+        gender: obj.gender,
+        birth_date: obj.birth_date,
+        height_cm: obj.height_cm,
+        initial_weight_kg: obj.initial_weight_kg,
+        target_weight_kg: obj.target_weight_kg,
+        activity_level: obj.activity_level,
+        goal_type: obj.goal_type,
+        goal_target_date: obj.goal_target_date,
+        food_preferences: obj.food_preferences
+      };
+      return JSON.stringify(keyFields);
+    }
+    if (obj.total_calories !== undefined) {
+      const keyFields = {
+        total_calories: obj.total_calories || 0,
+        total_protein: obj.total_protein || 0,
+        total_fat: obj.total_fat || 0,
+        total_carbs: obj.total_carbs || 0,
+        date: obj.date
+      };
+      return JSON.stringify(keyFields);
+    }
+    return JSON.stringify(obj);
   };
 
-  // localStorageキー（最適化版）
+  // localStorageキー
   const getAdviceKey = () => {
     if (!userProfile) return "ai-advice-default";
-    const targetCalories = calculateTargetCalories(userProfile);
-    const calorieRange = dailyData ? Math.floor((dailyData.total_calories || 0) / 100) * 100 : 0;
-    return `ai-advice-${userProfile.username}-${userProfile.goal_type}-${calorieRange}-${Math.round(targetCalories / 100) * 100}`;
+    return `ai-advice-${userProfile.username}-${userProfile.goal_type}`;
   };
 
-  // 目標カロリー計算関数（フロントエンド版）
+  // 目標カロリー計算関数
   const calculateTargetCalories = (profile: UserProfile): number => {
     const age = new Date().getFullYear() - new Date(profile.birth_date).getFullYear();
     let bmr = 0;
@@ -81,69 +96,125 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
     return targetCalories;
   };
 
-  // キャッシュから復元（改善版）
+  // キャッシュから復元（シンプル版）
   useEffect(() => {
-    if (userProfile && !forceUpdateRef.current && isFirstLoad.current) {
-      const cache = localStorage.getItem(getAdviceKey());
+    if (userProfile && isFirstLoad.current) {
+      console.log('キャッシュ復元処理開始');
+      
+      let cache = localStorage.getItem(getAdviceKey());
+      let cacheKey = getAdviceKey();
+      
+      if (!cache) {
+        const genericKey = `ai-advice-${userProfile.username}`;
+        cache = localStorage.getItem(genericKey);
+        cacheKey = genericKey;
+        console.log('汎用キャッシュキーで検索:', genericKey);
+      }
+      
       if (cache) {
         try {
           const cachedAdvice = JSON.parse(cache);
-          // キャッシュの有効期限をチェック（20分に短縮）
           const cacheAge = Date.now() - (cachedAdvice.timestamp || 0);
-          if (cacheAge < 20 * 60 * 1000) { // 20分以内
+          if (cacheAge < 7 * 24 * 60 * 60 * 1000) {
             setAdvice(cachedAdvice.data || cachedAdvice);
             setLastUpdateTime(cachedAdvice.timestamp || Date.now());
-            console.log('キャッシュからアドバイスを復元');
+            setHasEverUpdated(true);
+            console.log('キャッシュからアドバイスを復元:', cachedAdvice.data || cachedAdvice);
+            console.log('使用したキャッシュキー:', cacheKey);
             isFirstLoad.current = false;
-            // キャッシュから復元した場合は更新可能にする
-            setCanUpdate(true);
+            setUpdateButtonEnabled(true);
+            console.log('キャッシュ復元 - 生成ボタンを有効化したまま維持');
           } else {
-            localStorage.removeItem(getAdviceKey());
+            console.log('キャッシュが期限切れです');
+            localStorage.removeItem(cacheKey);
+            isFirstLoad.current = false;
+            setUpdateButtonEnabled(true);
           }
         } catch (error) {
           console.error('キャッシュの復元に失敗:', error);
-          localStorage.removeItem(getAdviceKey());
+          localStorage.removeItem(cacheKey);
+          isFirstLoad.current = false;
+          setUpdateButtonEnabled(true);
         }
+      } else {
+        console.log('キャッシュが見つかりません');
+        isFirstLoad.current = false;
+        setUpdateButtonEnabled(true);
+        console.log('キャッシュなし - 更新ボタンを有効化');
       }
     }
-  }, [userProfile, dailyData]);
+  }, [userProfile]);
 
-  // プロフィール・日次データ取得（最適化版）
+  // プロフィール・日次データ取得
   useEffect(() => {
     loadUserData();
   }, []);
 
-  // 食事記録イベントをリッスン（改善版）
+  // データ変更イベントをリッスン（シンプル版）
   useEffect(() => {
+    console.log('AIアドバイス: イベントリスナーを設定します');
+
+    // シンプルなイベントハンドラー
     const handleMealRecorded = () => {
       console.log('AIアドバイス - 食事記録イベントを受信');
-      // 強制更新フラグを設定
-      forceUpdateRef.current = true;
-      // 履歴更新フラグを設定してボタンを「更新」に変更
-      setCanUpdate(true);
-      // 遅延を短縮（高速化）
-      setTimeout(() => {
-        loadUserData();
-      }, 500);
+      setUpdateButtonEnabled(true);
+      console.log('食事記録で更新ボタンを有効化しました');
     };
 
     const handleExerciseRecorded = () => {
       console.log('AIアドバイス - 運動記録イベントを受信');
-      // 強制更新フラグを設定
-      forceUpdateRef.current = true;
-      // 履歴更新フラグを設定してボタンを「更新」に変更
-      setCanUpdate(true);
-      // 遅延を短縮（高速化）
-      setTimeout(() => {
-        loadUserData();
-      }, 500);
+      setUpdateButtonEnabled(true);
+      console.log('運動記録で更新ボタンを有効化しました');
     };
 
+    const handleMealDeleted = () => {
+      console.log('AIアドバイス - 食事削除イベントを受信');
+      setUpdateButtonEnabled(true);
+      console.log('食事削除で更新ボタンを有効化しました');
+    };
+
+    const handleExerciseDeleted = () => {
+      console.log('AIアドバイス - 運動削除イベントを受信');
+      setUpdateButtonEnabled(true);
+      console.log('運動削除で更新ボタンを有効化しました');
+    };
+
+    const handleIdealCaloriesUpdated = () => {
+      console.log('AIアドバイス - 理想カロリー更新イベントを受信');
+      setUpdateButtonEnabled(true);
+      console.log('理想カロリー更新で更新ボタンを有効化しました');
+    };
+
+    const handleProfileUpdated = () => {
+      console.log('AIアドバイス - プロフィール更新イベントを受信');
+      setUpdateButtonEnabled(true);
+      console.log('プロフィール更新で更新ボタンを有効化しました');
+    };
+
+    const handleFoodPreferencesUpdated = () => {
+      console.log('AIアドバイス - 食事の好み更新イベントを受信');
+      setUpdateButtonEnabled(true);
+      console.log('食事の好み更新で更新ボタンを有効化しました');
+    };
+
+    // イベントリスナー登録
     window.addEventListener('mealRecorded', handleMealRecorded);
     window.addEventListener('exerciseRecorded', handleExerciseRecorded);
+    window.addEventListener('mealDeleted', handleMealDeleted);
+    window.addEventListener('exerciseDeleted', handleExerciseDeleted);
+    window.addEventListener('idealCaloriesUpdated', handleIdealCaloriesUpdated);
+    window.addEventListener('profileUpdated', handleProfileUpdated);
+    window.addEventListener('foodPreferencesUpdated', handleFoodPreferencesUpdated);
+    
     return () => {
+      console.log('AIアドバイス: イベントリスナーを削除します');
       window.removeEventListener('mealRecorded', handleMealRecorded);
       window.removeEventListener('exerciseRecorded', handleExerciseRecorded);
+      window.removeEventListener('mealDeleted', handleMealDeleted);
+      window.removeEventListener('exerciseDeleted', handleExerciseDeleted);
+      window.removeEventListener('idealCaloriesUpdated', handleIdealCaloriesUpdated);
+      window.removeEventListener('profileUpdated', handleProfileUpdated);
+      window.removeEventListener('foodPreferencesUpdated', handleFoodPreferencesUpdated);
     };
   }, []);
 
@@ -157,8 +228,8 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
         console.log('ユーザーが認証されていません');
         return;
       }
+      console.log('ユーザー認証確認完了:', user.id);
 
-      // プロフィールデータ取得（並列処理で高速化）
       const [profileResult, dailyResult] = await Promise.all([
         supabase
           .from('profiles')
@@ -202,6 +273,8 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
         };
         setUserProfile(userProfileData);
         console.log('プロフィールデータ設定完了:', userProfileData);
+      } else {
+        console.log('プロフィールデータが取得できませんでした');
       }
 
       if (dailyResult.error && dailyResult.error.code !== 'PGRST116') {
@@ -227,6 +300,7 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
 
       setIsDataReady(true);
       dataLoadAttempts.current = 0;
+      console.log('データ読み込み完了 - isDataReady: true');
 
     } catch (error) {
       console.error('ユーザーデータ読み込みエラー:', error);
@@ -238,55 +312,16 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
     }
   };
 
-  // プロフィール・日次データの変更検知（改善版）
-  useEffect(() => {
-    if (!isDataReady) return;
-
-    const profileHash = getHash(userProfile);
-    const dailyHash = getHash(dailyData);
-    
-    if (lastProfileHash.current === null && lastDailyHash.current === null) {
-      lastProfileHash.current = profileHash;
-      lastDailyHash.current = dailyHash;
-      
-      // キャッシュがない場合は更新可能にする（初回生成のため）
-      const cache = localStorage.getItem(getAdviceKey());
-      if (!cache) {
-        setCanUpdate(true);
-      } else {
-        setCanUpdate(false);
-      }
-      
-      // 初回データ読み込み完了時は自動でアドバイスを取得しない（キャッシュから復元のみ）
-      return;
-    }
-    
-    // 強制更新フラグが設定されている場合は更新可能にする
-    if (forceUpdateRef.current) {
-      setCanUpdate(true);
-      forceUpdateRef.current = false;
-      return;
-    }
-    
-    if (profileHash !== lastProfileHash.current || dailyHash !== lastDailyHash.current) {
-      setCanUpdate(true);
-    } else {
-      setCanUpdate(false);
-    }
-  }, [userProfile, dailyData, isDataReady]);
-
   const fetchAdvice = async () => {
-    if (!userProfile || !isDataReady) {
-      console.log('プロフィールまたはデータが準備できていません');
+    if (!userProfile) {
+      console.log('プロフィールが準備できていません');
       return;
     }
 
-    // 既存のタイムアウトをクリア
     if (fetchTimeoutRef.current) {
       clearTimeout(fetchTimeoutRef.current);
     }
 
-    // 更新時はキャッシュをクリア（新機能）
     localStorage.removeItem(getAdviceKey());
 
     setIsLoading(true);
@@ -295,7 +330,6 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
     try {
       console.log('AIアドバイス取得開始:', { userProfile, dailyData });
       
-      // 8秒タイムアウトに延長（高品質なアドバイス生成のため）
       const timeoutPromise = new Promise((_, reject) => {
         fetchTimeoutRef.current = setTimeout(() => {
           reject(new Error('タイムアウト'));
@@ -306,7 +340,6 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
       
       const adviceData = await Promise.race([advicePromise, timeoutPromise]) as any;
       
-      // タイムアウトをクリア
       if (fetchTimeoutRef.current) {
         clearTimeout(fetchTimeoutRef.current);
         fetchTimeoutRef.current = null;
@@ -316,16 +349,16 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
         setAdvice(adviceData);
         const currentTime = Date.now();
         setLastUpdateTime(currentTime);
-        // キャッシュにタイムスタンプ付きで保存（更新時は新しいキャッシュ）
         localStorage.setItem(getAdviceKey(), JSON.stringify({
           data: adviceData,
           timestamp: currentTime
         }));
         lastProfileHash.current = getHash(userProfile);
         lastDailyHash.current = getHash(dailyData);
-        setCanUpdate(false);
+                 setUpdateButtonEnabled(true); // 生成成功後も有効化したまま
         setRetryCount(0);
         isFirstLoad.current = false;
+        setHasEverUpdated(true);
         console.log('AIアドバイス取得成功:', adviceData);
       } else {
         throw new Error('アドバイスデータが空です');
@@ -333,22 +366,19 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
     } catch (error) {
       console.error('AIアドバイス取得エラー:', error);
       
-      // タイムアウトをクリア
       if (fetchTimeoutRef.current) {
         clearTimeout(fetchTimeoutRef.current);
         fetchTimeoutRef.current = null;
       }
       
-      // リトライロジック（最大2回に増加）
       if (retryCount < 2) {
         console.log(`${retryCount}回目のリトライを実行します...`);
         setTimeout(() => {
           fetchAdvice();
-        }, 1000 * (retryCount + 1)); // 指数バックオフ: 1秒、2秒
+        }, 1000 * (retryCount + 1));
         return;
       }
 
-      // 最終的なフォールバック（改善版）
       const fallbackAdvice = {
         meal_summary: "データの読み込みに失敗しました。しばらく時間をおいて再度お試しください。",
         meal_detail: "データの読み込みに失敗しました。しばらく時間をおいて再度お試しください。一般的なアドバイス: バランスの良い食事と適度な運動を心がけましょう。",
@@ -380,7 +410,7 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
         ) : advice ? (
           <div className="text-center space-y-1">
             <p className="text-xs text-gray-500">AIアドバイス</p>
-            <p className="text-xs text-gray-700 whitespace-pre-line">
+            <p className="text-xs text-gray-700 whitespace-pre-line select-text">
               {advice.meal_summary}
               <br />
               {advice.exercise_summary}
@@ -389,10 +419,10 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
               variant="outline"
               size="sm" 
               onClick={fetchAdvice}
-              disabled={isLoading || !isDataReady}
-              className="text-xs h-6 px-2"
+              disabled={isLoading}
+              className="text-xs h-6 px-2 bg-black text-white hover:bg-gray-800"
             >
-              {isLoading ? "更新中" : "更新"}
+              {isLoading ? "生成中" : "アドバイスを生成"}
             </Button>
           </div>
         ) : (
@@ -403,83 +433,88 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex items-center justify-between">
-        <CardTitle className="text-base font-semibold">AIアドバイス</CardTitle>
+    <Card className="h-full flex flex-col">
+      <CardHeader className="flex items-center justify-between flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <CardTitle className="text-base font-semibold">AIアドバイス</CardTitle>
+        </div>
         <Button 
-            variant={canUpdate ? "default" : "outline"}
+            variant={updateButtonEnabled ? "default" : "outline"}
             size="sm" 
             onClick={fetchAdvice}
-            disabled={isLoading || !isDataReady || !canUpdate}
-            className={canUpdate 
-              ? "bg-blue-600 text-white hover:bg-blue-700" 
-              : "text-gray-400 bg-gray-100 border-gray-200 cursor-not-allowed"
-            }
+            disabled={isLoading}
+            className="bg-black text-white hover:bg-gray-800"
           >
-            {isLoading ? "更新中..." : canUpdate ? "更新" : "最新"}
+            {isLoading ? "生成中..." : "アドバイスを生成"}
           </Button>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
+      <CardContent className="flex-1 flex flex-col">
+        <div className="space-y-4 flex-1 flex flex-col">
           {isLoading ? (
-            <div className="text-center py-4">
-              <p>AIアドバイスを生成中...</p>
-              {retryCount > 0 && (
-                <p className="text-sm text-gray-500 mt-2">
-                  {retryCount}回目の試行中...
-                </p>
-              )}
+            <div className="text-center py-4 flex-1 flex items-center justify-center">
+              <div>
+                <p>AIアドバイスを生成中...</p>
+                {retryCount > 0 && (
+                  <p className="text-sm text-gray-500 mt-2">
+                    {retryCount}回目の試行中...
+                  </p>
+                )}
+              </div>
             </div>
           ) : advice ? (
-            <>
-              {/* 要約表示 */}
-              <div className="space-y-3">
-                <div>
+            <div className="flex-1 flex flex-col">
+              <div className="space-y-3 flex-1 flex flex-col">
+                <div className="flex-1">
                   <h3 className="font-semibold text-green-700 mb-2">🍽️ 食事アドバイス</h3>
-                  <p className="text-sm text-gray-700 leading-relaxed">
+                  <div className="text-sm text-gray-700 leading-relaxed select-text">
                     {showDetails ? (
-                      <div className="whitespace-pre-line max-h-48 overflow-y-auto">
+                      <div className="whitespace-pre-line max-h-48 overflow-y-auto select-text">
                         {advice.meal_detail}
                       </div>
                     ) : (
-                      advice.meal_summary
+                      <span className="select-text">{advice.meal_summary}</span>
                     )}
-                  </p>
+                  </div>
                 </div>
-                <div>
+                <div className="flex-1">
                   <h3 className="font-semibold text-blue-700 mb-2">🏃‍♂️ 運動アドバイス</h3>
-                  <p className="text-sm text-gray-700 leading-relaxed">
+                  <div className="text-sm text-gray-700 leading-relaxed select-text">
                     {showDetails ? (
-                      <div className="whitespace-pre-line max-h-48 overflow-y-auto">
+                      <div className="whitespace-pre-line max-h-48 overflow-y-auto select-text">
                         {advice.exercise_detail}
                       </div>
                     ) : (
-                      advice.exercise_summary
+                      <span className="select-text">{advice.exercise_summary}</span>
                     )}
-                  </p>
+                  </div>
                 </div>
                 
-                {/* 詳細表示切り替えボタン - 常に表示 */}
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setShowDetails(!showDetails)}
-                  className="w-full mt-2"
+                  className="w-full mt-2 flex-shrink-0"
                 >
                   {showDetails ? "要約を表示" : "詳細を見る"}
                 </Button>
               </div>
-              
-
-            </>
+            </div>
           ) : (
-            <div className="text-center py-4">
-              <p className="text-gray-500">プロフィールを登録すると、パーソナライズされたアドバイスが表示されます。</p>
-              {userProfile && (
-                <div className="mt-2">
-                  <p className="text-sm text-gray-400">「更新」ボタンを押すと新しいアドバイスが生成されます。</p>
-                </div>
-              )}
+            <div className="text-center py-4 flex-1 flex items-center justify-center">
+              <div>
+                {!hasEverUpdated ? (
+                  <>
+                    <p className="text-gray-500">プロフィールを登録すると、パーソナライズされたアドバイスが表示されます。</p>
+                    {userProfile && (
+                      <div className="mt-2">
+                        <p className="text-sm text-gray-400">「アドバイスを生成」ボタンを押すと新しいアドバイスが生成されます。</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-gray-500">アドバイスを読み込み中...</p>
+                )}
+              </div>
             </div>
           )}
         </div>

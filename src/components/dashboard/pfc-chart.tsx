@@ -52,7 +52,7 @@ export function PFCChart({ compact = false, idealCalories }: PFCChartProps) {
 
   useEffect(() => {
     loadChartData();
-  }, [period]);
+  }, [period, idealCalories]); // idealCaloriesの変更も監視
 
   useEffect(() => {
     // 食事記録イベントをリッスン
@@ -64,9 +64,26 @@ export function PFCChart({ compact = false, idealCalories }: PFCChartProps) {
       }, 500);
     };
 
+    const handleExerciseRecorded = () => {
+      console.log('PFCチャート - 運動記録イベントを受信');
+      setTimeout(() => {
+        loadChartData();
+      }, 500);
+    };
+
+    const handleIdealCaloriesUpdated = () => {
+      console.log('PFCチャート - 理想カロリー更新イベントを受信');
+      loadChartData();
+    };
+
     window.addEventListener('mealRecorded', handleMealRecorded);
+    window.addEventListener('exerciseRecorded', handleExerciseRecorded);
+    window.addEventListener('idealCaloriesUpdated', handleIdealCaloriesUpdated);
+    
     return () => {
       window.removeEventListener('mealRecorded', handleMealRecorded);
+      window.removeEventListener('exerciseRecorded', handleExerciseRecorded);
+      window.removeEventListener('idealCaloriesUpdated', handleIdealCaloriesUpdated);
     };
   }, []);
 
@@ -88,60 +105,149 @@ export function PFCChart({ compact = false, idealCalories }: PFCChartProps) {
       const endDate = jstDate;
 
       let startDate: Date;
+      let endDateForFilter: Date;
 
       if (period === "weekly") {
         startDate = startOfWeek(endDate);
+        endDateForFilter = endDate;
       } else if (period === "monthly") {
         startDate = startOfMonth(endDate);
+        endDateForFilter = endDate;
       } else { // daily
-        startDate = endDate;
+        // 日別の場合は今日の日付のみ（より確実に）
+        const today = new Date();
+        const jstOffset = 9 * 60; // JSTはUTC+9
+        const jstToday = new Date(today.getTime() + jstOffset * 60000);
+        const todayDateStr = jstToday.toISOString().split('T')[0];
+        
+        startDate = new Date(todayDateStr + 'T00:00:00.000Z');
+        endDateForFilter = new Date(todayDateStr + 'T23:59:59.999Z');
+        
+        console.log('PFCチャート - 今日の日付範囲:', {
+          todayDateStr,
+          startDate: startDate.toISOString(),
+          endDate: endDateForFilter.toISOString()
+        });
       }
 
-      const { data: summaries, error } = await supabase
-          .from('daily_summaries')
-          .select('*')
-          .eq('user_id', user.id)
-        .gte('date', startDate.toISOString().split('T')[0])
-        .lte('date', endDate.toISOString().split('T')[0]);
+      // mealsテーブルから直接データを取得
+      const { data: allMeals, error } = await supabase
+        .from('meals')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
+
+      // カロリーサマリーと同じロジックで今日のデータをフィルタリング
+      const todayDate = jstDate.toISOString().split('T')[0];
+      const filteredMeals = allMeals ? allMeals.filter((meal: any) => {
+        const mealDate = new Date(meal.created_at);
+        // JSTに変換してから日付を比較
+        const jstMealDate = new Date(mealDate.getTime() + 9 * 60 * 60 * 1000);
+        const mealDateStr = jstMealDate.toISOString().split('T')[0];
+        
+        const isToday = mealDateStr === todayDate;
+        console.log(`PFCフィルタリング: ${meal.food_name} - ${meal.created_at} -> ${mealDateStr} vs ${todayDate} -> ${isToday ? '今日' : '過去'}`);
+        
+        return isToday;
+      }) : [];
+
+      console.log('PFCチャート - 期間:', { startDate: startDate.toISOString().split('T')[0], endDate: endDate.toISOString().split('T')[0] });
+      console.log('PFCチャート - フィルタリングされた食事数:', filteredMeals.length);
+      if (filteredMeals.length > 0) {
+        console.log('PFCチャート - フィルタリングされた食事詳細:', filteredMeals.map((meal: any) => ({
+          food_name: meal.food_name,
+          created_at: meal.created_at,
+          protein: meal.protein,
+          fat: meal.fat,
+          carbs: meal.carbs,
+          calories: meal.calories
+        })));
+      }
 
       let actualProtein = 0;
       let actualFat = 0;
       let actualCarbs = 0;
       let actualCalories = 0;
 
-      if (summaries && summaries.length > 0) {
-        const typedSummaries = summaries as DailySummary[];
-        const totalDays = typedSummaries.length;
-        const totalP = typedSummaries.reduce((sum: number, s: DailySummary) => sum + s.total_protein, 0);
-        const totalF = typedSummaries.reduce((sum: number, s: DailySummary) => sum + s.total_fat, 0);
-        const totalC = typedSummaries.reduce((sum: number, s: DailySummary) => sum + s.total_carbs, 0);
+      if (filteredMeals.length > 0) {
+        const totalP = filteredMeals.reduce((sum: number, meal: any) => sum + meal.protein, 0);
+        const totalF = filteredMeals.reduce((sum: number, meal: any) => sum + meal.fat, 0);
+        const totalC = filteredMeals.reduce((sum: number, meal: any) => sum + meal.carbs, 0);
+        const totalCalories = filteredMeals.reduce((sum: number, meal: any) => sum + meal.calories, 0);
         
-        const avgP = totalP / totalDays;
-        const avgF = totalF / totalDays;
-        const avgC = totalC / totalDays;
+        console.log('PFCチャート - 計算詳細:', {
+          totalP,
+          totalF,
+          totalC,
+          totalCalories,
+          period,
+          mealCount: filteredMeals.length,
+          pfcCalculatedCalories: (totalP * 4) + (totalF * 9) + (totalC * 4)
+        });
         
-        actualProtein = avgP * 4;
-        actualFat = avgF * 9;
-        actualCarbs = avgC * 4;
+        if (period === "daily") {
+          // 日別の場合はcaloriesフィールドを直接使用（カロリーサマリーと一致させる）
+          const totalCaloriesFromPFC = totalP * 4 + totalF * 9 + totalC * 4;
+          
+          if (totalCaloriesFromPFC > 0) {
+            // PFC比率を維持しながら、実際のカロリー値に調整
+            const pRatio = (totalP * 4) / totalCaloriesFromPFC;
+            const fRatio = (totalF * 9) / totalCaloriesFromPFC;
+            const cRatio = (totalC * 4) / totalCaloriesFromPFC;
+            
+            actualProtein = totalCalories * pRatio;
+            actualFat = totalCalories * fRatio;
+            actualCarbs = totalCalories * cRatio;
+          } else {
+            actualProtein = 0;
+            actualFat = 0;
+            actualCarbs = 0;
+          }
+        } else {
+          // 週別・月別の場合は平均を計算
+          const days = period === "weekly" ? 7 : 30;
+          const avgP = totalP / days;
+          const avgF = totalF / days;
+          const avgC = totalC / days;
+          const avgCalories = totalCalories / days;
+          
+          const totalCaloriesFromPFC = avgP * 4 + avgF * 9 + avgC * 4;
+          
+          if (totalCaloriesFromPFC > 0) {
+            const pRatio = (avgP * 4) / totalCaloriesFromPFC;
+            const fRatio = (avgF * 9) / totalCaloriesFromPFC;
+            const cRatio = (avgC * 4) / totalCaloriesFromPFC;
+            
+            actualProtein = avgCalories * pRatio;
+            actualFat = avgCalories * fRatio;
+            actualCarbs = avgCalories * cRatio;
+          } else {
+            actualProtein = 0;
+            actualFat = 0;
+            actualCarbs = 0;
+          }
+        }
       }
       
-      // 目標PFCカロリーの計算
-        const idealPKcal = targetProtein * 4;
-        const idealFKcal = targetFat * 9;
-        const idealCKcal = targetCarbs * 4;
-        const idealSum = idealPKcal + idealFKcal + idealCKcal;
-      let idealProteinCal = 0, idealFatCal = 0, idealCarbsCal = 0;
-        if (idealSum > 0) {
-          const pRatio = idealPKcal / idealSum;
-          const fRatio = idealFKcal / idealSum;
-        const roundedProtein = Math.round(targetCalories * pRatio);
-        const roundedFat = Math.round(targetCalories * fRatio);
-        idealProteinCal = roundedProtein;
-        idealFatCal = roundedFat;
-        idealCarbsCal = targetCalories - roundedProtein - roundedFat;
-      }
+      // 目標PFCカロリーの計算（理想カロリーからPFC比率を計算）
+      // 理想的なPFC比率: タンパク質20%, 脂質25%, 炭水化物55%
+      const idealProteinRatio = 0.20; // 20%
+      const idealFatRatio = 0.25; // 25%
+      const idealCarbsRatio = 0.55; // 55%
+      
+      const idealProteinCal = Math.round(idealCalories * idealProteinRatio);
+      const idealFatCal = Math.round(idealCalories * idealFatRatio);
+      const idealCarbsCal = idealCalories - idealProteinCal - idealFatCal; // 残りを炭水化物に
+      
+      console.log('PFCチャート - 理想カロリー計算:', {
+        idealCalories,
+        idealProteinCal,
+        idealFatCal,
+        idealCarbsCal,
+        total: idealProteinCal + idealFatCal + idealCarbsCal
+      });
 
       const chartData = [
           {

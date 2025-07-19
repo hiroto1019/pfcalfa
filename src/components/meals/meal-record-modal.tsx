@@ -542,7 +542,10 @@ export function MealRecordModal() {
       
       // ページをリロードせずに、親コンポーネントに更新を通知
       // カスタムイベントを発火して、ダッシュボードの更新を促す
-      window.dispatchEvent(new CustomEvent('mealRecorded'));
+      console.log('食事記録モーダル: mealRecordedイベントを発火');
+      const event = new CustomEvent('mealRecorded');
+      window.dispatchEvent(event);
+      console.log('食事記録モーダル: イベント発火完了');
       
     } catch (error) {
       console.error('食事記録エラー:', error);

@@ -209,6 +209,8 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
       setErrorMessage('');
       setShowAnalysisModal(false);
 
+      // グローバルイベントを発火してダッシュボードの更新を促す
+      window.dispatchEvent(new CustomEvent('exerciseRecorded'));
       onExerciseAdded();
       onClose();
 
@@ -222,6 +224,11 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
 
   // 必須項目が入力されているかチェック
   const isFormValid = () => {
+    // 解析結果がある場合は記録可能
+    if (showAnalysisModal && analysisData) {
+      return true;
+    }
+    
     return formData.exercise_name.trim() !== '' && 
            formData.duration_minutes.trim() !== '' && 
            formData.calories_burned.trim() !== '' && 
@@ -305,6 +312,8 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
       setErrorMessage('');
       setShowAnalysisModal(false);
 
+      // グローバルイベントを発火してダッシュボードの更新を促す
+      window.dispatchEvent(new CustomEvent('exerciseRecorded'));
       onExerciseAdded();
       onClose();
 
@@ -350,7 +359,29 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
       {/* 解析完了モーダル */}
       {showAnalysisModal && analysisData && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-md p-6">
+          <div className="bg-white rounded-lg w-full max-w-md p-6 relative">
+            {/* 右上のボタン群 */}
+            <div className="absolute top-3 right-3 flex gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAnalysisEdit}
+                className="h-6 px-2 text-xs"
+                disabled={isSubmitting}
+              >
+                編集
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAnalysisCancel}
+                className="h-6 px-2 text-xs"
+                disabled={isSubmitting}
+              >
+                キャンセル
+              </Button>
+            </div>
+
             <div className="text-center mb-6">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Activity className="w-8 h-8 text-green-600" />
@@ -379,46 +410,12 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
                   <span className="font-medium">{analysisData.exercise_type}</span>
                 </div>
                 {analysisData.notes && (
-                  <div className="flex justify-between">
+                  <div className="flex justify-between pt-2 border-t border-gray-200 mt-3">
                     <span className="text-gray-600">補足</span>
-                    <span className="font-medium text-sm">{analysisData.notes}</span>
+                    <span className="font-medium text-sm max-w-[60%] text-right">{analysisData.notes}</span>
                   </div>
                 )}
               </div>
-            </div>
-
-            {/* ボタン群 */}
-            <div className="flex gap-3">
-              <Button
-                onClick={handleAnalysisCancel}
-                variant="outline"
-                className="flex-1"
-                disabled={isSubmitting}
-              >
-                キャンセル
-              </Button>
-              <Button
-                onClick={handleAnalysisEdit}
-                variant="outline"
-                className="flex-1"
-                disabled={isSubmitting}
-              >
-                編集
-              </Button>
-              <Button
-                onClick={handleAnalysisRecord}
-                className="flex-1 bg-green-600 hover:bg-green-700"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    記録中...
-                  </>
-                ) : (
-                  'この内容で記録'
-                )}
-              </Button>
             </div>
           </div>
         </div>
@@ -610,74 +607,64 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
             {showAnalysisModal && analysisData ? (
               <>
                 {/* 解析完了画面 */}
-                <div className="text-center mb-6">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Activity className="w-8 h-8 text-green-600" />
+                <div className="relative">
+                  {/* 右上のボタン群 */}
+                  <div className="absolute top-0 right-0 flex gap-1 z-10">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAnalysisEdit}
+                      className="h-6 px-2 text-xs"
+                      disabled={isSubmitting}
+                    >
+                      編集
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAnalysisCancel}
+                      className="h-6 px-2 text-xs"
+                      disabled={isSubmitting}
+                    >
+                      キャンセル
+                    </Button>
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">解析完了</h3>
-                  <p className="text-gray-600">運動内容の解析が完了しました</p>
-                </div>
 
-                {/* 解析結果の表示 */}
-                <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">運動名</span>
-                      <span className="font-medium">{analysisData.exercise_name}</span>
+                  <div className="text-center mb-6">
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Activity className="w-8 h-8 text-green-600" />
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">運動時間</span>
-                      <span className="font-medium">{analysisData.duration_minutes}分</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">消費カロリー</span>
-                      <span className="font-medium text-orange-600">{analysisData.calories_burned}kcal</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">運動タイプ</span>
-                      <span className="font-medium">{analysisData.exercise_type}</span>
-                    </div>
-                    {analysisData.notes && (
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">解析完了</h3>
+                    <p className="text-gray-600">運動内容の解析が完了しました</p>
+                  </div>
+
+                  {/* 解析結果の表示 */}
+                  <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                    <div className="space-y-3">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">補足</span>
-                        <span className="font-medium text-sm">{analysisData.notes}</span>
+                        <span className="text-gray-600">運動名</span>
+                        <span className="font-medium">{analysisData.exercise_name}</span>
                       </div>
-                    )}
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">運動時間</span>
+                        <span className="font-medium">{analysisData.duration_minutes}分</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">消費カロリー</span>
+                        <span className="font-medium text-orange-600">{analysisData.calories_burned}kcal</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">運動タイプ</span>
+                        <span className="font-medium">{analysisData.exercise_type}</span>
+                      </div>
+                      {analysisData.notes && (
+                        <div className="flex justify-between pt-2 border-t border-gray-200 mt-3">
+                          <span className="text-gray-600">補足</span>
+                          <span className="font-medium text-sm max-w-[60%] text-right">{analysisData.notes}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-
-                {/* ボタン群 */}
-                <div className="flex gap-3">
-                  <Button
-                    onClick={handleAnalysisCancel}
-                    variant="outline"
-                    className="flex-1"
-                    disabled={isSubmitting}
-                  >
-                    キャンセル
-                  </Button>
-                  <Button
-                    onClick={handleAnalysisEdit}
-                    variant="outline"
-                    className="flex-1"
-                    disabled={isSubmitting}
-                  >
-                    編集
-                  </Button>
-                  <Button
-                    onClick={handleAnalysisRecord}
-                    className="flex-1 bg-green-600 hover:bg-green-700"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        記録中...
-                      </>
-                    ) : (
-                      'この内容で記録'
-                    )}
-                  </Button>
                 </div>
               </>
             ) : (
@@ -767,7 +754,12 @@ export default function ExerciseRecordModal({ open, onClose, onExerciseAdded }: 
               className="w-20 h-9"
               onClick={activeTab === 'manual' ? handleSubmit : (e) => {
                 e.preventDefault();
-                setActiveTab('manual');
+                if (showAnalysisModal && analysisData) {
+                  // 解析結果がある場合は解析結果を記録
+                  handleAnalysisRecord();
+                } else {
+                  setActiveTab('manual');
+                }
               }}
             >
               {isSubmitting ? '記録中...' : (

@@ -179,111 +179,129 @@ export function HistoryCard() {
     if (item.type === 'meal') {
       const meal = item.data as Meal;
       return (
-        <div key={item.id} className="flex flex-col lg:flex-row lg:justify-between p-3 rounded-lg bg-blue-50 gap-3 border-l-4 border-blue-400">
-          {/* タイトル・記録日時のブロック */}
-          <div className="flex-grow min-w-0">
-            <div className="flex items-center gap-2">
-              <Utensils className="w-4 h-4 text-blue-600" />
-              <div className="flex flex-col gap-1">
-                <p className="font-semibold text-sm leading-tight break-words" title={meal.food_name}>
-                  {meal.food_name}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {format(new Date(meal.created_at), 'M月d日 HH:mm')}
-                </p>
-              </div>
-            </div>
+        <div key={item.id} className="flex items-start gap-2 p-2.5 rounded-lg bg-blue-50 border-l-4 border-blue-400 mx-2">
+          {/* アイコン */}
+          <div className="flex-shrink-0 mt-0.5">
+            <Utensils className="w-4 h-4 text-blue-600" />
           </div>
           
-          {/* カロリー・PFCのブロック */}
-          <div className="flex-shrink-0">
-            <div className="flex flex-col gap-1 text-right">
-              <p className="font-bold text-sm text-blue-800">
-                +{meal.calories}kcal
-              </p>
-              <div className="flex gap-3 text-xs text-gray-600 justify-end">
-                <span className="whitespace-nowrap">P: {meal.protein}g</span>
-                <span className="whitespace-nowrap">F: {meal.fat}g</span>
-                <span className="whitespace-nowrap">C: {meal.carbs}g</span>
+          {/* メインコンテンツ */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              {/* 左側: タイトル、日時、PFC */}
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm text-gray-900 leading-tight break-words" title={meal.food_name}>
+                  {meal.food_name}
+                </p>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 mt-1">
+                  <p className="text-xs text-gray-500">
+                    {format(new Date(meal.created_at), 'M月d日 HH:mm')}
+                  </p>
+                  {/* SPではカロリーを表示、PCでは非表示 */}
+                  <p className="font-bold text-sm text-blue-800 sm:hidden">
+                    +{meal.calories}kcal
+                  </p>
+                </div>
+                <div className="flex gap-2 text-xs text-gray-600 mt-1">
+                  <span className="whitespace-nowrap">P:{meal.protein}g</span>
+                  <span className="whitespace-nowrap">F:{meal.fat}g</span>
+                  <span className="whitespace-nowrap">C:{meal.carbs}g</span>
+                </div>
+              </div>
+              
+              {/* 右側: カロリー（PCのみ）と削除ボタン */}
+              <div className="flex items-center gap-2">
+                {/* PCではカロリーを右端に表示 */}
+                <p className="font-bold text-sm text-blue-800 hidden sm:block">
+                  +{meal.calories}kcal
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDelete(item)}
+                  disabled={isDeleting}
+                  className="h-6 w-6 p-0 opacity-60 hover:opacity-100 hover:bg-red-100"
+                >
+                  <Trash2 className="w-3 h-3 text-red-600" />
+                </Button>
               </div>
             </div>
           </div>
-
-          {/* 削除ボタン */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleDelete(item)}
-            disabled={isDeleting}
-            className="flex-shrink-0 h-8 w-8 p-0 opacity-60 hover:opacity-100 hover:bg-red-100"
-          >
-            <Trash2 className="w-4 h-4 text-red-600" />
-          </Button>
         </div>
       );
     } else {
       const exercise = item.data as Exercise;
       return (
-        <div key={item.id} className="flex flex-col lg:flex-row lg:justify-between p-3 rounded-lg bg-orange-50 gap-3 border-l-4 border-orange-400">
-          {/* タイトル・記録日時のブロック */}
-          <div className="flex-grow min-w-0">
-            <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-orange-600" />
-              <div className="flex flex-col gap-1">
-                <p className="font-semibold text-sm leading-tight break-words" title={exercise.exercise_name}>
-                  {exercise.exercise_name}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {format(new Date(exercise.created_at), 'M月d日 HH:mm')} • {exercise.duration_minutes}分
-                </p>
-              </div>
-            </div>
+        <div key={item.id} className="flex items-start gap-2 p-2.5 rounded-lg bg-orange-50 border-l-4 border-orange-400 mx-2">
+          {/* アイコン */}
+          <div className="flex-shrink-0 mt-0.5">
+            <Activity className="w-4 h-4 text-orange-600" />
           </div>
           
-          {/* カロリーのブロック */}
-          <div className="flex-shrink-0">
-            <div className="flex flex-col gap-1 text-right">
-              <p className="font-bold text-sm text-orange-800">
-                -{exercise.calories_burned}kcal
-              </p>
-              <div className="text-xs text-gray-600">
-                {exercise.exercise_type}
+          {/* メインコンテンツ */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              {/* 左側: タイトル、日時、運動タイプ */}
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm text-gray-900 leading-tight break-words" title={exercise.exercise_name}>
+                  {exercise.exercise_name}
+                </p>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 mt-1">
+                  <p className="text-xs text-gray-500">
+                    {format(new Date(exercise.created_at), 'M月d日 HH:mm')}
+                  </p>
+                  <span className="hidden sm:inline text-xs text-gray-500">•</span>
+                  <p className="text-xs text-gray-500">{exercise.duration_minutes}分</p>
+                  {/* SPではカロリーを表示、PCでは非表示 */}
+                  <p className="font-bold text-sm text-orange-800 sm:hidden">
+                    -{exercise.calories_burned}kcal
+                  </p>
+                </div>
+                <p className="text-xs text-gray-600 mt-1">
+                  {exercise.exercise_type}
+                </p>
+              </div>
+              
+              {/* 右側: カロリー（PCのみ）と削除ボタン */}
+              <div className="flex items-center gap-2">
+                {/* PCではカロリーを右端に表示 */}
+                <p className="font-bold text-sm text-orange-800 hidden sm:block">
+                  -{exercise.calories_burned}kcal
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDelete(item)}
+                  disabled={isDeleting}
+                  className="h-6 w-6 p-0 opacity-60 hover:opacity-100 hover:bg-red-100"
+                >
+                  <Trash2 className="w-3 h-3 text-red-600" />
+                </Button>
               </div>
             </div>
           </div>
-
-          {/* 削除ボタン */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleDelete(item)}
-            disabled={isDeleting}
-            className="flex-shrink-0 h-8 w-8 p-0 opacity-60 hover:opacity-100 hover:bg-red-100"
-          >
-            <Trash2 className="w-4 h-4 text-red-600" />
-          </Button>
         </div>
       );
     }
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="h-full flex flex-col">
+      <CardHeader className="flex-shrink-0 pb-1">
         <CardTitle className="text-base font-semibold">履歴</CardTitle>
       </CardHeader>
-      <CardContent className="w-full">
+      <CardContent className="w-full flex-1 flex flex-col p-2">
         {isLoading ? (
-          <div className="flex items-center justify-center h-56">
+          <div className="flex items-center justify-center flex-1">
             <p>読み込み中...</p>
           </div>
         ) : historyItems.length === 0 ? (
-          <div className="flex items-center justify-center h-56">
+          <div className="flex items-center justify-center flex-1">
             <p className="text-gray-500">記録がありません</p>
           </div>
         ) : (
-          <ScrollArea className="h-[220px] pr-4">
-            <div className="space-y-3 w-full">
+          <ScrollArea className="h-[250px] pr-2">
+            <div className="space-y-2 w-full">
               {historyItems.map(renderHistoryItem)}
             </div>
           </ScrollArea>

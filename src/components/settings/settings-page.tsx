@@ -257,6 +257,10 @@ export function SettingsPage() {
         if (error) {
           console.error('食事の好み保存エラー:', error);
           alert('食事の好みの保存に失敗しました');
+        } else {
+          // 食事の好み更新イベントを発火
+          window.dispatchEvent(new CustomEvent('foodPreferencesUpdated'));
+          console.log('食事の好み追加でイベントを発火しました');
         }
       } catch (error) {
         console.error('食事の好み保存エラー:', error);
@@ -290,6 +294,10 @@ export function SettingsPage() {
       if (error) {
         console.error('食事の好み削除エラー:', error);
         alert('食事の好みの削除に失敗しました');
+      } else {
+        // 食事の好み更新イベントを発火
+        window.dispatchEvent(new CustomEvent('foodPreferencesUpdated'));
+        console.log('食事の好み削除でイベントを発火しました');
       }
     } catch (error) {
       console.error('食事の好み削除エラー:', error);
@@ -322,6 +330,10 @@ export function SettingsPage() {
         if (error) {
           console.error('アレルギー保存エラー:', error);
           alert('アレルギーの保存に失敗しました');
+        } else {
+          // 食事の好み更新イベントを発火
+          window.dispatchEvent(new CustomEvent('foodPreferencesUpdated'));
+          console.log('アレルギー追加でイベントを発火しました');
         }
       } catch (error) {
         console.error('アレルギー保存エラー:', error);
@@ -355,6 +367,10 @@ export function SettingsPage() {
       if (error) {
         console.error('アレルギー削除エラー:', error);
         alert('アレルギーの削除に失敗しました');
+      } else {
+        // 食事の好み更新イベントを発火
+        window.dispatchEvent(new CustomEvent('foodPreferencesUpdated'));
+        console.log('アレルギー削除でイベントを発火しました');
       }
     } catch (error) {
       console.error('アレルギー削除エラー:', error);

@@ -121,8 +121,9 @@
     /* モバイルでのタッチ操作を改善 */
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    user-select: none;
+    /* テキスト選択を有効にする */
+    -webkit-user-select: text;
+    user-select: text;
   }
   
   /* モバイルでのフォントサイズ調整 */
@@ -138,6 +139,17 @@
   /* モバイルでの入力要素のズーム防止 */
   input, textarea, select {
     font-size: 16px !important;
+  }
+  
+  /* テキスト選択時のハイライトスタイル */
+  ::selection {
+    background-color: #3b82f6; /* 青いハイライト */
+    color: white;
+  }
+  
+  ::-moz-selection {
+    background-color: #3b82f6; /* Firefox用 */
+    color: white;
   }
 }
 
@@ -157,5 +169,21 @@
   
   .mobile-up {
     @apply block;
+  }
+  
+  /* テキスト選択ユーティリティ */
+  .select-text {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  
+  .select-none {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  
+  .select-all {
+    -webkit-user-select: all;
+    user-select: all;
   }
 }

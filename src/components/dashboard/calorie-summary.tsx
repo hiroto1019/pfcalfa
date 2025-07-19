@@ -140,27 +140,67 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
 
       console.log('カロリーサマリー - daily_summary:', dailySummary);
 
-      // 今日のmealsテーブルも確認
-      const { data: todayMeals, error: mealsError } = await supabase
+      // 今日のmealsテーブルも確認（日付フィルタリングなしで全データを取得してからフィルタリング）
+      const { data: allMeals, error: mealsError } = await supabase
         .from('meals')
         .select('*')
         .eq('user_id', user.id)
-        .gte('created_at', todayDate + 'T00:00:00+09:00')
-        .lte('created_at', todayDate + 'T23:59:59+09:00');
+        .order('created_at', { ascending: false });
 
       if (mealsError) {
         console.error('meals取得エラー:', mealsError);
       }
 
+      // クライアント側で今日のデータをフィルタリング（修正版）
+      const todayMeals = allMeals ? allMeals.filter((meal: Meal) => {
+        const mealDate = new Date(meal.created_at);
+        // JSTに変換してから日付を比較
+        const jstDate = new Date(mealDate.getTime() + 9 * 60 * 60 * 1000);
+        const mealDateStr = jstDate.toISOString().split('T')[0];
+        console.log(`食事フィルタリング: ${meal.food_name} - ${meal.created_at} -> ${mealDateStr} vs ${todayDate}`);
+        return mealDateStr === todayDate;
+      }) : [];
+
+      console.log('カロリーサマリー - 全meals:', allMeals);
       console.log('カロリーサマリー - 今日のmeals:', todayMeals);
 
-      // 運動データの取得
-      const { data: todayExercises, error: exercisesError } = await supabase
+      if (mealsError) {
+        console.error('meals取得エラー:', mealsError);
+      }
+
+      console.log('カロリーサマリー - 今日の日付:', todayDate);
+      if (todayMeals && todayMeals.length > 0) {
+        console.log('カロリーサマリー - 各食事のcreated_at:', todayMeals.map((meal: Meal) => ({
+          food_name: meal.food_name,
+          created_at: meal.created_at,
+          mealDate: new Date(meal.created_at).toISOString().split('T')[0],
+          calories: meal.calories
+        })));
+      }
+
+      // 運動データの取得（日付フィルタリングなしで全データを取得してからフィルタリング）
+      const { data: allExercises, error: exercisesError } = await supabase
         .from('exercise_logs')
         .select('*')
         .eq('user_id', user.id)
-        .gte('created_at', todayDate + 'T00:00:00+09:00')
-        .lte('created_at', todayDate + 'T23:59:59+09:00');
+        .order('created_at', { ascending: false });
+
+      if (exercisesError) {
+        console.error('exercise_logs取得エラー:', exercisesError);
+      }
+
+      // クライアント側で今日のデータをフィルタリング（修正版）
+      const todayExercises = allExercises ? allExercises.filter((exercise: Exercise) => {
+        const exerciseDate = new Date(exercise.created_at);
+        // JSTに変換してから日付を比較
+        const jstDate = new Date(exerciseDate.getTime() + 9 * 60 * 60 * 1000);
+        const exerciseDateStr = jstDate.toISOString().split('T')[0];
+        console.log(`運動フィルタリング: ${exercise.exercise_name} - ${exercise.created_at} -> ${exerciseDateStr} vs ${todayDate}`);
+        return exerciseDateStr === todayDate;
+      }) : [];
+
+      console.log('カロリーサマリー - 全exercises:', allExercises);
+      console.log('カロリーサマリー - 今日のexercises:', todayExercises);
 
       if (exercisesError) {
         console.error('exercise_logs取得エラー:', exercisesError);
@@ -168,17 +208,43 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
 
       console.log('カロリーサマリー - 今日のexercises:', todayExercises);
 
-      // もしdaily_summaryがnullでmealsがある場合、手動でdaily_summaryを作成
-      if (!dailySummary && todayMeals && todayMeals.length > 0) {
-        console.log('daily_summaryが存在しないため、手動で作成します');
-        
-        const typedTodayMeals = todayMeals as Meal[];
-        const totalCalories = typedTodayMeals.reduce((sum: number, meal: Meal) => sum + meal.calories, 0);
-        const totalProtein = typedTodayMeals.reduce((sum: number, meal: Meal) => sum + meal.protein, 0);
-        const totalFat = typedTodayMeals.reduce((sum: number, meal: Meal) => sum + meal.fat, 0);
-        const totalCarbs = typedTodayMeals.reduce((sum: number, meal: Meal) => sum + meal.carbs, 0);
+      // mealsテーブルから実際のデータを計算
+      const typedTodayMeals = todayMeals as Meal[] || [];
+      const totalCalories = typedTodayMeals.reduce((sum: number, meal: Meal) => sum + meal.calories, 0);
+      const totalProtein = typedTodayMeals.reduce((sum: number, meal: Meal) => sum + meal.protein, 0);
+      const totalFat = typedTodayMeals.reduce((sum: number, meal: Meal) => sum + meal.fat, 0);
+      const totalCarbs = typedTodayMeals.reduce((sum: number, meal: Meal) => sum + meal.carbs, 0);
 
-        const { data: newDailySummary, error: insertError } = await supabase
+      console.log('カロリーサマリー - 計算結果:', {
+        mealsCount: typedTodayMeals.length,
+        totalCalories,
+        totalProtein,
+        totalFat,
+        totalCarbs
+      });
+
+      // daily_summariesテーブルを最新のデータで更新
+      if (dailySummary) {
+        // 既存のレコードを更新
+        const { error: updateError } = await supabase
+          .from('daily_summaries')
+          .update({
+            total_calories: totalCalories,
+            total_protein: totalProtein,
+            total_fat: totalFat,
+            total_carbs: totalCarbs
+          })
+          .eq('user_id', user.id)
+          .eq('date', todayDate);
+
+        if (updateError) {
+          console.error('daily_summary更新エラー:', updateError);
+        } else {
+          console.log('daily_summary更新成功');
+        }
+      } else if (typedTodayMeals.length > 0) {
+        // 新規レコードを作成
+        const { error: insertError } = await supabase
           .from('daily_summaries')
           .insert({
             user_id: user.id,
@@ -187,52 +253,19 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
             total_protein: totalProtein,
             total_fat: totalFat,
             total_carbs: totalCarbs
-          })
-          .select()
-          .single();
+          });
 
         if (insertError) {
           console.error('daily_summary作成エラー:', insertError);
         } else {
-          console.log('daily_summary作成成功:', newDailySummary);
-          // 作成したデータを使用
-          const actualCalories = newDailySummary.total_calories;
-          const actualProtein = newDailySummary.total_protein;
-          const actualFat = newDailySummary.total_fat;
-          const actualCarbs = newDailySummary.total_carbs;
-
-          // 運動消費カロリーを計算
-          const exerciseCalories = todayExercises ? 
-            (todayExercises as Exercise[]).reduce((sum: number, exercise: Exercise) => sum + exercise.calories_burned, 0) : 0;
-
-          // 純カロリー（摂取 - 運動消費）
-          const netCalories = actualCalories - exerciseCalories;
-
-          // PFC比率を計算
-          const totalCaloriesFromPFC = actualProtein * 4 + actualFat * 9 + actualCarbs * 4;
-          const proteinRatio = totalCaloriesFromPFC > 0 ? (actualProtein * 4 / totalCaloriesFromPFC) * 100 : 0;
-          const fatRatio = totalCaloriesFromPFC > 0 ? (actualFat * 9 / totalCaloriesFromPFC) * 100 : 0;
-          const carbsRatio = totalCaloriesFromPFC > 0 ? (actualCarbs * 4 / totalCaloriesFromPFC) * 100 : 0;
-
-          setData({
-            actualCalories,
-            exerciseCalories,
-            netCalories,
-            proteinRatio: Math.round(proteinRatio),
-            fatRatio: Math.round(fatRatio),
-            carbsRatio: Math.round(carbsRatio),
-            proteinGrams: actualProtein,
-            fatGrams: actualFat,
-            carbsGrams: actualCarbs,
-          });
-          return;
+          console.log('daily_summary作成成功');
         }
       }
 
-      const actualCalories = dailySummary?.total_calories ?? 0;
-      const actualProtein = dailySummary?.total_protein ?? 0;
-      const actualFat = dailySummary?.total_fat ?? 0;
-      const actualCarbs = dailySummary?.total_carbs ?? 0;
+      const actualCalories = totalCalories;
+      const actualProtein = totalProtein;
+      const actualFat = totalFat;
+      const actualCarbs = totalCarbs;
 
       // 運動消費カロリーを計算
       const exerciseCalories = todayExercises ? 
@@ -267,14 +300,12 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
+      <Card className="h-full flex flex-col">
+        <CardHeader className="flex-shrink-0">
           <CardTitle className="text-base font-semibold">カロリーサマリー</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center h-48">
-            <p className="text-sm">データを読み込み中...</p>
-          </div>
+        <CardContent className="flex-1 flex items-center justify-center">
+          <p className="text-sm">データを読み込み中...</p>
         </CardContent>
       </Card>
     );
@@ -282,14 +313,12 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
 
   if (!data) {
     return (
-      <Card>
-        <CardHeader>
+      <Card className="h-full flex flex-col">
+        <CardHeader className="flex-shrink-0">
           <CardTitle className="text-base font-semibold">カロリーサマリー</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center h-48">
-            <p className="text-gray-500 text-sm">データがありません</p>
-          </div>
+        <CardContent className="flex-1 flex items-center justify-center">
+          <p className="text-gray-500 text-sm">データがありません</p>
         </CardContent>
       </Card>
     );
@@ -309,17 +338,17 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
   const progressBgColor = progress > 100 ? 'bg-red-50' : progress >= 80 ? 'bg-yellow-50' : 'bg-green-50';
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="h-full flex flex-col">
+      <CardHeader className="flex-shrink-0">
         <CardTitle className="text-base font-semibold">カロリーサマリー</CardTitle>
       </CardHeader>
-      <CardContent className="p-4">
+      <CardContent className="p-4 flex-1 flex flex-col">
         {/* レスポンシブ対応: 横並び → 縦並び */}
-        <div className="flex flex-col lg:flex-row gap-4 mt-2">
+        <div className="flex flex-col lg:flex-row gap-4 mt-2 flex-1">
           {/* 左カラム: 今日の総カロリー */}
-          <div className="flex-1">
-            <div className="text-center p-3 bg-white rounded-lg border border-gray-200 flex flex-col lg:h-full">
-              <p className="text-sm text-gray-600">今日の総カロリー</p>
+          <div className="flex-1 flex flex-col">
+            <div className="text-center p-3 bg-white rounded-lg border border-gray-200 flex flex-col h-full">
+              <p className="text-sm text-gray-600">今日の純カロリー</p>
               <div className="flex items-center justify-center gap-1 mb-3">
                 <p className="text-2xl font-bold text-orange-600">{data.netCalories}</p>
                 <p className="text-sm text-gray-500">kcal</p>
@@ -348,8 +377,9 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
               </div>
 
               {/* 今日の運動消費 */}
-              <div className="text-center p-2 bg-purple-50 rounded-lg border border-purple-200 lg:flex-1 lg:flex lg:flex-col lg:justify-center">
+              <div className="text-center p-2 bg-purple-50 rounded-lg border border-purple-200 flex-1 flex flex-col justify-center">
                 <p className="text-xs text-gray-600">今日の運動消費</p>
+              <p className="text-[10px] text-gray-500 mb-1">(摂取から差し引き)</p>
                 <div className="flex items-center justify-center gap-1">
                   <p className="text-lg font-bold text-purple-600">{data.exerciseCalories}</p>
                   <p className="text-xs text-gray-500">kcal</p>
@@ -359,8 +389,8 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
           </div>
 
           {/* 右カラム: 理想カロリー */}
-          <div className="flex-1">
-            <div className="text-center p-3 bg-white rounded-lg border border-gray-200 flex flex-col lg:h-full">
+          <div className="flex-1 flex flex-col">
+            <div className="text-center p-3 bg-white rounded-lg border border-gray-200 flex flex-col h-full">
               <p className="text-sm text-gray-600">理想カロリー</p>
               <div className="flex items-center justify-center gap-1 mb-3">
                 <p className="text-2xl font-bold text-green-600">{idealCalories}</p>
@@ -384,7 +414,7 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
               </div>
 
               {/* 進捗表示 */}
-              <div className="text-center p-2 bg-orange-50 rounded-lg border border-orange-200 lg:flex-1 lg:flex lg:flex-col lg:justify-center">
+              <div className="text-center p-2 bg-orange-50 rounded-lg border border-orange-200 flex-1 flex flex-col justify-center">
                 <p className="text-xs text-gray-600">進捗</p>
                 <p className="text-lg font-bold text-red-600">{progress}%</p>
                 <p className="text-[10px] text-gray-500">

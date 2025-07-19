@@ -38,7 +38,40 @@ export function OverviewCard({ formData, setFormData, onUpdate }: OverviewCardPr
 
     if (result.success) {
       toast.success("情報を更新しました！");
-    setIsEditing(false);
+      setIsEditing(false);
+      
+      // グローバルイベントを発火して理想カロリーの変更を通知
+      console.log('overview-card: 理想カロリー更新イベントを発火', {
+        currentWeight: formData.currentWeight,
+        targetWeight: formData.targetWeight,
+        activityLevel: formData.activityLevel,
+        goalDate: formData.goalDate
+      });
+      window.dispatchEvent(new CustomEvent('idealCaloriesUpdated', {
+        detail: {
+          currentWeight: formData.currentWeight,
+          targetWeight: formData.targetWeight,
+          activityLevel: formData.activityLevel,
+          goalDate: formData.goalDate
+        }
+      }));
+      
+      // プロフィール更新イベントも発火
+      console.log('overview-card: プロフィール更新イベントを発火', {
+        currentWeight: formData.currentWeight,
+        targetWeight: formData.targetWeight,
+        activityLevel: formData.activityLevel,
+        goalDate: formData.goalDate
+      });
+      window.dispatchEvent(new CustomEvent('profileUpdated', {
+        detail: {
+          currentWeight: formData.currentWeight,
+          targetWeight: formData.targetWeight,
+          activityLevel: formData.activityLevel,
+          goalDate: formData.goalDate
+        }
+      }));
+      
       onUpdate();
     } else {
       toast.error(result.error);
@@ -54,14 +87,14 @@ export function OverviewCard({ formData, setFormData, onUpdate }: OverviewCardPr
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+    <Card className="h-full flex flex-col">
+      <CardHeader className="flex flex-row items-center justify-between flex-shrink-0">
         <CardTitle className="text-base font-semibold">今日のサマリーと目標</CardTitle>
         <Button variant="outline" size="sm" onClick={() => setIsEditing(!isEditing)}>{isEditing ? 'キャンセル' : '編集'}</Button>
       </CardHeader>
-      <CardContent className="pt-4">
+      <CardContent className="pt-4 flex-1 flex flex-col">
         {isEditing ? (
-          <div className="space-y-4">
+          <div className="space-y-4 flex-1 flex flex-col">
             <div>
               <Label htmlFor="weight">今日の体重 (kg)</Label>
               <Input id="weight" type="number" value={formData.currentWeight} onChange={e => setFormData({...formData, currentWeight: parseFloat(e.target.value) || 0})} />
@@ -87,12 +120,12 @@ export function OverviewCard({ formData, setFormData, onUpdate }: OverviewCardPr
               <Label htmlFor="target_date">目標達成日</Label>
               <Input id="target_date" type="date" value={formData.goalDate} onChange={e => setFormData({...formData, goalDate: e.target.value})} />
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-end mt-auto">
               <Button onClick={handleSave} disabled={isSaving}>{isSaving ? "保存中..." : "保存"}</Button>
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 grid-rows-2 gap-4">
+          <div className="grid grid-cols-2 grid-rows-2 gap-4 flex-1">
             <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
                 <p className="text-sm text-gray-500">今日の体重</p>
                 <p className="text-2xl font-bold">{formData.currentWeight}kg</p>
