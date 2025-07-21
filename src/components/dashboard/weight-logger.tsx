@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
@@ -180,13 +181,12 @@ export function WeightLogger({ compact = false }: WeightLoggerProps) {
           <div className="space-y-4">
             <div>
               <Label htmlFor="weight">体重 (kg)</Label>
-              <Input
+              <NumberInput
                 id="weight"
-                type="number"
                 step="0.1"
                 value={todayLog.weight_kg}
-                onChange={(e) => setTodayLog(prev => ({ ...prev, weight_kg: parseFloat(e.target.value) || 0 }))}
-                placeholder="例: 65.5"
+                onChange={(value) => setTodayLog(prev => ({ ...prev, weight_kg: typeof value === 'number' ? value : 0 }))}
+                placeholder="60"
               />
             </div>
             <div>

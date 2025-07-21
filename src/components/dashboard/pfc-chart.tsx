@@ -257,7 +257,7 @@ export function PFCChart({ compact = false, idealCalories }: PFCChartProps) {
           carbs: actualCarbs,
   },
           {
-            name: "目標",
+            name: "理想",
           protein: idealProteinCal,
           fat: idealFatCal,
           carbs: idealCarbsCal,
@@ -283,49 +283,96 @@ export function PFCChart({ compact = false, idealCalories }: PFCChartProps) {
     }
   }
 
-  // カスタムツールチップ
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const d = payload[0].payload;
-      const total = Math.round(Number(d.protein) + Number(d.fat) + Number(d.carbs));
-      return (
-        <div className="bg-white p-3 border rounded-lg shadow-lg text-sm">
-          <div className="font-semibold mb-1">{d.name}</div>
-          <div style={{ color: '#739FFF' }}>タンパク質: {Math.round(d.protein)} kcal</div>
-          <div style={{ color: '#FFEE70' }}>脂質: {Math.round(d.fat)} kcal</div>
-          <div style={{ color: '#FF7C80' }}>炭水化物: {Math.round(d.carbs)} kcal</div>
-          <div className="mt-1 font-bold">合計: {total} kcal</div>
-        </div>
-      );
-    }
-    return null;
-  };
+
 
   return (
     <div className="w-full h-full flex flex-col">
-      <div className="flex justify-center mb-2">
+      <div className="flex justify-center mb-3">
         <Tabs value={period} onValueChange={(v) => setPeriod(v as "daily"|"weekly"|"monthly")} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="daily">日別</TabsTrigger>
-            <TabsTrigger value="weekly">週別</TabsTrigger>
-            <TabsTrigger value="monthly">月別</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 bg-gray-100">
+            <TabsTrigger value="daily" className="data-[state=active]:bg-white data-[state=active]:text-black">日別</TabsTrigger>
+            <TabsTrigger value="weekly" className="data-[state=active]:bg-white data-[state=active]:text-black">週別</TabsTrigger>
+            <TabsTrigger value="monthly" className="data-[state=active]:bg-white data-[state=active]:text-black">月別</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={data.length ? data : [
           { name: "摂取", protein: 0, fat: 0, carbs: 0 },
-          { name: "目標", protein: 0, fat: 0, carbs: 0 }
-        ]} barCategoryGap={40}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-          <YAxis tick={{ fontSize: 12 }} />
-          <Tooltip content={<CustomTooltip />} />
-          <Bar dataKey="protein" stackId="a" fill="#739FFF" />
-          <Bar dataKey="fat" stackId="a" fill="#FFEE70" />
-          <Bar dataKey="carbs" stackId="a" fill="#FF7C80" />
-          </BarChart>
-        </ResponsiveContainer>
+          { name: "理想", protein: 0, fat: 0, carbs: 0 }
+        ]} barCategoryGap={50} barGap={10}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+          <XAxis 
+            dataKey="name" 
+            tick={{ fontSize: 13, fontWeight: 500, fill: '#374151' }}
+            axisLine={{ stroke: '#e5e7eb' }}
+            tickLine={false}
+          />
+          <YAxis 
+            tick={{ fontSize: 12, fill: '#6b7280' }}
+            axisLine={{ stroke: '#e5e7eb' }}
+            tickLine={false}
+          />
+          <Tooltip 
+            cursor={{ fill: 'rgba(0,0,0,0.1)' }}
+            content={({ active, payload, label }: any) => {
+              if (active && payload && payload.length) {
+                const d = payload[0].payload;
+                const total = Math.round(Number(d.protein) + Number(d.fat) + Number(d.carbs));
+                return (
+                  <div className="bg-white p-2 border rounded-lg shadow-lg text-xs">
+                    <div className="font-bold mb-2 text-gray-800 text-center text-xs">{d.name}</div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: '#FF696E' }}></div>
+                          <span className="text-gray-700 text-xs">炭水化物</span>
+                        </div>
+                        <span className="font-semibold text-gray-900 text-xs">{Math.round(d.carbs)} kcal</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: '#FFEA52' }}></div>
+                          <span className="text-gray-700 text-xs">脂質</span>
+                        </div>
+                        <span className="font-semibold text-gray-900 text-xs">{Math.round(d.fat)} kcal</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: '#6394FF' }}></div>
+                          <span className="text-gray-700 text-xs">タンパク質</span>
+                        </div>
+                        <span className="font-semibold text-gray-900 text-xs ml-4">{Math.round(d.protein)} kcal</span>
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-gray-200 flex items-center justify-between">
+                      <span className="font-bold text-gray-800 text-xs">合計</span>
+                      <span className="font-bold text-sm text-blue-600">{total} kcal</span>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            }}
+          />
+          <Bar 
+            dataKey="protein" 
+            stackId="a" 
+            fill="#6394FF" 
+          />
+          <Bar 
+            dataKey="fat" 
+            stackId="a" 
+            fill="#FFEA52" 
+          />
+          <Bar 
+            dataKey="carbs" 
+            stackId="a" 
+            fill="#FF696E" 
+            radius={[4, 4, 0, 0]}
+          />
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 }

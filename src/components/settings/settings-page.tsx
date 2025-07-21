@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 
 import { createClient } from "@/lib/supabase/client";
@@ -31,7 +32,9 @@ interface Profile {
 
 export function SettingsPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [originalProfile, setOriginalProfile] = useState<Profile | null>(null);
   const [currentWeight, setCurrentWeight] = useState<number | null>(null);
+  const [originalCurrentWeight, setOriginalCurrentWeight] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -107,10 +110,13 @@ export function SettingsPage() {
 
       if (profileData) {
         setProfile(profileData);
-        setCurrentWeight(latestWeightLog?.weight_kg ?? profileData.initial_weight_kg);
+        setOriginalProfile(profileData);
+        const weightValue = latestWeightLog?.weight_kg ?? profileData.initial_weight_kg;
+        setCurrentWeight(weightValue);
+        setOriginalCurrentWeight(weightValue);
       } else if (user) {
         // プロフィールが存在しない場合、空のフォームを表示するためにデフォルト値を設定
-        setProfile({
+        const defaultProfile = {
           id: user.id,
           username: "",
           gender: "male",
@@ -121,13 +127,34 @@ export function SettingsPage() {
           activity_level: 2,
           goal_type: 'diet',
           food_preferences: { dislikes: [], allergies: [] },
-        });
+        };
+        setProfile(defaultProfile);
+        setOriginalProfile(defaultProfile);
+        setCurrentWeight(0);
+        setOriginalCurrentWeight(0);
       }
     } catch (error) {
       console.error('プロフィール読み込みエラー:', error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // プロフィールに変更があるかチェック
+  const hasProfileChanges = () => {
+    if (!profile || !originalProfile) return false;
+    
+    return (
+      profile.username !== originalProfile.username ||
+      profile.gender !== originalProfile.gender ||
+      profile.birth_date !== originalProfile.birth_date ||
+      profile.height_cm !== originalProfile.height_cm ||
+      profile.target_weight_kg !== originalProfile.target_weight_kg ||
+      profile.activity_level !== originalProfile.activity_level ||
+      profile.goal_type !== originalProfile.goal_type ||
+      profile.goal_target_date !== originalProfile.goal_target_date ||
+      currentWeight !== originalCurrentWeight
+    );
   };
 
   // バリデーション関数
@@ -207,6 +234,10 @@ export function SettingsPage() {
 
       alert('プロフィールを更新しました');
       setValidationErrors({}); // エラーをクリア
+      
+      // 元のデータを更新
+      setOriginalProfile(profile);
+      setOriginalCurrentWeight(currentWeight);
     } catch (error) {
       console.error('プロフィール更新エラー:', error);
       alert('プロフィールの更新に失敗しました');
@@ -288,8 +319,8 @@ export function SettingsPage() {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           await supabase
-            .from('profiles')
-            .update({ food_preferences: updatedProfile.food_preferences })
+          .from('profiles')
+          .update({ food_preferences: updatedProfile.food_preferences })
             .eq('id', user.id);
         }
       } catch (error) {
@@ -321,8 +352,8 @@ export function SettingsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase
-          .from('profiles')
-          .update({ food_preferences: updatedProfile.food_preferences })
+        .from('profiles')
+        .update({ food_preferences: updatedProfile.food_preferences })
           .eq('id', user.id);
       }
     } catch (error) {
@@ -350,8 +381,8 @@ export function SettingsPage() {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           await supabase
-            .from('profiles')
-            .update({ food_preferences: updatedProfile.food_preferences })
+          .from('profiles')
+          .update({ food_preferences: updatedProfile.food_preferences })
             .eq('id', user.id);
         }
       } catch (error) {
@@ -383,8 +414,8 @@ export function SettingsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase
-          .from('profiles')
-          .update({ food_preferences: updatedProfile.food_preferences })
+        .from('profiles')
+        .update({ food_preferences: updatedProfile.food_preferences })
           .eq('id', user.id);
       }
     } catch (error) {
@@ -504,13 +535,12 @@ export function SettingsPage() {
               <Label htmlFor="height_cm" className="text-sm font-medium text-gray-700">
                 身長 (cm) <span className="text-red-500">*</span>
               </Label>
-              <Input
+              <NumberInput
                 id="height_cm"
-                type="number"
                 value={profile.height_cm}
-                onChange={(e) => setProfile({ ...profile, height_cm: Number(e.target.value) })}
-                className="h-12 mobile-input-fix"
+                onChange={(value) => setProfile({ ...profile, height_cm: typeof value === 'number' ? value : 0 })}
                 placeholder="170"
+                className="h-12 mobile-input-fix"
                 style={{ 
                   fontSize: '16px',
                   transform: 'translateZ(0)',
@@ -524,14 +554,13 @@ export function SettingsPage() {
               <Label htmlFor="current_weight" className="text-sm font-medium text-gray-700">
                 現在の体重 (kg) <span className="text-red-500">*</span>
               </Label>
-              <Input
+              <NumberInput
                 id="current_weight"
-                type="number"
-                value={currentWeight ?? ''}
-                onChange={(e) => setCurrentWeight(parseFloat(e.target.value) || null)}
+                value={currentWeight}
+                onChange={(value) => setCurrentWeight(typeof value === 'number' ? value : null)}
                 step="0.1"
+                placeholder="60"
                 className="h-12 mobile-input-fix"
-                placeholder="65.0"
                 style={{ 
                   fontSize: '16px',
                   transform: 'translateZ(0)',
@@ -545,13 +574,12 @@ export function SettingsPage() {
               <Label htmlFor="target_weight_kg" className="text-sm font-medium text-gray-700">
                 目標体重 (kg) <span className="text-red-500">*</span>
               </Label>
-              <Input
+              <NumberInput
                 id="target_weight_kg"
-                type="number"
                 value={profile.target_weight_kg}
-                onChange={(e) => setProfile({ ...profile, target_weight_kg: Number(e.target.value) })}
+                onChange={(value) => setProfile({ ...profile, target_weight_kg: typeof value === 'number' ? value : 0 })}
+                placeholder="55"
                 className="h-12 mobile-input-fix"
-                placeholder="60.0"
                 style={{ 
                   fontSize: '16px',
                   transform: 'translateZ(0)',
@@ -606,7 +634,7 @@ export function SettingsPage() {
           <div className="pt-4">
             <Button 
               onClick={handleSave} 
-              disabled={isSaving} 
+              disabled={isSaving || !hasProfileChanges()} 
               className="w-full sm:w-auto px-8 py-2 h-10"
             >
             {isSaving ? '保存中...' : '保存'}
@@ -639,7 +667,13 @@ export function SettingsPage() {
                   transform: 'translateZ(0)',
                 }}
               />
-              <Button onClick={addDislike} className="w-full sm:w-auto px-6 h-12">追加</Button>
+              <Button 
+                onClick={addDislike} 
+                disabled={!newDislike.trim()}
+                className="w-full sm:w-auto px-6 h-12"
+              >
+                追加
+              </Button>
             </div>
             <div className="flex flex-wrap gap-2">
               {profile.food_preferences?.dislikes?.map((dislike, index) => (
@@ -674,7 +708,13 @@ export function SettingsPage() {
                   transform: 'translateZ(0)',
                 }}
               />
-              <Button onClick={addAllergy} className="w-full sm:w-auto px-6 h-12">追加</Button>
+              <Button 
+                onClick={addAllergy} 
+                disabled={!newAllergy.trim()}
+                className="w-full sm:w-auto px-6 h-12"
+              >
+                追加
+              </Button>
             </div>
             <div className="flex flex-wrap gap-2">
               {profile.food_preferences?.allergies?.map((allergy, index) => (

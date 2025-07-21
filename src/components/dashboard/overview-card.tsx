@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, Dispatch, SetStateAction, useEffect } from "react";
+import { useState, Dispatch, SetStateAction, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { updateDashboardData } from "./actions";
@@ -23,11 +24,13 @@ interface OverviewCardProps {
 }
 
 export function OverviewCard({ formData, setFormData, onUpdate }: OverviewCardProps) {
+  const gridRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [originalFormData, setOriginalFormData] = useState<FormData>(formData);
+  const [editingFormData, setEditingFormData] = useState<FormData>(formData);
   const [hasChanges, setHasChanges] = useState(false);
 
   // モバイル判定
@@ -46,27 +49,52 @@ export function OverviewCard({ formData, setFormData, onUpdate }: OverviewCardPr
   useEffect(() => {
     if (isEditing) {
       const hasAnyChanges = 
-        formData.currentWeight !== originalFormData.currentWeight ||
-        formData.targetWeight !== originalFormData.targetWeight ||
-        formData.activityLevel !== originalFormData.activityLevel ||
-        formData.goalDate !== originalFormData.goalDate;
+        editingFormData.currentWeight !== originalFormData.currentWeight ||
+        editingFormData.targetWeight !== originalFormData.targetWeight ||
+        editingFormData.activityLevel !== originalFormData.activityLevel ||
+        editingFormData.goalDate !== originalFormData.goalDate;
       
       setHasChanges(hasAnyChanges);
     }
-  }, [formData, originalFormData, isEditing]);
+  }, [editingFormData, originalFormData, isEditing]);
+
+  // グリッドの高さを監視して履歴のスクロールエリアを調整
+  useEffect(() => {
+    if (!isEditing && gridRef.current) {
+      const resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const height = entry.contentRect.height;
+          // 履歴のスクロールエリアの高さを調整
+          const historyScrollArea = document.querySelector('[data-history-scroll]') as HTMLElement;
+          if (historyScrollArea) {
+            historyScrollArea.style.height = `${height}px`;
+          }
+        }
+      });
+
+      resizeObserver.observe(gridRef.current);
+
+      return () => {
+        resizeObserver.disconnect();
+      };
+    }
+  }, [isEditing]);
 
   const handleEditClick = () => {
     if (isMobile) {
+      setOriginalFormData(formData);
+      setEditingFormData(formData);
       setShowModal(true);
     } else {
       setOriginalFormData(formData);
+      setEditingFormData(formData);
       setIsEditing(true);
       setHasChanges(false);
     }
   };
 
   const handleCancel = () => {
-    setFormData(originalFormData);
+    setEditingFormData(originalFormData);
     setIsEditing(false);
     setHasChanges(false);
   };
@@ -74,49 +102,51 @@ export function OverviewCard({ formData, setFormData, onUpdate }: OverviewCardPr
   const handleSave = async () => {
     setIsSaving(true);
     const result = await updateDashboardData({
-      current_weight_kg: formData.currentWeight > 0 ? formData.currentWeight : null,
-      target_weight_kg: formData.targetWeight > 0 ? formData.targetWeight : null,
-      activity_level: formData.activityLevel,
-      goal_target_date: formData.goalDate === "" ? null : formData.goalDate,
+      current_weight_kg: editingFormData.currentWeight > 0 ? editingFormData.currentWeight : null,
+      target_weight_kg: editingFormData.targetWeight > 0 ? editingFormData.targetWeight : null,
+      activity_level: editingFormData.activityLevel,
+      goal_target_date: editingFormData.goalDate === "" ? null : editingFormData.goalDate,
     });
     setIsSaving(false);
 
     if (result.success) {
+      // 保存成功時のみ実際のデータを更新
+      setFormData(editingFormData);
       toast.success("情報を更新しました！");
       setIsEditing(false);
       setShowModal(false);
-      setOriginalFormData(formData);
+      setOriginalFormData(editingFormData);
       setHasChanges(false);
       
       // グローバルイベントを発火して理想カロリーの変更を通知
       console.log('overview-card: 理想カロリー更新イベントを発火', {
-        currentWeight: formData.currentWeight,
-        targetWeight: formData.targetWeight,
-        activityLevel: formData.activityLevel,
-        goalDate: formData.goalDate
+        currentWeight: editingFormData.currentWeight,
+        targetWeight: editingFormData.targetWeight,
+        activityLevel: editingFormData.activityLevel,
+        goalDate: editingFormData.goalDate
       });
       window.dispatchEvent(new CustomEvent('idealCaloriesUpdated', {
         detail: {
-          currentWeight: formData.currentWeight,
-          targetWeight: formData.targetWeight,
-          activityLevel: formData.activityLevel,
-          goalDate: formData.goalDate
+          currentWeight: editingFormData.currentWeight,
+          targetWeight: editingFormData.targetWeight,
+          activityLevel: editingFormData.activityLevel,
+          goalDate: editingFormData.goalDate
         }
       }));
       
       // プロフィール更新イベントも発火
       console.log('overview-card: プロフィール更新イベントを発火', {
-        currentWeight: formData.currentWeight,
-        targetWeight: formData.targetWeight,
-        activityLevel: formData.activityLevel,
-        goalDate: formData.goalDate
+        currentWeight: editingFormData.currentWeight,
+        targetWeight: editingFormData.targetWeight,
+        activityLevel: editingFormData.activityLevel,
+        goalDate: editingFormData.goalDate
       });
       window.dispatchEvent(new CustomEvent('profileUpdated', {
         detail: {
-          currentWeight: formData.currentWeight,
-          targetWeight: formData.targetWeight,
-          activityLevel: formData.activityLevel,
-          goalDate: formData.goalDate
+          currentWeight: editingFormData.currentWeight,
+          targetWeight: editingFormData.targetWeight,
+          activityLevel: editingFormData.activityLevel,
+          goalDate: editingFormData.goalDate
         }
       }));
       
@@ -139,25 +169,23 @@ export function OverviewCard({ formData, setFormData, onUpdate }: OverviewCardPr
     <div className="space-y-4 flex-1 flex flex-col">
       <div>
         <Label htmlFor="weight">今日の体重 (kg)</Label>
-        <Input 
+        <NumberInput 
           id="weight" 
-          type="number" 
-          value={formData.currentWeight} 
-          onChange={e => setFormData({...formData, currentWeight: parseFloat(e.target.value) || 0})}
+          value={editingFormData.currentWeight} 
+          onChange={value => setEditingFormData({...editingFormData, currentWeight: typeof value === 'number' ? value : 0})}
         />
       </div>
       <div>
         <Label htmlFor="target_weight">目標体重 (kg)</Label>
-        <Input 
+        <NumberInput 
           id="target_weight" 
-          type="number" 
-          value={formData.targetWeight} 
-          onChange={e => setFormData({...formData, targetWeight: parseFloat(e.target.value) || 0})}
+          value={editingFormData.targetWeight} 
+          onChange={value => setEditingFormData({...editingFormData, targetWeight: typeof value === 'number' ? value : 0})}
         />
       </div>
       <div>
         <Label>活動レベル</Label>
-        <Select value={String(formData.activityLevel)} onValueChange={value => setFormData({...formData, activityLevel: Number(value)})}>
+        <Select value={String(editingFormData.activityLevel)} onValueChange={value => setEditingFormData({...editingFormData, activityLevel: Number(value)})}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
@@ -185,8 +213,8 @@ export function OverviewCard({ formData, setFormData, onUpdate }: OverviewCardPr
         <Input 
           id="target_date" 
           type="date" 
-          value={formData.goalDate} 
-          onChange={e => setFormData({...formData, goalDate: e.target.value})}
+          value={editingFormData.goalDate} 
+          onChange={e => setEditingFormData({...editingFormData, goalDate: e.target.value})}
         />
       </div>
     </div>
@@ -214,27 +242,25 @@ export function OverviewCard({ formData, setFormData, onUpdate }: OverviewCardPr
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="modal-weight">今日の体重 (kg)</Label>
-                  <Input 
+                  <NumberInput 
                     id="modal-weight" 
-                    type="number" 
-                    value={formData.currentWeight} 
-                    onChange={e => setFormData({...formData, currentWeight: parseFloat(e.target.value) || 0})}
+                    value={editingFormData.currentWeight} 
+                    onChange={value => setEditingFormData({...editingFormData, currentWeight: typeof value === 'number' ? value : 0})}
                     className="text-base"
                   />
                 </div>
                 <div>
                   <Label htmlFor="modal-target-weight">目標体重 (kg)</Label>
-                  <Input 
+                  <NumberInput 
                     id="modal-target-weight" 
-                    type="number" 
-                    value={formData.targetWeight} 
-                    onChange={e => setFormData({...formData, targetWeight: parseFloat(e.target.value) || 0})}
+                    value={editingFormData.targetWeight} 
+                    onChange={value => setEditingFormData({...editingFormData, targetWeight: typeof value === 'number' ? value : 0})}
                     className="text-base"
                   />
                 </div>
                 <div>
                   <Label>活動レベル</Label>
-                  <Select value={String(formData.activityLevel)} onValueChange={value => setFormData({...formData, activityLevel: Number(value)})}>
+                  <Select value={String(editingFormData.activityLevel)} onValueChange={value => setEditingFormData({...editingFormData, activityLevel: Number(value)})}>
                     <SelectTrigger className="text-base">
                       <SelectValue />
                     </SelectTrigger>
@@ -262,8 +288,8 @@ export function OverviewCard({ formData, setFormData, onUpdate }: OverviewCardPr
                   <Input 
                     id="modal-target-date" 
                     type="date" 
-                    value={formData.goalDate} 
-                    onChange={e => setFormData({...formData, goalDate: e.target.value})}
+                    value={editingFormData.goalDate} 
+                    onChange={e => setEditingFormData({...editingFormData, goalDate: e.target.value})}
                     className="text-base"
                   />
                 </div>
@@ -272,7 +298,10 @@ export function OverviewCard({ formData, setFormData, onUpdate }: OverviewCardPr
               <div className="flex gap-3 mt-6">
                 <Button 
                   variant="outline" 
-                  onClick={() => setShowModal(false)}
+                  onClick={() => {
+                    setEditingFormData(originalFormData);
+                    setShowModal(false);
+                  }}
                   className="flex-1"
                 >
                   キャンセル
@@ -317,18 +346,18 @@ export function OverviewCard({ formData, setFormData, onUpdate }: OverviewCardPr
             </Button>
           )}
         </CardHeader>
-        <CardContent className="pt-4 flex-1 flex flex-col">
+        <CardContent className="pt-0 flex flex-col">
           {isEditing ? (
             <EditForm />
           ) : (
-            <div className="grid grid-cols-2 grid-rows-2 gap-4 flex-1">
+            <div ref={gridRef} className="grid grid-cols-2 grid-rows-2 gap-4 auto-rows-fr">
               <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
                   <p className="text-sm text-gray-500 mb-1">今日の体重</p>
-                  <p className="text-2xl font-bold">{formData.currentWeight}kg</p>
+                  <p className="text-2xl font-bold break-words">{formData.currentWeight}kg</p>
               </div>
               <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
                   <p className="text-sm text-gray-500 mb-1">目標体重</p>
-                  <p className="text-2xl font-bold text-green-600">{formData.targetWeight}kg</p>
+                  <p className="text-2xl font-bold text-green-600 break-words">{formData.targetWeight}kg</p>
               </div>
               <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
                   <p className="text-sm text-gray-500 mb-2">活動レベル</p>
@@ -342,7 +371,7 @@ export function OverviewCard({ formData, setFormData, onUpdate }: OverviewCardPr
               </div>
                <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
                   <p className="text-sm text-gray-500 mb-1">目標達成日</p>
-                  <p className="text-lg font-semibold">{formData.goalDate ? new Date(formData.goalDate).toLocaleDateString() : '未設定'}</p>
+                  <p className="text-lg font-semibold break-words">{formData.goalDate ? new Date(formData.goalDate).toLocaleDateString() : '未設定'}</p>
               </div>
             </div>
           )}

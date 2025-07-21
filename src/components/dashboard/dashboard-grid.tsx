@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { OverviewCard } from "./overview-card"; 
 import { CalorieSummary } from "./calorie-summary";
@@ -48,7 +48,7 @@ export function DashboardGrid({ profile }: { profile: any }) {
   };
 
   // 体重データを取得する関数
-  const fetchWeightData = async () => {
+  const fetchWeightData = useCallback(async () => {
     if (!profile?.id) return;
     
     const { data, error } = await supabase
@@ -75,7 +75,7 @@ export function DashboardGrid({ profile }: { profile: any }) {
       activityLevel: profile.activity_level ?? 2,
       goalDate: profile.goal_target_date ? new Date(profile.goal_target_date).toISOString().split('T')[0] : "",
     }));
-  };
+  }, [profile, supabase]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -85,7 +85,7 @@ export function DashboardGrid({ profile }: { profile: any }) {
     };
 
     fetchInitialData();
-  }, [profile, supabase]);
+  }, [profile]);
 
   // リアルタイム更新のためのイベントリスナー
   useEffect(() => {
@@ -188,7 +188,7 @@ export function DashboardGrid({ profile }: { profile: any }) {
   }
 
   return (
-    <main className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 pb-6 px-4 md:pl-6 md:pr-6" style={{ paddingBottom: '0px' }}>
+    <main className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 pb-6 px-2 md:pl-6 md:pr-6" style={{ paddingBottom: '0px' }}>
       {/* AIアドバイス - SP: 1番目, PC: 1番目 */}
       <div className="order-1 md:order-1 h-full">
         <AiAdvice key={`ai-advice-${refreshKey}`} />
@@ -205,7 +205,7 @@ export function DashboardGrid({ profile }: { profile: any }) {
           <CardHeader>
             <CardTitle className="text-base font-semibold">PFCバランス</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1">
+          <CardContent className="flex-1 flex flex-col">
             <PFCChart key={`pfc-chart-${refreshKey}`} idealCalories={idealCalories ?? 0} />
           </CardContent>
         </Card>

@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useState, useRef, useEffect } from "react";
@@ -324,31 +325,27 @@ export function MealRecordModal() {
 
   // 外部API検索機能
   const handleFoodSelect = (food: any) => {
-    setSelectedFood(food);
-    setSearchResults([]);
-    setSearchQuery(food.name);
-  };
-
-  const handleApplyFood = () => {
-    if (!selectedFood) return;
-    
+    // 選択した瞬間にすぐ適用
     setFormData({
-      food_name: selectedFood.name,
-      calories: selectedFood.calories.toString(),
-      protein: selectedFood.protein.toString(),
-      fat: selectedFood.fat.toString(),
-      carbs: selectedFood.carbs.toString()
+      food_name: food.name || food.food_name,
+      calories: food.calories.toString(),
+      protein: food.protein.toString(),
+      fat: food.fat.toString(),
+      carbs: food.carbs.toString()
     });
     setNutritionData({
-      food_name: selectedFood.name,
-      calories: selectedFood.calories,
-      protein: selectedFood.protein,
-      fat: selectedFood.fat,
-      carbs: selectedFood.carbs
+      food_name: food.name || food.food_name,
+      calories: food.calories,
+      protein: food.protein,
+      fat: food.fat,
+      carbs: food.carbs
     });
     setSelectedFood(null);
-    setSearchQuery("");
+    setSearchResults([]);
+    setSearchQuery(food.name || food.food_name);
   };
+
+
 
   // 過去履歴から選択
   const handleHistorySelect = (meal: any) => {
@@ -732,6 +729,8 @@ export function MealRecordModal() {
               />
             </div>
             
+
+
             {/* 過去履歴ボタン */}
             <div className="flex space-x-2">
               <Button
@@ -743,6 +742,35 @@ export function MealRecordModal() {
                 過去履歴
               </Button>
             </div>
+
+            {/* 過去履歴の表示 */}
+            {showHistory && (
+              <div className="space-y-2">
+                <div className="text-sm text-gray-600 mb-2">過去に登録した食品一覧</div>
+                {isLoadingHistory && (
+                  <div className="text-sm text-gray-500">過去履歴を読み込み中...</div>
+                )}
+                {historyResults.length > 0 && (
+                  <div className="border rounded-lg p-2 max-h-32 overflow-y-auto">
+                    {historyResults.map((meal, index) => (
+                      <div
+                        key={index}
+                        className="p-2 hover:bg-gray-100 cursor-pointer text-sm"
+                        onClick={() => handleHistorySelect(meal)}
+                      >
+                        <div className="font-medium">{meal.food_name}</div>
+                        <div className="text-gray-600">
+                          {meal.calories}kcal (P:{meal.protein}g, F:{meal.fat}g, C:{meal.carbs}g)
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {new Date(meal.created_at).toLocaleDateString('ja-JP')}に登録
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             
             {/* 検索結果表示 */}
             {/* 検索中の表示 */}
@@ -793,62 +821,6 @@ export function MealRecordModal() {
                 </div>
               </div>
             )}
-            
-            {/* 選択された食品の表示 */}
-            {selectedFood && (
-              <div className="border rounded-lg p-3 bg-blue-50 mt-2">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="font-medium text-blue-900">{selectedFood.name || selectedFood.food_name}</div>
-                    <div className="text-sm text-blue-700">
-                      {selectedFood.calories}kcal (P:{selectedFood.protein}g, F:{selectedFood.fat}g, C:{selectedFood.carbs}g)
-                    </div>
-                    {selectedFood.source && (
-                      <div className="text-xs text-blue-600 mt-1">
-                        出典: {selectedFood.source}
-                      </div>
-                    )}
-                  </div>
-                  <Button 
-                    type="button" 
-                    onClick={handleApplyFood}
-                    size="sm"
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    適用
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {showHistory && (
-              // 過去履歴一覧表示
-              <div className="space-y-2">
-                <div className="text-sm text-gray-600 mb-2">過去に登録した食品一覧</div>
-                {isLoadingHistory && (
-                  <div className="text-sm text-gray-500">過去履歴を読み込み中...</div>
-                )}
-                {historyResults.length > 0 && (
-                  <div className="border rounded-lg p-2 max-h-32 overflow-y-auto">
-                    {historyResults.map((meal, index) => (
-                      <div
-                        key={index}
-                        className="p-2 hover:bg-gray-100 cursor-pointer text-sm"
-                        onClick={() => handleHistorySelect(meal)}
-                      >
-                        <div className="font-medium">{meal.food_name}</div>
-                        <div className="text-gray-600">
-                          {meal.calories}kcal (P:{meal.protein}g, F:{meal.fat}g, C:{meal.carbs}g)
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          {new Date(meal.created_at).toLocaleDateString('ja-JP')}に登録
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
           
           <div>
@@ -870,26 +842,26 @@ export function MealRecordModal() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label htmlFor="calories">カロリー (kcal)</Label>
-            <Input
+            <NumberInput
               id="calories"
               name="calories"
-              type="number"
               value={formData.calories}
-              onChange={handleInputChange}
-              required
+              onChange={(value) => setFormData({...formData, calories: value ? value.toString() : ""})}
+              allowString={true}
               step="0.1"
+              placeholder="300"
             />
           </div>
           <div>
             <Label htmlFor="protein">タンパク質 (g)</Label>
-            <Input
+            <NumberInput
               id="protein"
               name="protein"
-              type="number"
               value={formData.protein}
-              onChange={handleInputChange}
-              required
+              onChange={(value) => setFormData({...formData, protein: value ? value.toString() : ""})}
+              allowString={true}
               step="0.1"
+              placeholder="20"
             />
           </div>
         </div>
@@ -897,26 +869,26 @@ export function MealRecordModal() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label htmlFor="fat">脂質 (g)</Label>
-            <Input
+            <NumberInput
               id="fat"
               name="fat"
-              type="number"
               value={formData.fat}
-              onChange={handleInputChange}
-              required
+              onChange={(value) => setFormData({...formData, fat: value ? value.toString() : ""})}
+              allowString={true}
               step="0.1"
+              placeholder="10"
             />
           </div>
           <div>
             <Label htmlFor="carbs">炭水化物 (g)</Label>
-            <Input
+            <NumberInput
               id="carbs"
               name="carbs"
-              type="number"
               value={formData.carbs}
-              onChange={handleInputChange}
-              required
+              onChange={(value) => setFormData({...formData, carbs: value ? value.toString() : ""})}
+              allowString={true}
               step="0.1"
+              placeholder="30"
             />
           </div>
         </div>

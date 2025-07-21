@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 import { getAiAdvice } from '@/lib/grok';
 import { UserProfile } from '@/lib/grok';
+import { getIdealCalories } from '@/lib/utils';
 
 interface AiAdviceProps {
   compact?: boolean;
@@ -14,9 +15,7 @@ interface AiAdviceProps {
 export function AiAdvice({ compact = false }: AiAdviceProps) {
   console.log('AIアドバイスコンポーネントがレンダリングされました');
   const [advice, setAdvice] = useState<{ 
-    meal_summary: string; 
     meal_detail: string; 
-    exercise_summary: string; 
     exercise_detail: string 
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,6 +27,7 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
   const [retryCount, setRetryCount] = useState(0);
   const [lastUpdateTime, setLastUpdateTime] = useState<number>(0);
   const [hasEverUpdated, setHasEverUpdated] = useState(false);
+  const [currentWeight, setCurrentWeight] = useState<number>(0);
   const supabase = createClient();
   const lastProfileHash = useRef<string | null>(null);
   const lastDailyHash = useRef<string | null>(null);
@@ -66,82 +66,220 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
     return JSON.stringify(obj);
   };
 
+  // 現在の体重を取得する関数
+  const fetchCurrentWeight = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('daily_weight_logs')
+        .select('weight_kg')
+        .eq('user_id', userId)
+        .order('date', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error) {
+        console.log('体重ログ取得エラー（デフォルト値を使用）:', error);
+        return null;
+      }
+
+      return data?.weight_kg || null;
+    } catch (error) {
+      console.log('体重ログ取得エラー（デフォルト値を使用）:', error);
+      return null;
+    }
+  };
+
   // localStorageキー
   const getAdviceKey = () => {
     if (!userProfile) return "ai-advice-default";
     return `ai-advice-${userProfile.username}-${userProfile.goal_type}`;
   };
 
-  // 目標カロリー計算関数
-  const calculateTargetCalories = (profile: UserProfile): number => {
-    const age = new Date().getFullYear() - new Date(profile.birth_date).getFullYear();
-    let bmr = 0;
+
+
+  // UI側で要約文を生成する関数（40-60文字制限、カロリーサマリーの情報を絶対とする）
+  const generateMealSummary = (): { calorieBox: string; advice: string } => {
+    if (!userProfile || !dailyData) return { calorieBox: "データを読み込み中...", advice: "" };
     
-    if (profile.gender === 'male') {
-      bmr = 88.362 + (13.397 * profile.initial_weight_kg) + (4.799 * profile.height_cm) - (5.677 * age);
+    // カロリーサマリーと同じ計算ロジックを使用（画面表示の絶対正義）
+    const actualCalories = dailyData.total_calories || 0; // 摂取カロリー
+    const exerciseCalories = dailyData.total_exercise_calories || 0; // 運動消費カロリー
+    
+    // デバッグ: 運動データの確認
+    console.log('AIアドバイス - 運動データ確認:', {
+      dailyData,
+      total_calories: dailyData.total_calories,
+      total_exercise_calories: dailyData.total_exercise_calories,
+      exerciseCalories
+    });
+    
+    // カロリーサマリーと同じ計算ロジック（動的）
+    const netCalories = actualCalories - exerciseCalories; // 純カロリー（摂取 - 運動消費）
+    
+    // 理想カロリーを計算
+    const targetCalories = getIdealCalories(
+      userProfile, 
+      currentWeight || userProfile.initial_weight_kg, 
+      userProfile.activity_level,
+      userProfile.target_weight_kg,
+      (userProfile as any).goal_target_date
+    );
+    
+    // カロリーサマリーと同じ計算ロジック（動的）
+    const calorieDiff = netCalories > targetCalories 
+      ? Math.round(netCalories - targetCalories) // カロリーオーバー：(純カロリー - 理想カロリー)
+      : Math.round(targetCalories - netCalories); // 目標達成まで残り：(理想カロリー - 純カロリー)
+
+    // 画面表示の絶対正義で計算
+        console.log('要約文生成時のデータ確認:', {
+      userProfile: {
+        username: userProfile.username,
+        goal_type: userProfile.goal_type,
+        birth_date: userProfile.birth_date,
+        gender: userProfile.gender,
+        height_cm: userProfile.height_cm,
+        initial_weight_kg: userProfile.initial_weight_kg,
+        target_weight_kg: userProfile.target_weight_kg,
+        activity_level: userProfile.activity_level,
+        goal_target_date: (userProfile as any).goal_target_date
+      },
+      dailyData: {
+        total_calories: dailyData.total_calories,
+        total_exercise_calories: dailyData.total_exercise_calories,
+        total_protein: dailyData.total_protein,
+        total_fat: dailyData.total_fat,
+        total_carbs: dailyData.total_carbs,
+        date: dailyData.date
+      },
+      calculatedValues: {
+        actualCalories,
+        exerciseCalories,
+        netCalories,
+        targetCalories: Math.round(targetCalories),
+        calorieDiff,
+        currentWeight,
+        rawTargetCalories: targetCalories
+      }
+    });
+
+    // カロリーボックス生成（動的計算）
+    let calorieBox = '';
+    if (netCalories > targetCalories) {
+      // カロリーオーバー：(今日の摂取-今日の運動消費)>理想カロリー
+      calorieBox = `カロリーオーバー：${calorieDiff}kcal`;
+    } else if (netCalories < targetCalories) {
+      // 目標達成まで残り：(今日の摂取-今日の運動消費)<理想カロリー
+      calorieBox = `目標達成まで残り：${calorieDiff}kcal`;
     } else {
-      bmr = 447.593 + (9.247 * profile.initial_weight_kg) + (3.098 * profile.height_cm) - (4.330 * age);
+      // カロリー適正
+      calorieBox = `カロリー目標達成！`;
     }
 
-    const activityMultipliers = [1.2, 1.375, 1.55, 1.725, 1.9];
-    const tdee = bmr * activityMultipliers[profile.activity_level - 1];
-
-    let targetCalories = tdee;
-    if (profile.goal_type === 'diet') {
-      targetCalories = tdee - 500;
-    } else if (profile.goal_type === 'bulk-up') {
-      targetCalories = tdee + 300;
+    // アドバイス文生成（動的計算）
+    let advice = '';
+    if (netCalories > targetCalories) {
+      // カロリーオーバー：(今日の摂取-今日の運動消費)>理想カロリー
+      if (calorieDiff > 300) {
+        advice = `明日は調整しましょう。野菜中心の食事でバランスを取り戻しましょう。`;
+      } else {
+        advice = `軽めの食事を心がけましょう。明日は調整してバランスを取りましょう。`;
+      }
+    } else if (netCalories < targetCalories) {
+      // 目標達成まで残り：(今日の摂取-今日の運動消費)<理想カロリー
+      if (calorieDiff > 100) {
+        advice = `栄養をしっかり摂りましょう。タンパク質中心の食事がおすすめです。`;
+      } else {
+        advice = `もう少しで目標達成です。バランスの良い食事を続けましょう。`;
+      }
+    } else {
+      // カロリー適正
+      advice = `この調子で健康的な食生活を続けましょう。バランスの良い食事を心がけてください。`;
     }
-    
-    return targetCalories;
+
+    console.log('UI側要約文生成デバッグ:', {
+      actualCalories,
+      exerciseCalories,
+      netCalories,
+      targetCalories: Math.round(targetCalories),
+      calorieDiff,
+      isOverTarget: netCalories > targetCalories,
+      calorieBox,
+      advice,
+      summaryLength: (calorieBox + advice).length
+    });
+
+    console.log('食事要約文最終生成:', {
+      actualCalories,
+      exerciseCalories,
+      netCalories,
+      targetCalories: Math.round(targetCalories),
+      calorieDiff,
+      calorieBox,
+      advice,
+      finalSummaryLength: (calorieBox + advice).length
+    });
+
+    return { calorieBox, advice };
   };
 
-  // キャッシュから復元（シンプル版）
+  const generateExerciseSummary = (): string => {
+    if (!userProfile || !dailyData) return "データを読み込み中...";
+    
+    // カロリーサマリーと同じリアルタイム計算で運動消費カロリーを取得
+    const exerciseCalories = dailyData.total_exercise_calories || 0;
+    
+    let exerciseSummary = '';
+    if (userProfile.goal_type === 'diet') {
+      if (exerciseCalories > 0) {
+        exerciseSummary = `今日は${exerciseCalories}kcal消費しました。有酸素運動で脂肪燃焼を促進しましょう。継続できる運動が効果的です。`;
+      } else {
+        exerciseSummary = '有酸素運動で脂肪燃焼を促進しましょう。継続できる運動が効果的です。無理なく続けることが大切です。';
+      }
+    } else if (userProfile.goal_type === 'bulk-up') {
+      if (exerciseCalories > 0) {
+        exerciseSummary = `今日は${exerciseCalories}kcal消費しました。高強度の筋トレで筋肉に刺激を与えましょう。休息も重要です。`;
+      } else {
+        exerciseSummary = '高強度の筋トレで筋肉に刺激を与えましょう。休息も重要です。栄養補給も忘れずに。';
+      }
+    } else {
+      if (exerciseCalories > 0) {
+        exerciseSummary = `今日は${exerciseCalories}kcal消費しました。今の体型を維持するための、適度な運動を習慣にしましょう。`;
+      } else {
+        exerciseSummary = '今の体型を維持するための、適度な運動を習慣にしましょう。ウォーキングから始めてみてください。';
+      }
+    }
+
+    // 運動要約文の文字数確認ログ
+    console.log('運動要約文文字数確認:', {
+      goal_type: userProfile.goal_type,
+      exercise_calories: exerciseCalories,
+      exercise_summary: exerciseSummary,
+      exercise_summary_length: exerciseSummary.length
+    });
+
+    return exerciseSummary;
+  };
+
+  // キャッシュを強制的にクリアして最新データを使用
   useEffect(() => {
     if (userProfile && isFirstLoad.current) {
-      console.log('キャッシュ復元処理開始');
+      console.log('キャッシュを強制的にクリアします');
       
-      let cache = localStorage.getItem(getAdviceKey());
-      let cacheKey = getAdviceKey();
+      // すべてのAIアドバイス関連のキャッシュをクリア
+      const cacheKey = getAdviceKey();
+      const genericKey = `ai-advice-${userProfile.username}`;
       
-      if (!cache) {
-        const genericKey = `ai-advice-${userProfile.username}`;
-        cache = localStorage.getItem(genericKey);
-        cacheKey = genericKey;
-        console.log('汎用キャッシュキーで検索:', genericKey);
-      }
+      localStorage.removeItem(cacheKey);
+      localStorage.removeItem(genericKey);
       
-      if (cache) {
-        try {
-          const cachedAdvice = JSON.parse(cache);
-          const cacheAge = Date.now() - (cachedAdvice.timestamp || 0);
-          if (cacheAge < 7 * 24 * 60 * 60 * 1000) {
-            setAdvice(cachedAdvice.data || cachedAdvice);
-            setLastUpdateTime(cachedAdvice.timestamp || Date.now());
-            setHasEverUpdated(true);
-            console.log('キャッシュからアドバイスを復元:', cachedAdvice.data || cachedAdvice);
-            console.log('使用したキャッシュキー:', cacheKey);
-            isFirstLoad.current = false;
-            setUpdateButtonEnabled(true);
-            console.log('キャッシュ復元 - 生成ボタンを有効化したまま維持');
-          } else {
-            console.log('キャッシュが期限切れです');
-            localStorage.removeItem(cacheKey);
-            isFirstLoad.current = false;
-            setUpdateButtonEnabled(true);
-          }
-        } catch (error) {
-          console.error('キャッシュの復元に失敗:', error);
-          localStorage.removeItem(cacheKey);
-          isFirstLoad.current = false;
-          setUpdateButtonEnabled(true);
-        }
-      } else {
-        console.log('キャッシュが見つかりません');
-        isFirstLoad.current = false;
-        setUpdateButtonEnabled(true);
-        console.log('キャッシュなし - 更新ボタンを有効化');
-      }
+      console.log('キャッシュクリア完了:', { cacheKey, genericKey });
+      
+      isFirstLoad.current = false;
+      setUpdateButtonEnabled(true);
+      setAdvice(null); // 古いアドバイスをクリア
+      setHasEverUpdated(false);
+      
+      console.log('キャッシュクリア - 更新ボタンを有効化');
     }
   }, [userProfile]);
 
@@ -159,6 +297,38 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
       console.log('AIアドバイス - 食事記録イベントを受信');
       setUpdateButtonEnabled(true);
       console.log('食事記録で更新ボタンを有効化しました');
+      
+      // 食事が記録されたら、データを再読み込み
+      console.log('食事記録によりデータを再読み込みします');
+      
+      // キャッシュをクリア
+      localStorage.removeItem(getAdviceKey());
+      console.log('食事記録によりキャッシュをクリアしました');
+      
+      loadUserData();
+      
+      // 要約文を強制的に再生成して表示を更新
+      setTimeout(() => {
+        if (userProfile && dailyData) {
+          console.log('要約文を強制再生成します');
+          const newMealSummary = generateMealSummary();
+          const newExerciseSummary = generateExerciseSummary();
+          console.log('新しい要約文:', {
+            mealSummary: newMealSummary.advice,
+            exerciseSummary: newExerciseSummary
+          });
+          
+          // 新しい要約文でアドバイスを更新（ローカル生成のみ）
+          setAdvice({
+            meal_detail: newMealSummary.advice,
+            exercise_detail: newExerciseSummary
+          });
+          
+          // 更新ボタンを有効化して、ユーザーがGemini APIを呼び出せるようにする
+          setUpdateButtonEnabled(true);
+          console.log('要約文を更新しました。詳細なアドバイスが必要な場合は「アドバイスを生成」ボタンを押してください。');
+        }
+      }, 1000);
     };
 
     const handleExerciseRecorded = () => {
@@ -171,6 +341,41 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
       console.log('AIアドバイス - 食事削除イベントを受信');
       setUpdateButtonEnabled(true);
       console.log('食事削除で更新ボタンを有効化しました');
+      
+      // キャッシュをクリア
+      localStorage.removeItem(getAdviceKey());
+      console.log('食事削除によりキャッシュをクリアしました');
+      
+      // アドバイスをクリアして強制的に再表示
+      setAdvice(null);
+      setHasEverUpdated(false);
+      
+      // 食事が削除されたら、データを再読み込み
+      console.log('食事削除によりデータを再読み込みします');
+      loadUserData();
+      
+      // 要約文を強制的に再生成して表示を更新
+      setTimeout(() => {
+        if (userProfile && dailyData) {
+          console.log('要約文を強制再生成します');
+          const newMealSummary = generateMealSummary();
+          const newExerciseSummary = generateExerciseSummary();
+          console.log('新しい要約文:', {
+            mealSummary: newMealSummary.advice,
+            exerciseSummary: newExerciseSummary
+          });
+          
+          // 新しい要約文でアドバイスを更新（ローカル生成のみ）
+          setAdvice({
+            meal_detail: newMealSummary.advice,
+            exercise_detail: newExerciseSummary
+          });
+          
+          // 更新ボタンを有効化して、ユーザーがGemini APIを呼び出せるようにする
+          setUpdateButtonEnabled(true);
+          console.log('要約文を更新しました。詳細なアドバイスが必要な場合は「アドバイスを生成」ボタンを押してください。');
+        }
+      }, 1000);
     };
 
     const handleExerciseDeleted = () => {
@@ -183,12 +388,88 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
       console.log('AIアドバイス - 理想カロリー更新イベントを受信');
       setUpdateButtonEnabled(true);
       console.log('理想カロリー更新で更新ボタンを有効化しました');
+      
+      // キャッシュをクリア
+      localStorage.removeItem(getAdviceKey());
+      console.log('理想カロリー更新によりキャッシュをクリアしました');
+      
+      // アドバイスをクリアして強制的に再表示
+      setAdvice(null);
+      setHasEverUpdated(false);
+      
+      // 理想カロリーが変更されたら、プロフィールデータを再読み込み
+      console.log('理想カロリー変更によりプロフィールデータを再読み込みします');
+      console.log('現在のuserProfile:', userProfile);
+      
+      // 強制的にデータを再読み込み
+      loadUserData();
+      
+      // 要約文を強制的に再生成して表示を更新
+      setTimeout(() => {
+        if (userProfile && dailyData) {
+          console.log('要約文を強制再生成します');
+          const newMealSummary = generateMealSummary();
+          const newExerciseSummary = generateExerciseSummary();
+          console.log('新しい要約文:', {
+            mealSummary: newMealSummary.advice,
+            exerciseSummary: newExerciseSummary
+          });
+          
+          // 新しい要約文でアドバイスを更新（ローカル生成のみ）
+          setAdvice({
+            meal_detail: newMealSummary.advice,
+            exercise_detail: newExerciseSummary
+          });
+          
+          // 更新ボタンを有効化して、ユーザーがGemini APIを呼び出せるようにする
+          setUpdateButtonEnabled(true);
+          console.log('要約文を更新しました。詳細なアドバイスが必要な場合は「アドバイスを生成」ボタンを押してください。');
+        }
+      }, 1000);
     };
 
     const handleProfileUpdated = () => {
       console.log('AIアドバイス - プロフィール更新イベントを受信');
       setUpdateButtonEnabled(true);
       console.log('プロフィール更新で更新ボタンを有効化しました');
+      
+      // キャッシュをクリア
+      localStorage.removeItem(getAdviceKey());
+      console.log('プロフィール更新によりキャッシュをクリアしました');
+      
+      // アドバイスをクリアして強制的に再表示
+      setAdvice(null);
+      setHasEverUpdated(false);
+      
+      // プロフィールが更新されたら、データを再読み込み
+      console.log('プロフィール更新によりデータを再読み込みします');
+      console.log('現在のuserProfile:', userProfile);
+      
+      // 強制的にデータを再読み込み
+      loadUserData();
+      
+      // 要約文を強制的に再生成して表示を更新
+      setTimeout(() => {
+        if (userProfile && dailyData) {
+          console.log('要約文を強制再生成します');
+          const newMealSummary = generateMealSummary();
+          const newExerciseSummary = generateExerciseSummary();
+          console.log('新しい要約文:', {
+            mealSummary: newMealSummary.advice,
+            exerciseSummary: newExerciseSummary
+          });
+          
+          // 新しい要約文でアドバイスを更新（ローカル生成のみ）
+          setAdvice({
+            meal_detail: newMealSummary.advice,
+            exercise_detail: newExerciseSummary
+          });
+          
+          // 更新ボタンを有効化して、ユーザーがGemini APIを呼び出せるようにする
+          setUpdateButtonEnabled(true);
+          console.log('要約文を更新しました。詳細なアドバイスが必要な場合は「アドバイスを生成」ボタンを押してください。');
+        }
+      }, 1000);
     };
 
     const handleFoodPreferencesUpdated = () => {
@@ -230,25 +511,35 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
       }
       console.log('ユーザー認証確認完了:', user.id);
 
-      const [profileResult, dailyResult] = await Promise.all([
+      const today = new Date();
+      const jstOffset = 9 * 60;
+      const jstDate = new Date(today.getTime() + jstOffset * 60000);
+      const todayDate = jstDate.toISOString().split('T')[0];
+      
+      console.log('AIアドバイス - 日付計算:', {
+        today: today.toISOString(),
+        jstDate: jstDate.toISOString(),
+        todayDate,
+        jstOffset
+      });
+      
+      const [profileResult, mealsResult, exercisesResult, weightResult] = await Promise.all([
         supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single(),
-        (async () => {
-          const today = new Date();
-          const jstOffset = 9 * 60;
-          const jstDate = new Date(today.getTime() + jstOffset * 60000);
-          const todayDate = jstDate.toISOString().split('T')[0];
-          
-          return supabase
-            .from('daily_summaries')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('date', todayDate)
-            .single();
-        })()
+        supabase
+          .from('meals')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('exercise_logs')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }),
+        fetchCurrentWeight(user.id)
       ]);
 
       if (profileResult.error) {
@@ -269,33 +560,84 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
           target_weight_kg: profileResult.data.target_weight_kg,
           activity_level: profileResult.data.activity_level,
           goal_type: profileResult.data.goal_type,
-          food_preferences: profileResult.data.food_preferences
+          food_preferences: profileResult.data.food_preferences,
+          goal_target_date: profileResult.data.goal_target_date
         };
         setUserProfile(userProfileData);
         console.log('プロフィールデータ設定完了:', userProfileData);
+        
+        // 現在の体重を設定
+        const actualCurrentWeight = weightResult || profileResult.data.initial_weight_kg;
+        setCurrentWeight(actualCurrentWeight);
+        console.log('現在の体重設定:', actualCurrentWeight);
       } else {
         console.log('プロフィールデータが取得できませんでした');
       }
 
-      if (dailyResult.error && dailyResult.error.code !== 'PGRST116') {
-        console.error('日次データ取得エラー:', dailyResult.error);
+      if (mealsResult.error) {
+        console.error('食事データ取得エラー:', mealsResult.error);
         if (dataLoadAttempts.current < 2) {
           setTimeout(loadUserData, 500);
           return;
         }
       }
 
-      if (dailyResult.data) {
-        setDailyData(dailyResult.data);
-        console.log('日次データ設定完了:', dailyResult.data);
+      if (mealsResult.data) {
+        // カロリーサマリーと同じ方法でクライアント側フィルタリング
+        const todayMeals = mealsResult.data.filter((meal: any) => {
+          const mealDate = new Date(meal.created_at);
+          // JSTに変換してから日付を比較
+          const jstDate = new Date(mealDate.getTime() + 9 * 60 * 60 * 1000);
+          const mealDateStr = jstDate.toISOString().split('T')[0];
+          console.log(`AIアドバイス - 食事フィルタリング: ${meal.food_name} - ${meal.created_at} -> ${mealDateStr} vs ${todayDate}`);
+          return mealDateStr === todayDate;
+        });
+        
+        // フィルタリングされた食事データから計算
+        const totalCalories = todayMeals.reduce((sum: any, meal: any) => sum + meal.calories, 0);
+        const totalProtein = todayMeals.reduce((sum: any, meal: any) => sum + meal.protein, 0);
+        const totalFat = todayMeals.reduce((sum: any, meal: any) => sum + meal.fat, 0);
+        const totalCarbs = todayMeals.reduce((sum: any, meal: any) => sum + meal.carbs, 0);
+        
+        // 運動データの処理
+        let totalExerciseCalories = 0;
+        if (exercisesResult.data) {
+          const todayExercises = exercisesResult.data.filter((exercise: any) => {
+            const exerciseDate = new Date(exercise.created_at);
+            // JSTに変換してから日付を比較
+            const jstDate = new Date(exerciseDate.getTime() + 9 * 60 * 60 * 1000);
+            const exerciseDateStr = jstDate.toISOString().split('T')[0];
+            console.log(`AIアドバイス - 運動フィルタリング: ${exercise.exercise_name} - ${exercise.created_at} -> ${exerciseDateStr} vs ${todayDate}`);
+            return exerciseDateStr === todayDate;
+          });
+          
+          totalExerciseCalories = todayExercises.reduce((sum: any, exercise: any) => sum + exercise.calories_burned, 0);
+          console.log('AIアドバイス - フィルタリングされた運動数:', todayExercises.length);
+          console.log('AIアドバイス - 運動消費カロリー:', totalExerciseCalories);
+        }
+        
+        const dailyDataObj = {
+          total_calories: totalCalories,
+          total_protein: totalProtein,
+          total_fat: totalFat,
+          total_carbs: totalCarbs,
+          total_exercise_calories: totalExerciseCalories,
+          date: todayDate
+        };
+        
+        setDailyData(dailyDataObj);
+        console.log('食事・運動データ設定完了:', dailyDataObj);
+        console.log('AIアドバイス - フィルタリングされた食事数:', todayMeals.length);
       } else {
         setDailyData({
           total_calories: 0,
           total_protein: 0,
           total_fat: 0,
-          total_carbs: 0
+          total_carbs: 0,
+          total_exercise_calories: 0,
+          date: todayDate
         });
-        console.log('日次データなし、デフォルト値を設定');
+        console.log('食事・運動データなし、デフォルト値を設定');
       }
 
       setIsDataReady(true);
@@ -322,7 +664,20 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
       clearTimeout(fetchTimeoutRef.current);
     }
 
-    localStorage.removeItem(getAdviceKey());
+    // キャッシュを完全にクリア
+    const cacheKey = getAdviceKey();
+    const genericKey = `ai-advice-${userProfile.username}`;
+    
+    localStorage.removeItem(cacheKey);
+    localStorage.removeItem(genericKey);
+    console.log('fetchAdvice - キャッシュクリア完了:', { cacheKey, genericKey });
+    
+    // 古いアドバイスをクリア
+    setAdvice(null);
+    
+    // 最新のデータを再取得
+    await loadUserData();
+    console.log('データ再取得後の状態:', { userProfile, dailyData });
 
     setIsLoading(true);
     setRetryCount(prev => prev + 1);
@@ -402,56 +757,18 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
     };
   }, []);
 
-  if (compact) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full space-y-2">
-        {isLoading ? (
-          <p className="text-xs text-gray-500">生成中...</p>
-        ) : advice ? (
-          <div className="text-center space-y-1">
-            <p className="text-xs text-gray-500">AIアドバイス</p>
-            <p className="text-xs text-gray-700 whitespace-pre-line select-text">
-              {advice.meal_summary}
-              <br />
-              {advice.exercise_summary}
-            </p>
-            <Button 
-              variant="outline"
-              size="sm" 
-              onClick={fetchAdvice}
-              disabled={isLoading}
-              className="text-xs h-6 px-2 bg-blue-600 text-white hover:bg-blue-700"
-            >
-              {isLoading ? "生成中" : "アドバイスを生成"}
-            </Button>
-          </div>
-        ) : (
-          <p className="text-xs text-gray-500">アドバイスなし</p>
-        )}
-      </div>
-    );
-  }
-
+  // UI表示部分を修正
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2">
           <CardTitle className="text-base font-semibold">AIアドバイス</CardTitle>
         </div>
-        <Button 
-            variant={updateButtonEnabled ? "default" : "outline"}
-            size="sm" 
-            onClick={fetchAdvice}
-            disabled={isLoading}
-            className="bg-blue-600 text-white hover:bg-blue-700"
-          >
-            {isLoading ? "生成中..." : "アドバイスを生成"}
-          </Button>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col">
-        <div className="space-y-4 flex-1 flex flex-col">
+        <div className="space-y-2 flex-1 flex flex-col">
           {isLoading ? (
-            <div className="text-center py-4 flex-1 flex items-center justify-center">
+            <div className="text-center py-2 flex-1 flex items-center justify-center">
               <div>
                 <p>AIアドバイスを生成中...</p>
                 {retryCount > 0 && (
@@ -463,28 +780,46 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
             </div>
           ) : advice ? (
             <div className="flex-1 flex flex-col">
-              <div className="space-y-3 flex-1 flex flex-col">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-green-700 mb-2">🍽️ 食事アドバイス</h3>
+              <div className="space-y-2 flex-1 flex flex-col">
+                <div>
+                  <h3 className="font-semibold text-green-700 mb-1">🍽️ 食事アドバイス</h3>
                   <div className="text-sm text-gray-700 leading-relaxed select-text">
                     {showDetails ? (
                       <div className="whitespace-pre-line max-h-48 overflow-y-auto select-text">
+                        {/* 詳細アドバイスは要約文のカロリー表記を参照 */}
                         {advice.meal_detail}
                       </div>
                     ) : (
-                      <span className="select-text">{advice.meal_summary}</span>
+                      <div>
+                        {(() => {
+                          const mealData = generateMealSummary();
+                          return (
+                            <>
+                              <div className={`inline-block px-3 py-1 rounded-md text-sm font-medium mb-2 ${
+                                mealData.calorieBox.includes('オーバー') 
+                                  ? 'bg-orange-50 text-orange-600 border border-orange-200' 
+                                  : 'bg-green-50 text-green-600 border border-green-200'
+                              }`}>
+                                {mealData.calorieBox}
+                              </div>
+                              <div className="select-text">{mealData.advice}</div>
+                            </>
+                          );
+                        })()}
+                      </div>
                     )}
                   </div>
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-blue-700 mb-2">🏃‍♂️ 運動アドバイス</h3>
+                <div>
+                  <h3 className="font-semibold text-blue-700 mb-1">🏃‍♂️ 運動アドバイス</h3>
                   <div className="text-sm text-gray-700 leading-relaxed select-text">
                     {showDetails ? (
                       <div className="whitespace-pre-line max-h-48 overflow-y-auto select-text">
+                        {/* 詳細アドバイスは要約文のカロリー表記を参照 */}
                         {advice.exercise_detail}
                       </div>
                     ) : (
-                      <span className="select-text">{advice.exercise_summary}</span>
+                      <span className="select-text">{generateExerciseSummary()}</span>
                     )}
                   </div>
                 </div>
@@ -492,29 +827,73 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setShowDetails(!showDetails)}
-                  className="w-full mt-2 flex-shrink-0"
+                  onClick={async () => {
+                    if (!showDetails) {
+                      // 詳細表示時にGemini APIを呼び出し
+                      if (!advice?.meal_detail || !advice?.exercise_detail) {
+                        await fetchAdvice();
+                      }
+                    }
+                    setShowDetails(!showDetails);
+                  }}
+                  disabled={isLoading}
+                  className="w-full mt-1 flex-shrink-0"
                 >
-                  {showDetails ? "要約を表示" : "詳細を見る"}
+                  {isLoading ? "生成中..." : showDetails ? "要約を表示" : "詳細アドバイスを生成"}
                 </Button>
               </div>
             </div>
           ) : (
-            <div className="text-center py-4 flex-1 flex items-center justify-center">
-              <div>
-                {!hasEverUpdated ? (
-                  <>
+            <div className="flex-1 flex flex-col">
+              {!userProfile ? (
+                <div className="text-center py-2 flex-1 flex items-center justify-center">
+                  <div>
                     <p className="text-gray-500">プロフィールを登録すると、パーソナライズされたアドバイスが表示されます。</p>
-                    {userProfile && (
-                      <div className="mt-2">
-                        <p className="text-sm text-gray-400">「アドバイスを生成」ボタンを押すと新しいアドバイスが生成されます。</p>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <p className="text-gray-500">アドバイスを読み込み中...</p>
-                )}
-              </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2 flex-1 flex flex-col">
+                  <div>
+                    <h3 className="font-semibold text-green-700 mb-1">🍽️ 食事アドバイス</h3>
+                    <div className="text-sm text-gray-700 leading-relaxed select-text">
+                      {(() => {
+                        const mealData = generateMealSummary();
+                        return (
+                          <>
+                            <div className={`inline-block px-3 py-1 rounded-md text-sm font-medium mb-2 ${
+                              mealData.calorieBox.includes('オーバー') 
+                                ? 'bg-orange-50 text-orange-600 border border-orange-200' 
+                                : 'bg-green-50 text-green-600 border border-green-200'
+                            }`}>
+                              {mealData.calorieBox}
+                            </div>
+                            <div className="select-text">{mealData.advice}</div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-blue-700 mb-1">🏃‍♂️ 運動アドバイス</h3>
+                    <div className="text-sm text-gray-700 leading-relaxed select-text">
+                      <span className="select-text">{generateExerciseSummary()}</span>
+                    </div>
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      await fetchAdvice();
+                      setShowDetails(!showDetails);
+                    }}
+                    disabled={isLoading}
+                    className="w-full mt-1 flex-shrink-0"
+                  >
+                    {isLoading ? "生成中..." : "詳細アドバイスを生成"}
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>

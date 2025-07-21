@@ -202,7 +202,7 @@ export function HistoryCard() {
                     +{meal.calories}kcal
                   </p>
                 </div>
-                <div className="flex gap-2 text-xs text-gray-600 mt-1">
+                <div className="flex flex-wrap gap-1 sm:gap-2 text-xs text-gray-600 mt-1">
                   <span className="whitespace-nowrap">P:{meal.protein}g</span>
                   <span className="whitespace-nowrap">F:{meal.fat}g</span>
                   <span className="whitespace-nowrap">C:{meal.carbs}g</span>
@@ -257,7 +257,7 @@ export function HistoryCard() {
                     -{exercise.calories_burned}kcal
                   </p>
                 </div>
-                <p className="text-xs text-gray-600 mt-1">
+                <p className="text-xs text-gray-600 mt-1 break-words">
                   {exercise.exercise_type}
                 </p>
               </div>
@@ -290,7 +290,7 @@ export function HistoryCard() {
       <CardHeader className="flex-shrink-0 pb-1">
         <CardTitle className="text-base font-semibold">履歴</CardTitle>
       </CardHeader>
-      <CardContent className="w-full flex-1 flex flex-col p-2">
+      <CardContent className="w-full flex-1 flex flex-col pt-0 pb-0 pl-4 pr-4">
         {isLoading ? (
           <div className="flex items-center justify-center flex-1">
             <p>読み込み中...</p>
@@ -300,7 +300,7 @@ export function HistoryCard() {
             <p className="text-gray-500">記録がありません</p>
           </div>
         ) : (
-          <ScrollArea className="h-[250px] pr-2">
+          <ScrollArea className="h-[200px] pr-2" data-history-scroll>
             <div className="space-y-2 w-full">
               {historyItems.map(renderHistoryItem)}
             </div>

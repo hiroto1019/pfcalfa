@@ -334,17 +334,18 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
   };
 
   const progress = calculateProgress();
-  const progressColor = progress > 100 ? 'text-red-600' : progress >= 80 ? 'text-yellow-600' : 'text-green-600';
-  const progressBgColor = progress > 100 ? 'bg-red-50' : progress >= 80 ? 'bg-yellow-50' : 'bg-green-50';
+  // 100%未満は緑基調、100%超えたら現在の配色
+  const progressColor = progress > 100 ? 'text-red-600' : 'text-green-600';
+  const progressBgColor = progress > 100 ? 'bg-red-50' : 'bg-green-50';
 
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="flex-shrink-0">
         <CardTitle className="text-base font-semibold">カロリーサマリー</CardTitle>
       </CardHeader>
-      <CardContent className="p-4 flex-1 flex flex-col">
+      <CardContent className="pt-0 pb-0 pl-4 pr-4 flex-1 flex flex-col">
         {/* レスポンシブ対応: 横並び → 縦並び */}
-        <div className="flex flex-col lg:flex-row gap-4 mt-2 flex-1">
+        <div className="flex flex-col lg:flex-row gap-4 flex-1">
           {/* 左カラム: 今日の総カロリー */}
           <div className="flex-1 flex flex-col">
             <div className="text-center p-3 bg-white rounded-lg border border-gray-200 flex flex-col h-full">
@@ -414,11 +415,11 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
               </div>
 
               {/* 進捗表示 */}
-              <div className="text-center p-2 bg-orange-50 rounded-lg border border-orange-200 flex-1 flex flex-col justify-center">
+              <div className={`text-center p-2 rounded-lg border flex-1 flex flex-col justify-center ${progressBgColor} ${progress > 100 ? 'border-red-200' : 'border-green-200'}`}>
                 <p className="text-xs text-gray-600">進捗</p>
-                <p className="text-lg font-bold text-red-600">{progress}%</p>
+                <p className={`text-lg font-bold ${progressColor}`}>{progress}%</p>
                 <p className="text-[10px] text-gray-500">
-                  {progress > 100 ? '目標超過' : progress >= 80 ? '目標近い' : '目標未達'}
+                  {progress > 100 ? '目標超過' : '目標未達'}
                 </p>
               </div>
             </div>
