@@ -253,7 +253,7 @@ client_id = "Ov23liDFgX1oY3SLyS3o"
 # DO NOT commit your OAuth provider secret to git. Use environment variable substitution instead:
 secret = "env(SUPABASE_AUTH_EXTERNAL_GITHUB_SECRET)"
 # Overrides the default auth redirectUrl.
-redirect_uri = "http://127.0.0.1:8080/auth/v1/callback"
+redirect_uri = "https://pfcalfa.vercel.app/auth/callback"
 # Overrides the default auth provider URL. Used to support self-hosted gitlab, single-tenant Azure,
 # or any other third-party OIDC providers.
 url = ""
@@ -279,7 +279,7 @@ client_id = "538771559981-mgthb3c9eacdifqlor29tm9irhosbb32.apps.googleuserconten
 # DO NOT commit your OAuth provider secret to git. Use environment variable substitution instead:
 secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
 # Overrides the default auth redirectUrl.
-redirect_uri = "http://127.0.0.1:8080/auth/v1/callback"
+redirect_uri = "https://pfcalfa.vercel.app/auth/callback"
 # Overrides the default auth provider URL. Used to support self-hosted gitlab, single-tenant Azure,
 # or any other third-party OIDC providers.
 url = ""
