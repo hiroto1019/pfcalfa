@@ -115,15 +115,19 @@ export function SettingsPage() {
         const hasEmailProvider = providers.includes('email');
         const isEmailOnlyUser = userDetails.app_metadata?.provider === 'email';
         
-        // パスワードが設定されているかどうかを判定
-        // emailプロバイダーが含まれている場合、またはemailのみのユーザーの場合はパスワードが設定済み
-        setHasPassword(hasEmailProvider || isEmailOnlyUser);
-        
         // OAuthプロバイダーを取得（email以外）
         const oauthProviders = providers.filter((p: string) => p !== 'email');
         setOauthProviders(oauthProviders);
+        
+        // パスワードが設定されているかどうかを判定
+        // OAuthユーザーの場合、emailプロバイダーが含まれていればパスワードが設定済み
+        // 通常のユーザーの場合、emailプロバイダーが含まれているか、emailのみのユーザー
+        const hasPasswordSet = hasEmailProvider || isEmailOnlyUser;
+        setHasPassword(hasPasswordSet);
+        
         console.log('OAuthプロバイダー:', oauthProviders);
-        console.log('パスワード設定状況:', hasEmailProvider || isEmailOnlyUser);
+        console.log('パスワード設定状況:', hasPasswordSet);
+        console.log('ユーザー詳細:', userDetails.app_metadata);
       }
 
       const { data: profileData } = await supabase
@@ -461,12 +465,26 @@ export function SettingsPage() {
     
     setIsSettingPassword(true);
     try {
-      await updatePassword(newPassword);
-      setNewPassword("");
-      setConfirmNewPassword("");
-      setShowPasswordSection(false);
-      setHasPassword(true); // パスワード設定状態を更新
-      alert(hasPassword ? "パスワードが正常にリセットされました。" : "パスワードが正常に設定されました。今後はメールアドレスとパスワードでログインできます。");
+      // OAuthユーザーの場合は、パスワードリセットフローを使用
+      if (oauthProviders.length > 0) {
+        const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+          redirectTo: `${window.location.origin}/auth/reset-password`,
+        });
+        
+        if (error) {
+          throw error;
+        }
+        
+        alert("パスワードリセット用のメールを送信しました。メールのリンクからパスワードを設定してください。");
+      } else {
+        // 通常のユーザーの場合は直接パスワード更新
+        await updatePassword(newPassword);
+        setNewPassword("");
+        setConfirmNewPassword("");
+        setShowPasswordSection(false);
+        setHasPassword(true); // パスワード設定状態を更新
+        alert("パスワードが正常に設定されました。今後はメールアドレスとパスワードでログインできます。");
+      }
     } catch (error: any) {
       setPasswordError(error.message || "パスワードの設定に失敗しました");
     } finally {
@@ -828,13 +846,16 @@ export function SettingsPage() {
                   {hasPassword && (
                     <p className="text-xs text-green-600 mt-1">✓ パスワードが設定済み</p>
                   )}
+                  {oauthProviders.length > 0 && !hasPassword && (
+                    <p className="text-xs text-blue-600 mt-1">ℹ️ OAuthアカウントにパスワードを追加できます</p>
+                  )}
                 </div>
                 <Button 
                   variant="outline" 
                   onClick={() => setShowPasswordSection(!showPasswordSection)}
                   className="h-10 w-full sm:w-auto"
                 >
-                  {showPasswordSection ? 'キャンセル' : (hasPassword ? 'パスワードをリセット' : 'パスワードを設定')}
+                  {showPasswordSection ? 'キャンセル' : (hasPassword ? 'パスワードをリセット' : (oauthProviders.length > 0 ? 'パスワードを追加' : 'パスワードを設定'))}
                 </Button>
               </div>
               
@@ -848,7 +869,7 @@ export function SettingsPage() {
                   
                   <div className="space-y-2">
                     <Label htmlFor="new-password" className="text-sm font-medium text-gray-700">
-                      {hasPassword ? '新しいパスワード（最低6文字）' : 'パスワード（最低6文字）'}
+                      {hasPassword ? '新しいパスワード（最低6文字）' : (oauthProviders.length > 0 ? '追加するパスワード（最低6文字）' : 'パスワード（最低6文字）')}
                     </Label>
                     <Input
                       id="new-password"
@@ -856,7 +877,7 @@ export function SettingsPage() {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       className="h-12 mobile-input-fix"
-                      placeholder={hasPassword ? '新しいパスワードを入力' : 'パスワードを入力'}
+                      placeholder={hasPassword ? '新しいパスワードを入力' : (oauthProviders.length > 0 ? '追加するパスワードを入力' : 'パスワードを入力')}
                       style={{ 
                         fontSize: '16px',
                         transform: 'translateZ(0)',
@@ -887,7 +908,7 @@ export function SettingsPage() {
                     disabled={isSettingPassword || !newPassword || !confirmNewPassword}
                     className="w-full h-12"
                   >
-                    {isSettingPassword ? '設定中...' : (hasPassword ? 'パスワードをリセット' : 'パスワードを設定')}
+                    {isSettingPassword ? '設定中...' : (hasPassword ? 'パスワードをリセット' : (oauthProviders.length > 0 ? 'パスワードを追加' : 'パスワードを設定'))}
                   </Button>
                 </div>
               )}
