@@ -13,7 +13,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { getIdealCalories } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { deleteUserAccount, updatePassword } from "@/app/auth/actions";
+import { deleteUserAccount } from "@/app/auth/actions";
 
 interface Profile {
   id: string;
@@ -468,28 +468,22 @@ export function SettingsPage() {
     
     setIsSettingPassword(true);
     try {
-      // OAuthユーザーの場合は、パスワードリセットフローを使用
-      if (oauthProviders.length > 0) {
-        const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-          redirectTo: `${window.location.origin}/auth/reset-password`,
-        });
-        
-        if (error) {
-          throw error;
-        }
-        
-        alert("パスワードリセット用のメールを送信しました。メールのリンクからパスワードを設定してください。");
-      } else {
-        // 通常のユーザーの場合は直接パスワード更新
-        await updatePassword(newPassword);
-        setNewPassword("");
-        setConfirmNewPassword("");
-        setShowNewPassword(false);
-        setShowConfirmNewPassword(false);
-        setShowPasswordSection(false);
-        setHasPassword(true); // パスワード設定状態を更新
-        alert("パスワードが正常に設定されました。今後はメールアドレスとパスワードでログインできます。");
+      // 直接パスワード更新を試行（OAuthユーザーでも可能）
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+      
+      if (error) {
+        throw error;
       }
+      
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setShowNewPassword(false);
+      setShowConfirmNewPassword(false);
+      setShowPasswordSection(false);
+      setHasPassword(true); // パスワード設定状態を更新
+      alert("パスワードが正常に設定されました。今後はメールアドレスとパスワードでログインできます。");
     } catch (error: any) {
       setPasswordError(error.message || "パスワードの設定に失敗しました");
     } finally {
