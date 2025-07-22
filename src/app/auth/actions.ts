@@ -32,12 +32,10 @@ export async function signUp(data: FormData) {
   const password = data.get('password') as string;
   const supabase = createClient();
 
-  const { error } = await supabase.auth.signUp({
+  // まずサインアップ
+  const { data: signUpData, error } = await supabase.auth.signUp({
     email,
     password,
-    options: {
-      emailRedirectTo: `${headers().get('origin')}/auth/callback`,
-    },
   });
 
   if (error) {
@@ -51,8 +49,21 @@ export async function signUp(data: FormData) {
     return redirect('/register?message=' + encodeURIComponent('登録に失敗しました'));
   }
 
+  // サインアップ成功後、自動的にログイン
+  if (signUpData.user) {
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (signInError) {
+      console.error("Auto sign in error:", signInError);
+      return redirect('/login?message=' + encodeURIComponent('登録は完了しましたが、ログインに失敗しました'));
+    }
+  }
+
   revalidatePath('/', 'layout');
-  redirect('/login?message=' + encodeURIComponent('確認メールを送信しました。メールを確認してログインしてください'));
+  redirect('/');
 }
 
 export async function signInWithGithub() {
@@ -67,6 +78,23 @@ export async function signInWithGithub() {
   if (error) {
     console.error('GitHub sign in error:', error);
     return redirect('/login?message=' + encodeURIComponent('GitHubログインに失敗しました'));
+  }
+
+  return redirect(data.url);
+}
+
+export async function signInWithGoogle() {
+  const supabase = createClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${headers().get('origin')}/auth/callback`,
+    },
+  });
+
+  if (error) {
+    console.error('Google sign in error:', error);
+    return redirect('/login?message=' + encodeURIComponent('Googleログインに失敗しました'));
   }
 
   return redirect(data.url);
@@ -119,4 +147,35 @@ export async function deleteUserAccount(userId: string) {
       error: error instanceof Error ? error.message : 'アカウントの削除に失敗しました' 
     };
   }
+}
+
+export async function setPasswordForOAuthUser(email: string, password: string) {
+  const supabase = createClient();
+
+  // パスワードリセットを開始
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${headers().get('origin')}/auth/reset-password`,
+  });
+
+  if (error) {
+    console.error('Password reset error:', error);
+    throw error;
+  }
+
+  return { success: true };
+}
+
+export async function updatePassword(newPassword: string) {
+  const supabase = createClient();
+
+  const { error } = await supabase.auth.updateUser({
+    password: newPassword,
+  });
+
+  if (error) {
+    console.error('Password update error:', error);
+    throw error;
+  }
+
+  return { success: true };
 }

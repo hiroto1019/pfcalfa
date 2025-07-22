@@ -53,19 +53,45 @@ serve(async (req) => {
 
     console.log('ユーザー削除開始:', userId)
 
-    // 1. まず関連データを削除（CASCADEにより関連データも削除される）
-    const { error: deleteDataError } = await supabase
-      .from('profiles')
-      .delete()
-      .eq('id', userId)
+    // 1. 関連データを順番に削除（エラーが発生しても続行）
+    const tables = [
+      { name: 'exercise_logs', column: 'user_id' },
+      { name: 'goals', column: 'user_id' },
+      { name: 'daily_weight_logs', column: 'user_id' },
+      { name: 'daily_summaries', column: 'user_id' },
+      { name: 'meals', column: 'user_id' },
+      { name: 'profiles', column: 'id' }
+    ]
 
-    if (deleteDataError) {
-      console.error('プロフィール削除エラー:', deleteDataError)
+    for (const table of tables) {
+      try {
+        const { error } = await supabase
+          .from(table.name)
+          .delete()
+          .eq(table.column, userId)
+
+        if (error) {
+          console.log(`${table.name}削除エラー（無視）:`, error.message)
+        } else {
+          console.log(`${table.name}削除完了`)
+        }
+      } catch (err) {
+        console.log(`${table.name}削除エラー（無視）:`, err.message)
+      }
+    }
+
+    console.log('データベースレベルでの削除完了')
+
+    // 2. Authユーザーを削除
+    const { error: deleteUserError } = await supabase.auth.admin.deleteUser(userId)
+
+    if (deleteUserError) {
+      console.error('Authユーザー削除エラー:', deleteUserError)
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'プロフィールの削除に失敗しました',
-          details: deleteDataError.message 
+          error: 'Authユーザーの削除に失敗しました',
+          details: deleteUserError.message 
         }),
         { 
           status: 500, 
@@ -74,79 +100,12 @@ serve(async (req) => {
       )
     }
 
-    console.log('プロフィール削除完了')
-
-    // 2. 食事記録を削除
-    const { error: deleteMealsError } = await supabase
-      .from('meals')
-      .delete()
-      .eq('user_id', userId)
-
-    if (deleteMealsError) {
-      console.error('食事記録削除エラー:', deleteMealsError)
-      // 食事記録の削除エラーは致命的ではないので続行
-    } else {
-      console.log('食事記録削除完了')
-    }
-
-    // 3. 日次サマリーを削除
-    const { error: deleteSummariesError } = await supabase
-      .from('daily_summaries')
-      .delete()
-      .eq('user_id', userId)
-
-    if (deleteSummariesError) {
-      console.error('日次サマリー削除エラー:', deleteSummariesError)
-      // 日次サマリーの削除エラーは致命的ではないので続行
-    } else {
-      console.log('日次サマリー削除完了')
-    }
-
-    // 4. 体重ログを削除
-    const { error: deleteWeightLogsError } = await supabase
-      .from('daily_weight_logs')
-      .delete()
-      .eq('user_id', userId)
-
-    if (deleteWeightLogsError) {
-      console.error('体重ログ削除エラー:', deleteWeightLogsError)
-      // 体重ログの削除エラーは致命的ではないので続行
-    } else {
-      console.log('体重ログ削除完了')
-    }
-
-    // 5. 活動ログを削除
-    const { error: deleteActivityLogsError } = await supabase
-      .from('activity_logs')
-      .delete()
-      .eq('user_id', userId)
-
-    if (deleteActivityLogsError) {
-      console.error('活動ログ削除エラー:', deleteActivityLogsError)
-      // 活動ログの削除エラーは致命的ではないので続行
-    } else {
-      console.log('活動ログ削除完了')
-    }
-
-    // 6. 目標設定を削除
-    const { error: deleteGoalsError } = await supabase
-      .from('goals')
-      .delete()
-      .eq('user_id', userId)
-
-    if (deleteGoalsError) {
-      console.error('目標設定削除エラー:', deleteGoalsError)
-      // 目標設定の削除エラーは致命的ではないので続行
-    } else {
-      console.log('目標設定削除完了')
-    }
-
-    console.log('データベースレベルでの削除完了')
+    console.log('Authユーザー削除完了')
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'ユーザーデータが正常に削除されました。Authユーザーの削除は管理者画面から手動で行ってください。' 
+        message: 'ユーザーが完全に削除されました' 
       }),
       { 
         status: 200, 

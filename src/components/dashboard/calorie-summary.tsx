@@ -274,6 +274,14 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
       // 純カロリー（摂取 - 運動消費）
       const netCalories = actualCalories - exerciseCalories;
 
+      console.log('カロリー計算詳細:', {
+        actualCalories,
+        exerciseCalories,
+        netCalories,
+        idealCalories,
+        calorieDiff: netCalories - idealCalories
+      });
+
       // PFC比率を計算
       const totalCaloriesFromPFC = actualProtein * 4 + actualFat * 9 + actualCarbs * 4;
       const proteinRatio = totalCaloriesFromPFC > 0 ? (actualProtein * 4 / totalCaloriesFromPFC) * 100 : 0;
@@ -330,6 +338,11 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
     if (data.netCalories <= 0) return 0;
     
     const progress = (data.netCalories / idealCalories) * 100;
+    console.log('進捗計算:', {
+      netCalories: data.netCalories,
+      idealCalories,
+      progress: Math.round(progress)
+    });
     return Math.round(progress);
   };
 
@@ -393,35 +406,57 @@ export function CalorieSummary({ idealCalories }: CalorieSummaryProps) {
           <div className="flex-1 flex flex-col">
             <div className="text-center p-3 bg-white rounded-lg border border-gray-200 flex flex-col h-full">
               <p className="text-sm text-gray-600">理想カロリー</p>
-              <div className="flex items-center justify-center gap-1 mb-3">
-                <p className="text-2xl font-bold text-green-600">{idealCalories}</p>
-                <p className="text-sm text-gray-500">kcal</p>
-              </div>
+              {idealCalories > 0 ? (
+                <>
+                  <div className="flex items-center justify-center gap-1 mb-3">
+                    <p className="text-2xl font-bold text-green-600">{idealCalories}</p>
+                    <p className="text-sm text-gray-500">kcal</p>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-center gap-1 mb-3">
+                  <p className="text-lg font-bold text-gray-400">未設定</p>
+                </div>
+              )}
               
               {/* 理想PFC割合 */}
-              <div className="text-center p-2 bg-blue-50 rounded-lg border border-blue-200 mb-2">
-                <p className="text-xs text-gray-600 mb-1">理想PFC割合</p>
-                <div className="flex justify-center gap-1">
-                  <div className="px-1 py-0.5 bg-blue-100 rounded text-[10px]">
-                    <span className="text-blue-600">P:20%</span>
-                  </div>
-                  <div className="px-1 py-0.5 bg-yellow-100 rounded text-[10px]">
-                    <span className="text-yellow-600">F:25%</span>
-                  </div>
-                  <div className="px-1 py-0.5 bg-red-100 rounded text-[10px]">
-                    <span className="text-red-600">C:55%</span>
+              {idealCalories > 0 ? (
+                <div className="text-center p-2 bg-blue-50 rounded-lg border border-blue-200 mb-2">
+                  <p className="text-xs text-gray-600 mb-1">理想PFC割合</p>
+                  <div className="flex justify-center gap-1">
+                    <div className="px-1 py-0.5 bg-blue-100 rounded text-[10px]">
+                      <span className="text-blue-600">P:20%</span>
+                    </div>
+                    <div className="px-1 py-0.5 bg-yellow-100 rounded text-[10px]">
+                      <span className="text-yellow-600">F:25%</span>
+                    </div>
+                    <div className="px-1 py-0.5 bg-red-100 rounded text-[10px]">
+                      <span className="text-red-600">C:55%</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="text-center p-2 bg-gray-50 rounded-lg border border-gray-200 mb-2">
+                  <p className="text-xs text-gray-500 mb-1">オンボーディング完了後に表示</p>
+                </div>
+              )}
 
               {/* 進捗表示 */}
-              <div className={`text-center p-2 rounded-lg border flex-1 flex flex-col justify-center ${progressBgColor} ${progress > 100 ? 'border-red-200' : 'border-green-200'}`}>
-                <p className="text-xs text-gray-600">進捗</p>
-                <p className={`text-lg font-bold ${progressColor}`}>{progress}%</p>
-                <p className="text-[10px] text-gray-500">
-                  {progress > 100 ? '目標超過' : '目標未達'}
-                </p>
-              </div>
+              {idealCalories > 0 ? (
+                <div className={`text-center p-2 rounded-lg border flex-1 flex flex-col justify-center ${progressBgColor} ${progress > 100 ? 'border-red-200' : 'border-green-200'}`}>
+                  <p className="text-xs text-gray-600">進捗</p>
+                  <p className={`text-lg font-bold ${progressColor}`}>{progress}%</p>
+                  <p className="text-[10px] text-gray-500">
+                    {progress > 100 ? '目標超過' : '目標未達'}
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center p-2 rounded-lg border border-gray-200 flex-1 flex flex-col justify-center bg-gray-50">
+                  <p className="text-xs text-gray-500">進捗</p>
+                  <p className="text-lg font-bold text-gray-400">-</p>
+                  <p className="text-[10px] text-gray-500">未設定</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

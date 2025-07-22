@@ -5,8 +5,32 @@ language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id)
-  values (new.id);
+  insert into public.profiles (
+    id,
+    username,
+    gender,
+    birth_date,
+    height_cm,
+    initial_weight_kg,
+    target_weight_kg,
+    activity_level,
+    goal_type,
+    food_preferences,
+    onboarding_completed
+  )
+  values (
+    new.id,
+    '',
+    '',
+    null,
+    0,
+    0,
+    0,
+    0,
+    '',
+    '{"dislikes": [], "allergies": []}'::jsonb,
+    false
+  );
   return new;
 end;
 $$;

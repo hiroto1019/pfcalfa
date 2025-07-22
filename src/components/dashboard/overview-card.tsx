@@ -362,11 +362,15 @@ export function OverviewCard({ formData, setFormData, onUpdate }: OverviewCardPr
               <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">
                   <p className="text-sm text-gray-500 mb-2">活動レベル</p>
                   <div className="font-semibold text-base leading-tight">
-                    {activityLevelMap[formData.activityLevel].split('\n').map((line, index) => (
-                      <p key={index} className={index === 0 ? '' : 'text-sm text-gray-600'}>
-                        {line}
-                      </p>
-                    ))}
+                    {activityLevelMap[formData.activityLevel] ? 
+                      activityLevelMap[formData.activityLevel].split('\n').map((line, index) => (
+                        <p key={index} className={index === 0 ? '' : 'text-sm text-gray-600'}>
+                          {line}
+                        </p>
+                      ))
+                      : 
+                      <p>未設定</p>
+                    }
                   </div>
               </div>
                <div className="bg-gray-50 rounded-lg p-3 text-center flex flex-col justify-center">

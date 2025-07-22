@@ -422,13 +422,26 @@ export function MealRecordModal() {
         console.log('今日の日付:', todayDate);
         console.log('ユーザーID:', user.id);
 
-        // 今日のmealsテーブルから集計
-        const { data: todayMeals, error: mealsError } = await supabase
+        // 今日のmealsテーブルから集計（日付フィルタリングなしで全データを取得してからフィルタリング）
+        const { data: allMeals, error: mealsError } = await supabase
           .from('meals')
           .select('*')
           .eq('user_id', user.id)
-          .gte('created_at', todayDate + 'T00:00:00+09:00')
-          .lte('created_at', todayDate + 'T23:59:59+09:00');
+          .order('created_at', { ascending: false });
+
+        if (mealsError) {
+          console.error('meals取得エラー:', mealsError);
+        }
+
+        // クライアント側で今日のデータをフィルタリング
+        const todayMeals = allMeals ? allMeals.filter((meal: Meal) => {
+          const mealDate = new Date(meal.created_at);
+          // JSTに変換してから日付を比較
+          const jstDate = new Date(mealDate.getTime() + 9 * 60 * 60 * 1000);
+          const mealDateStr = jstDate.toISOString().split('T')[0];
+          console.log(`食事フィルタリング: ${meal.food_name} - ${meal.created_at} -> ${mealDateStr} vs ${todayDate}`);
+          return mealDateStr === todayDate;
+        }) : [];
 
         if (mealsError) {
           console.error('meals取得エラー:', mealsError);

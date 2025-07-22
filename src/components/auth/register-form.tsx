@@ -75,6 +75,23 @@ export function RegisterForm() {
     e.preventDefault();
     setError("");
     
+    // 最終的なバリデーション
+    if (!formData.email || !formData.password || !formData.confirmPassword) {
+      setError("全てのフィールドを入力してください。");
+      return;
+    }
+    
+    const passwordError = validatePassword(formData.password);
+    if (passwordError) {
+      setError(passwordError);
+      return;
+    }
+    
+    if (formData.password !== formData.confirmPassword) {
+      setError("パスワードが一致しません。");
+      return;
+    }
+    
     try {
       const formDataToSend = new FormData();
       formDataToSend.append('email', formData.email);
@@ -165,7 +182,6 @@ export function RegisterForm() {
             <div className="space-y-4">
               <p className="text-center">以下の内容で登録しますか？</p>
               <p><strong>メールアドレス:</strong> {formData.email}</p>
-              {/* パスワードは表示しない */}
             </div>
           )}
         </CardContent>

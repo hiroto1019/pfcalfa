@@ -76,6 +76,17 @@ npm install
 `.env.local`ファイルを作成し、以下の環境変数を設定：
 
 ```env
+# Supabase設定
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:8080
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
+
+# Google認証設定
+SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET=your_google_client_secret_here
+
+# GitHub認証設定
+SUPABASE_AUTH_EXTERNAL_GITHUB_SECRET=your_github_client_secret_here
+
 # Gemini API
 GEMINI_API_KEY=your_gemini_api_key_here
 
@@ -98,14 +109,23 @@ NEXT_PUBLIC_BASE_URL=https://your-domain.com
 
 # USDA Food Database API
 # USDA_API_KEY=your_usda_api_key_here
-
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
 ```
 
-### 4. データベースのセットアップ
+### 4. Google認証の設定
+Google認証を使用するには、Google Cloud ConsoleでOAuth 2.0クライアントを作成し、シークレットキーを取得する必要があります。
+
+1. [Google Cloud Console](https://console.cloud.google.com/)にアクセス
+2. プロジェクトを作成または選択
+3. 「APIとサービス」→「認証情報」に移動
+4. 「認証情報を作成」→「OAuth 2.0クライアントID」を選択
+5. アプリケーションの種類を「ウェブアプリケーション」に設定
+6. 承認済みのリダイレクトURIに以下を追加：
+   - `http://127.0.0.1:8080/auth/v1/callback`（ローカル開発用）
+   - `https://your-domain.com/auth/v1/callback`（本番環境用）
+7. クライアントIDとクライアントシークレットを取得
+8. `.env.local`ファイルの`SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET`にクライアントシークレットを設定
+
+### 5. データベースのセットアップ
 ```bash
 # Supabase CLIのインストール
 npm install -g supabase
@@ -114,7 +134,7 @@ npm install -g supabase
 supabase db push
 ```
 
-### 5. 開発サーバーの起動
+### 6. 開発サーバーの起動
 ```bash
 npm run dev
 ```

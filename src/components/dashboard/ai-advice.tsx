@@ -130,6 +130,13 @@ export function AiAdvice({ compact = false }: AiAdviceProps) {
       ? Math.round(netCalories - targetCalories) // カロリーオーバー：(純カロリー - 理想カロリー)
       : Math.round(targetCalories - netCalories); // 目標達成まで残り：(理想カロリー - 純カロリー)
 
+    console.log('AIアドバイス - カロリー計算:', {
+      netCalories,
+      targetCalories: Math.round(targetCalories),
+      calorieDiff,
+      isOver: netCalories > targetCalories
+    });
+
     // 画面表示の絶対正義で計算
         console.log('要約文生成時のデータ確認:', {
       userProfile: {

@@ -16,41 +16,65 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-        router.push('/login');
-        return;
-      }
-      setUser(user);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          router.push('/login');
+          return;
+        }
+        
+        console.log('ユーザー認証確認:', user.id);
+        setUser(user);
 
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      
-      setProfile(profileData);
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        if (profileError) {
+          console.error('プロフィール取得エラー:', profileError);
+        }
+        
+        console.log('プロフィールデータ:', profileData);
+        setProfile(profileData);
 
-      if (!profileData || !profileData.onboarding_completed) {
-        setShowOnboarding(true);
+        if (!profileData || !profileData.onboarding_completed) {
+          console.log('オンボーディング画面を表示');
+          setShowOnboarding(true);
+        } else {
+          console.log('ダッシュボードを表示');
+        }
+        
+        setLoading(false);
+      } catch (error) {
+        console.error('ユーザー確認エラー:', error);
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     checkUser();
   }, []);
 
-  const handleOnboardingComplete = () => {
+  const handleOnboardingComplete = async () => {
     setShowOnboarding(false);
-    const reloadProfile = async () => {
-       const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      setProfile(profileData);
-    };
-    reloadProfile();
+    setLoading(true); // ローディング状態にする
+    
+    // プロフィールを再読み込み
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+    
+    if (profileError) {
+      console.error('プロフィール再読み込みエラー:', profileError);
+    }
+    
+    console.log('オンボーディング完了後のプロフィールデータ:', profileData);
+    setProfile(profileData);
+    setLoading(false); // ローディング状態を解除
   };
 
   if (loading) {

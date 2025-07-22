@@ -69,10 +69,12 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
 
   // 必須項目チェック関数
   const isFormValid = () => {
-    if (!profile) return false;
+    if (!profile) {
+      return false;
+    }
     
     return (
-      (profile.username?.trim() || "") !== "" &&
+      profile.username?.trim() !== "" &&
       profile.gender !== "" &&
       profile.birth_date !== "" &&
       profile.height_cm > 0 &&
@@ -88,19 +90,49 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
 
     setIsSaving(true);
     try {
-      const { error } = await supabase
+      // プロフィールを更新または新規作成
+      const { data, error } = await supabase
         .from('profiles')
         .upsert({
-          ...profile,
+          id: user.id,
+          username: profile.username?.trim() || null,
+          gender: profile.gender,
+          birth_date: profile.birth_date,
+          height_cm: profile.height_cm,
+          initial_weight_kg: profile.initial_weight_kg,
+          target_weight_kg: profile.target_weight_kg,
+          activity_level: profile.activity_level,
+          goal_type: profile.goal_type,
+          goal_target_date: profile.goal_target_date,
+          food_preferences: profile.food_preferences,
           onboarding_completed: true,
+        }, {
+          onConflict: 'id'
         });
 
-      if (error) throw error;
-      alert('プロフィールを登録しました');
+      if (error) {
+        console.error('プロフィール保存エラー:', error);
+        throw error;
+      }
+      
+      console.log('オンボーディング - 保存されたプロフィール:', {
+        id: user.id,
+        username: profile.username?.trim() || null,
+        gender: profile.gender,
+        birth_date: profile.birth_date,
+        height_cm: profile.height_cm,
+        initial_weight_kg: profile.initial_weight_kg,
+        target_weight_kg: profile.target_weight_kg,
+        activity_level: profile.activity_level,
+        goal_type: profile.goal_type,
+        goal_target_date: profile.goal_target_date,
+        food_preferences: profile.food_preferences,
+        onboarding_completed: true,
+      });
+      
       onboardingComplete();
-    } catch (error) {
+    } catch (error: any) {
       console.error('プロフィール登録エラー:', error);
-      alert('プロフィールの登録に失敗しました');
     } finally {
       setIsSaving(false);
     }
@@ -111,7 +143,7 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
   }
 
   return (
-    <Card className="mx-4 max-w-md w-full">
+    <Card className="mx-4 max-w-lg md:max-w-2xl w-full">
       <CardHeader className="text-center">
         <CardTitle>ようこそ！</CardTitle>
         <CardDescription>
@@ -133,9 +165,9 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
             <Label htmlFor="gender">性別 <span className="text-red-500">*</span></Label>
             <select
               id="gender"
-              value={profile.gender}
+              value={profile.gender || ""}
               onChange={(e) => setProfile({ ...profile, gender: e.target.value })}
-              className="w-full p-2 border rounded"
+              className="w-full h-9 px-3 py-2 border border-input bg-background rounded-md text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="">選択してください</option>
               <option value="male">男性</option>
@@ -144,7 +176,7 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
             </select>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="birth_date">生年月日 <span className="text-red-500">*</span></Label>
             <Input
@@ -152,7 +184,7 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
               type="date"
               value={profile.birth_date ? profile.birth_date.split('T')[0] : ''}
               onChange={(e) => setProfile({ ...profile, birth_date: e.target.value })}
-              className="w-full"
+              className="w-full pr-10"
             />
           </div>
           <div>
@@ -162,58 +194,63 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
               type="date"
               value={profile.goal_target_date ? profile.goal_target_date.split('T')[0] : ''}
               onChange={(e) => setProfile({ ...profile, goal_target_date: e.target.value })}
-              className="w-full"
+              className="w-full pr-10"
             />
           </div>
         </div>
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <Label htmlFor="height_cm">身長 (cm) <span className="text-red-500">*</span></Label>
+            <Label htmlFor="height_cm">身長 <span className="text-red-500">*</span></Label>
             <Input
               id="height_cm"
               type="number"
               value={profile.height_cm || ''}
               onChange={(e) => setProfile({ ...profile, height_cm: Number(e.target.value) || 0 })}
-              placeholder="例: 170"
+              placeholder="170 cm"
               min="100"
               max="250"
             />
           </div>
           <div>
-            <Label htmlFor="initial_weight_kg" className="whitespace-nowrap">現在の体重 (kg) <span className="text-red-500">*</span></Label>
+            <Label htmlFor="initial_weight_kg" className="whitespace-nowrap">現在の体重 <span className="text-red-500">*</span></Label>
             <Input
               id="initial_weight_kg"
               type="number"
               value={profile.initial_weight_kg || ''}
               onChange={(e) => setProfile({ ...profile, initial_weight_kg: Number(e.target.value) || 0 })}
-              placeholder="例: 65.5"
+              placeholder="65.5 kg"
               min="30"
               max="200"
               step="0.1"
             />
           </div>
           <div>
-            <Label htmlFor="target_weight_kg" className="whitespace-nowrap">目標体重 (kg) <span className="text-red-500">*</span></Label>
+            <Label htmlFor="target_weight_kg" className="whitespace-nowrap">目標体重 <span className="text-red-500">*</span></Label>
             <Input
               id="target_weight_kg"
               type="number"
               value={profile.target_weight_kg || ''}
               onChange={(e) => setProfile({ ...profile, target_weight_kg: Number(e.target.value) || 0 })}
-              placeholder="例: 60.0"
+              placeholder="60.0 kg"
               min="30"
               max="200"
               step="0.1"
             />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="activity_level">活動レベル <span className="text-red-500">*</span></Label>
             <select
               id="activity_level"
-              value={profile.activity_level}
+              value={profile.activity_level || 0}
               onChange={(e) => setProfile({ ...profile, activity_level: Number(e.target.value) })}
-              className="w-full p-2 border rounded"
+              className="w-full h-9 px-3 py-2 border border-input bg-background rounded-md text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              style={{
+                lineHeight: '36px',
+                paddingTop: '0',
+                paddingBottom: '0',
+              }}
             >
               <option value={0}>選択してください</option>
               <option value={1}>座り仕事中心（運動なし）</option>
@@ -227,21 +264,21 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
             <Label htmlFor="goal_type">目標 <span className="text-red-500">*</span></Label>
             <select
               id="goal_type"
-              value={profile.goal_type}
+              value={profile.goal_type || ""}
               onChange={(e) => setProfile({ ...profile, goal_type: e.target.value })}
-              className="w-full p-2 border rounded"
+              className="w-full h-9 px-3 py-2 border border-input bg-background rounded-md text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              style={{
+                lineHeight: '36px',
+                paddingTop: '0',
+                paddingBottom: '0',
+              }}
             >
               <option value="">選択してください</option>
               <option value="diet">ダイエット</option>
               <option value="maintain">維持</option>
-              <option value="bulk-up">増量</option>
+              <option value="bulk">増量</option>
             </select>
           </div>
-        </div>
-        
-        {/* 必須項目の説明 */}
-        <div className="text-sm text-gray-600">
-          <span className="text-red-500">*</span> は必須項目です
         </div>
         
         <Button 
@@ -251,13 +288,6 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
         >
           {isSaving ? '登録中...' : '登録して始める'}
         </Button>
-        
-        {/* フォームが無効な場合のメッセージ */}
-        {!isFormValid() && (
-          <div className="text-sm text-orange-600 bg-orange-50 p-3 rounded-md">
-            全ての必須項目を入力してください
-          </div>
-        )}
       </CardContent>
     </Card>
   );

@@ -166,6 +166,21 @@
     color: oklch(0.6 0 0) !important;           /* 文字色: oklch(0.6 0 0) で薄いグレー */
     border-color: oklch(0.85 0 0) !important;   /* ボーダー色: oklch(0.85 0 0) で薄いグレー */
   }
+  
+  /* プレースホルダーテキストを薄くする */
+  input::placeholder {
+    color: #d9d9d9 !important;
+    opacity: 1 !important;
+  }
+  
+  /* セレクトボックスのプレースホルダーオプションを薄くする */
+  select option[value=""] {
+    color: #d9d9d9 !important;
+  }
+  
+  select option[value="0"] {
+    color: #d9d9d9 !important;
+  }
 }
 
 /* レスポンシブユーティリティ */

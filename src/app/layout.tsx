@@ -1,6 +1,10 @@
+// 2. 既存のファイルを修正: src/app/layout.tsx
+// 作成したAuthProviderでアプリケーション全体をラップします。
+
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/components/auth/auth-provider"; // 作成したAuthProviderをインポート
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -10,7 +14,7 @@ const ogImageUrl = `${siteUrl}/ogp-image.png`;
 export const metadata: Metadata = {
   title: "PFCα - PFCバランス管理アプリ",
   description: "PFC（タンパク質・脂質・炭水化物）のバランスを管理し、健康的な食事をサポートするアプリ",
-  metadataBase: new URL(siteUrl), // 環境変数からURLを読み込む
+  metadataBase: new URL(siteUrl),
   openGraph: {
     title: "PFCα - PFCバランス管理アプリ",
     description: "PFC（タンパク質・脂質・炭水化物）のバランスを管理し、健康的な食事をサポートするアプリ",
@@ -51,7 +55,10 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body className={inter.className}>
-        {children}
+        {/* 作成したAuthProviderでchildrenをラップ */}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

@@ -29,6 +29,12 @@ export function DashboardGrid({ profile }: { profile: any }) {
 
   // 理想カロリーを計算する関数
   const calculateIdealCalories = () => {
+    // オンボーディングが完了していない場合は計算しない
+    if (!profile?.onboarding_completed) {
+      setIdealCalories(0);
+      return;
+    }
+
     const calculated = getIdealCalories(
       profile,
       editableData.currentWeight,

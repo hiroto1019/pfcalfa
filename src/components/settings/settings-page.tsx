@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { getIdealCalories } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { deleteUserAccount } from "@/app/auth/actions";
+import { deleteUserAccount, updatePassword } from "@/app/auth/actions";
 
 interface Profile {
   id: string;
@@ -42,6 +42,16 @@ export function SettingsPage() {
   const [newDislike, setNewDislike] = useState("");
   const [newAllergy, setNewAllergy] = useState("");
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
+  
+  // パスワード設定用の状態
+  const [showPasswordSection, setShowPasswordSection] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [isSettingPassword, setIsSettingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [user, setUser] = useState<any>(null);
+  const [hasPassword, setHasPassword] = useState(false);
+  const [oauthProviders, setOauthProviders] = useState<string[]>([]);
 
   const supabase = createClient();
   const router = useRouter();
@@ -93,6 +103,20 @@ export function SettingsPage() {
         router.push('/login');
         return;
       }
+      
+      setUser(user);
+
+      // パスワード設定状況とOAuthプロバイダーを確認
+      const { data: { user: userDetails } } = await supabase.auth.getUser();
+      if (userDetails) {
+        // パスワードが設定されているかチェック
+        setHasPassword(userDetails.app_metadata?.provider === 'email' || userDetails.app_metadata?.providers?.includes('email') || false);
+        
+        // OAuthプロバイダーを取得
+        const providers = userDetails.app_metadata?.providers || [];
+        setOauthProviders(providers);
+        console.log('OAuthプロバイダー:', providers);
+      }
 
       const { data: profileData } = await supabase
         .from('profiles')
@@ -100,38 +124,29 @@ export function SettingsPage() {
         .eq('id', user.id)
         .single();
 
-      const { data: latestWeightLog } = await supabase
+      if (profileData) {
+        console.log('設定画面 - プロフィールデータ読み込み:', profileData);
+        console.log('設定画面 - goal_type:', profileData.goal_type);
+        setProfile(profileData);
+        setOriginalProfile(profileData);
+      }
+
+      // 現在の体重を取得
+      const { data: weightData } = await supabase
         .from('daily_weight_logs')
         .select('weight_kg')
         .eq('user_id', user.id)
-        .order('date', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(1)
         .single();
 
-      if (profileData) {
-        setProfile(profileData);
-        setOriginalProfile(profileData);
-        const weightValue = latestWeightLog?.weight_kg ?? profileData.initial_weight_kg;
-        setCurrentWeight(weightValue);
-        setOriginalCurrentWeight(weightValue);
-      } else if (user) {
-        // プロフィールが存在しない場合、空のフォームを表示するためにデフォルト値を設定
-        const defaultProfile = {
-          id: user.id,
-          username: "",
-          gender: "male",
-          birth_date: "",
-          height_cm: 0,
-          initial_weight_kg: 0,
-          target_weight_kg: 0,
-          activity_level: 2,
-          goal_type: 'diet',
-          food_preferences: { dislikes: [], allergies: [] },
-        };
-        setProfile(defaultProfile);
-        setOriginalProfile(defaultProfile);
-        setCurrentWeight(0);
-        setOriginalCurrentWeight(0);
+      if (weightData) {
+        setCurrentWeight(weightData.weight_kg);
+        setOriginalCurrentWeight(weightData.weight_kg);
+      } else if (profileData?.initial_weight_kg) {
+        // 体重ログがない場合は、オンボーディング時の初期体重を使用
+        setCurrentWeight(profileData.initial_weight_kg);
+        setOriginalCurrentWeight(profileData.initial_weight_kg);
       }
     } catch (error) {
       console.error('プロフィール読み込みエラー:', error);
@@ -423,6 +438,33 @@ export function SettingsPage() {
     }
   };
 
+  const handleSetPassword = async () => {
+    setPasswordError("");
+    
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError("パスワードが一致しません");
+      return;
+    }
+    
+    if (newPassword.length < 6) {
+      setPasswordError("パスワードは最低6文字必要です");
+      return;
+    }
+    
+    setIsSettingPassword(true);
+    try {
+      await updatePassword(newPassword);
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setShowPasswordSection(false);
+      alert("パスワードが正常に設定されました。今後はメールアドレスとパスワードでログインできます。");
+    } catch (error: any) {
+      setPasswordError(error.message || "パスワードの設定に失敗しました");
+    } finally {
+      setIsSettingPassword(false);
+    }
+  };
+
   if (isLoading) {
     return <div className="flex items-center justify-center h-full">データを読み込んでいます...</div>;
   }
@@ -544,6 +586,8 @@ export function SettingsPage() {
                 style={{ 
                   fontSize: '16px',
                   transform: 'translateZ(0)',
+                  height: '48px',
+                  lineHeight: '48px',
                 }}
               />
               {validationErrors.height_cm && (
@@ -603,6 +647,9 @@ export function SettingsPage() {
                 style={{ 
                   fontSize: '16px',
                   transform: 'translateZ(0)',
+                  lineHeight: '48px',
+                  paddingTop: '0',
+                  paddingBottom: '0',
                 }}
               >
                 <option value={1}>座り仕事中心（運動なし）</option>
@@ -614,19 +661,24 @@ export function SettingsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="goal_type" className="text-sm font-medium text-gray-700">目標</Label>
-              <Select 
-                value={profile.goal_type}
-                onValueChange={(value) => setProfile({ ...profile, goal_type: value })}
+              <select
+                id="goal_type"
+                value={profile.goal_type || ""}
+                onChange={(e) => setProfile({ ...profile, goal_type: e.target.value })}
+                className="w-full h-12 px-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mobile-input-fix"
+                style={{ 
+                  fontSize: '16px',
+                  transform: 'translateZ(0)',
+                  lineHeight: '48px',
+                  paddingTop: '0',
+                  paddingBottom: '0',
+                }}
               >
-                <SelectTrigger id="goal_type" className="h-12 mobile-input-fix">
-                  <SelectValue placeholder="目標を選択" />
-                </SelectTrigger>
-                <SelectContent className="mobile-select-fix">
-                  <SelectItem value="lose_weight">ダイエット</SelectItem>
-                  <SelectItem value="maintain">維持</SelectItem>
-                  <SelectItem value="gain_muscle">増量</SelectItem>
-                </SelectContent>
-              </Select>
+                <option value="">目標を選択</option>
+                <option value="diet">ダイエット</option>
+                <option value="maintain">維持</option>
+                <option value="bulk">増量</option>
+              </select>
             </div>
           </div>
 
@@ -736,12 +788,105 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* アカウント管理 */}
+      {/* アカウント設定 */}
       <Card className="shadow-sm border-0">
         <CardHeader className="pb-4">
-          <CardTitle className="text-xl font-semibold text-gray-900">アカウント管理</CardTitle>
+          <CardTitle className="text-xl font-semibold text-gray-900">アカウント設定</CardTitle>
+          <CardDescription className="text-gray-600">
+            アカウントの設定を管理できます
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* パスワード設定セクション */}
+          {user && (
+            <div className="space-y-4">
+              {/* OAuthプロバイダー情報 */}
+              {oauthProviders.length > 0 && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-medium text-blue-900 mb-2">連携済みアカウント</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {oauthProviders.map((provider) => (
+                      <span key={provider} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
+                        {provider === 'google' ? 'Google' : provider === 'github' ? 'GitHub' : provider}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-medium text-gray-900">メールアドレスログイン</h3>
+                  <p className="text-sm text-gray-600">
+                    {user.email} でメールアドレスとパスワードでのログインを{hasPassword ? '使用できます' : '有効にします'}
+                  </p>
+                  {hasPassword && (
+                    <p className="text-xs text-green-600 mt-1">✓ パスワードが設定済み</p>
+                  )}
+                </div>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowPasswordSection(!showPasswordSection)}
+                  className="h-10"
+                >
+                  {showPasswordSection ? 'キャンセル' : (hasPassword ? 'パスワードをリセット' : 'パスワードを設定')}
+                </Button>
+              </div>
+              
+              {showPasswordSection && (
+                <div className="border rounded-lg p-4 space-y-4">
+                  {passwordError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                      <p className="text-red-600 text-sm">{passwordError}</p>
+                    </div>
+                  )}
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="new-password" className="text-sm font-medium text-gray-700">
+                      新しいパスワード（最低6文字）
+                    </Label>
+                    <Input
+                      id="new-password"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="h-12 mobile-input-fix"
+                      style={{ 
+                        fontSize: '16px',
+                        transform: 'translateZ(0)',
+                      }}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm-new-password" className="text-sm font-medium text-gray-700">
+                      パスワード（確認用）
+                    </Label>
+                    <Input
+                      id="confirm-new-password"
+                      type="password"
+                      value={confirmNewPassword}
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      className="h-12 mobile-input-fix"
+                      style={{ 
+                        fontSize: '16px',
+                        transform: 'translateZ(0)',
+                      }}
+                    />
+                  </div>
+                  
+                  <Button 
+                    onClick={handleSetPassword}
+                    disabled={isSettingPassword || !newPassword || !confirmNewPassword}
+                    className="w-full h-12"
+                  >
+                    {isSettingPassword ? '設定中...' : (hasPassword ? 'パスワードをリセット' : 'パスワードを設定')}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
           <Button variant="outline" onClick={handleLogout} className="w-full sm:w-auto px-8 py-3 h-12">
             ログアウト
           </Button>
