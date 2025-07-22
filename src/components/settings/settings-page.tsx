@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
+import { SimpleDatePicker } from "@/components/ui/simple-date-picker";
 
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -535,45 +536,41 @@ export function SettingsPage() {
           </div>
 
           {/* 生年月日と目標達成日 */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="birth_date" className="text-sm font-medium text-gray-700">
-                生年月日 <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="birth_date"
-                type="date"
-                value={profile.birth_date ? profile.birth_date.split('T')[0] : ''}
-                onChange={(e) => setProfile({ ...profile, birth_date: e.target.value })}
-                className="h-12 mobile-input-fix"
-                style={{ 
-                  fontSize: '16px',
-                  transform: 'translateZ(0)',
-                }}
-              />
-              {validationErrors.birth_date && (
-                <p className="text-red-500 text-xs">{validationErrors.birth_date}</p>
-              )}
+          <div className="flex flex-col sm:flex-row gap-4 w-full">
+            <div className="flex-1 min-w-0">
+              <div className="space-y-2 w-full">
+                <Label htmlFor="birth_date" className="text-sm font-medium text-gray-700">
+                  生年月日 <span className="text-red-500">*</span>
+                </Label>
+                <SimpleDatePicker
+                  value={profile.birth_date ? new Date(profile.birth_date) : undefined}
+                  onChange={(date) => setProfile({ ...profile, birth_date: date ? date.toISOString().split('T')[0] : '' })}
+                  placeholder="生年月日を選択"
+                  className="h-12 mobile-input-fix w-full"
+                />
+                {validationErrors.birth_date && (
+                  <p className="text-red-500 text-xs">{validationErrors.birth_date}</p>
+                )}
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="goal_target_date" className="text-sm font-medium text-gray-700">目標達成日</Label>
-              <Input
-                id="goal_target_date"
-                type="date"
-                value={profile.goal_target_date ? profile.goal_target_date.split('T')[0] : ''}
-                onChange={(e) => setProfile({ ...profile, goal_target_date: e.target.value })}
-                className="h-12 mobile-input-fix"
-                style={{ 
-                  fontSize: '16px',
-                  transform: 'translateZ(0)',
-                }}
-              />
+            <div className="flex-1 min-w-0">
+              <div className="space-y-2 w-full">
+                <Label htmlFor="goal_target_date" className="text-sm font-medium text-gray-700">目標達成日</Label>
+                <SimpleDatePicker
+                  value={profile.goal_target_date ? new Date(profile.goal_target_date) : undefined}
+                  onChange={(date) => setProfile({ ...profile, goal_target_date: date ? date.toISOString().split('T')[0] : '' })}
+                  placeholder="目標達成日を選択"
+                  className="h-12 mobile-input-fix w-full"
+                  allowFuture={true}
+                  maxYearOffset={50}
+                />
+              </div>
             </div>
           </div>
 
           {/* 身長、現在の体重、目標体重 */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="space-y-2">
+          <div className="flex flex-col sm:flex-row gap-4 w-full">
+            <div className="flex-1 min-w-0 space-y-2">
               <Label htmlFor="height_cm" className="text-sm font-medium text-gray-700">
                 身長 (cm) <span className="text-red-500">*</span>
               </Label>
@@ -582,7 +579,7 @@ export function SettingsPage() {
                 value={profile.height_cm}
                 onChange={(value) => setProfile({ ...profile, height_cm: typeof value === 'number' ? value : 0 })}
                 placeholder="170"
-                className="h-12 mobile-input-fix"
+                className="h-12 mobile-input-fix w-full"
                 style={{ 
                   fontSize: '16px',
                   transform: 'translateZ(0)',
@@ -594,7 +591,7 @@ export function SettingsPage() {
                 <p className="text-red-500 text-xs">{validationErrors.height_cm}</p>
               )}
             </div>
-            <div className="space-y-2">
+            <div className="flex-1 min-w-0 space-y-2">
               <Label htmlFor="current_weight" className="text-sm font-medium text-gray-700">
                 現在の体重 (kg) <span className="text-red-500">*</span>
               </Label>
@@ -604,7 +601,7 @@ export function SettingsPage() {
                 onChange={(value) => setCurrentWeight(typeof value === 'number' ? value : null)}
                 step="0.1"
                 placeholder="60"
-                className="h-12 mobile-input-fix"
+                className="h-12 mobile-input-fix w-full"
                 style={{ 
                   fontSize: '16px',
                   transform: 'translateZ(0)',
@@ -614,7 +611,7 @@ export function SettingsPage() {
                 <p className="text-red-500 text-xs">{validationErrors.currentWeight}</p>
               )}
             </div>
-            <div className="space-y-2">
+            <div className="flex-1 min-w-0 space-y-2">
               <Label htmlFor="target_weight_kg" className="text-sm font-medium text-gray-700">
                 目標体重 (kg) <span className="text-red-500">*</span>
               </Label>
@@ -623,7 +620,7 @@ export function SettingsPage() {
                 value={profile.target_weight_kg}
                 onChange={(value) => setProfile({ ...profile, target_weight_kg: typeof value === 'number' ? value : 0 })}
                 placeholder="55"
-                className="h-12 mobile-input-fix"
+                className="h-12 mobile-input-fix w-full"
                 style={{ 
                   fontSize: '16px',
                   transform: 'translateZ(0)',

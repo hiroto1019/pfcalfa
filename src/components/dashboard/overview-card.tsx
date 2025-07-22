@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SimpleDatePicker } from "@/components/ui/simple-date-picker";
 import { updateDashboardData } from "./actions";
 import { toast } from "sonner";
 
@@ -209,13 +210,16 @@ export function OverviewCard({ formData, setFormData, onUpdate }: OverviewCardPr
         </Select>
       </div>
       <div>
-        <Label htmlFor="target_date">目標達成日</Label>
-        <Input 
-          id="target_date" 
-          type="date" 
-          value={editingFormData.goalDate} 
-          onChange={e => setEditingFormData({...editingFormData, goalDate: e.target.value})}
-        />
+        <div className="space-y-2">
+          <Label>目標達成日</Label>
+          <SimpleDatePicker
+            value={editingFormData.goalDate ? new Date(editingFormData.goalDate) : undefined}
+            onChange={(date: Date | null) => setEditingFormData({...editingFormData, goalDate: date ? date.toISOString().split('T')[0] : ''})}
+            placeholder="目標達成日を選択"
+            allowFuture={true}
+            maxYearOffset={50}
+          />
+        </div>
       </div>
     </div>
   );
@@ -284,14 +288,17 @@ export function OverviewCard({ formData, setFormData, onUpdate }: OverviewCardPr
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="modal-target-date">目標達成日</Label>
-                  <Input 
-                    id="modal-target-date" 
-                    type="date" 
-                    value={editingFormData.goalDate} 
-                    onChange={e => setEditingFormData({...editingFormData, goalDate: e.target.value})}
-                    className="text-base"
-                  />
+                  <div className="space-y-2">
+                    <Label>目標達成日</Label>
+                    <SimpleDatePicker
+                      value={editingFormData.goalDate ? new Date(editingFormData.goalDate) : undefined}
+                      onChange={(date: Date | null) => setEditingFormData({...editingFormData, goalDate: date ? date.toISOString().split('T')[0] : ''})}
+                      placeholder="目標達成日を選択"
+                      className="text-base"
+                      allowFuture={true}
+                      maxYearOffset={50}
+                    />
+                  </div>
                 </div>
               </div>
               

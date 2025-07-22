@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SimpleDatePicker } from "@/components/ui/simple-date-picker";
 
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -176,30 +177,36 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
             </select>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="birth_date">生年月日 <span className="text-red-500">*</span></Label>
-            <Input
-              id="birth_date"
-              type="date"
-              value={profile.birth_date ? profile.birth_date.split('T')[0] : ''}
-              onChange={(e) => setProfile({ ...profile, birth_date: e.target.value })}
-              className="w-full pr-10"
-            />
+        <div className="flex flex-col md:flex-row gap-4 w-full">
+          <div className="flex-1 min-w-0">
+            <div className="space-y-2 w-full">
+              <label className="text-sm font-medium text-gray-700">
+                生年月日 <span className="text-red-500">*</span>
+              </label>
+              <SimpleDatePicker
+                value={profile.birth_date ? new Date(profile.birth_date) : undefined}
+                onChange={(date) => setProfile({ ...profile, birth_date: date ? date.toISOString().split('T')[0] : '' })}
+                placeholder="生年月日を選択"
+                className="w-full"
+              />
+            </div>
           </div>
-          <div>
-            <Label htmlFor="goal_target_date">目標達成日</Label>
-            <Input
-              id="goal_target_date"
-              type="date"
-              value={profile.goal_target_date ? profile.goal_target_date.split('T')[0] : ''}
-              onChange={(e) => setProfile({ ...profile, goal_target_date: e.target.value })}
-              className="w-full pr-10"
-            />
+          <div className="flex-1 min-w-0">
+            <div className="space-y-2 w-full">
+              <label className="text-sm font-medium text-gray-700">目標達成日</label>
+              <SimpleDatePicker
+                value={profile.goal_target_date ? new Date(profile.goal_target_date) : undefined}
+                onChange={(date) => setProfile({ ...profile, goal_target_date: date ? date.toISOString().split('T')[0] : '' })}
+                placeholder="目標達成日を選択"
+                className="w-full"
+                allowFuture={true}
+                maxYearOffset={50}
+              />
+            </div>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-4">
-          <div>
+        <div className="flex flex-col md:flex-row gap-4 w-full">
+          <div className="flex-1 min-w-0">
             <Label htmlFor="height_cm">身長 <span className="text-red-500">*</span></Label>
             <Input
               id="height_cm"
@@ -209,9 +216,10 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
               placeholder="170 cm"
               min="100"
               max="250"
+              className="w-full"
             />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <Label htmlFor="initial_weight_kg" className="whitespace-nowrap">現在の体重 <span className="text-red-500">*</span></Label>
             <Input
               id="initial_weight_kg"
@@ -222,9 +230,10 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
               min="30"
               max="200"
               step="0.1"
+              className="w-full"
             />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <Label htmlFor="target_weight_kg" className="whitespace-nowrap">目標体重 <span className="text-red-500">*</span></Label>
             <Input
               id="target_weight_kg"
@@ -235,6 +244,7 @@ export function OnboardingForm({ user, onboardingComplete }: OnboardingFormProps
               min="30"
               max="200"
               step="0.1"
+              className="w-full"
             />
           </div>
         </div>
