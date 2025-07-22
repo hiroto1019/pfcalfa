@@ -6,6 +6,7 @@
 import { createClient } from '@/lib/supabase/client'; // あなたのクライアント用Supabaseインスタンス
 import { useRouter } from 'next/navigation';
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { Session } from '@supabase/supabase-js';
 
 // Contextを作成して、アプリケーション全体でSupabaseインスタンスを共有できるようにします
 const SupabaseContext = createContext<any>(null);
@@ -19,7 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // onAuthStateChangeは、ユーザーのログイン/ログアウト/初期読み込み時に毎回発火します
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange((event: string, session: Session | null) => {
       // このコールバックが呼ばれた時点で、認証状態は「確定」しています。
       // これでローディングを終了できます。
       setLoading(false);
