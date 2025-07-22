@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { SimpleDatePicker } from "@/components/ui/simple-date-picker";
+import { Eye, EyeOff } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -48,6 +49,8 @@ export function SettingsPage() {
   const [showPasswordSection, setShowPasswordSection] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
   const [isSettingPassword, setIsSettingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [user, setUser] = useState<any>(null);
@@ -481,6 +484,8 @@ export function SettingsPage() {
         await updatePassword(newPassword);
         setNewPassword("");
         setConfirmNewPassword("");
+        setShowNewPassword(false);
+        setShowConfirmNewPassword(false);
         setShowPasswordSection(false);
         setHasPassword(true); // パスワード設定状態を更新
         alert("パスワードが正常に設定されました。今後はメールアドレスとパスワードでログインできます。");
@@ -867,40 +872,62 @@ export function SettingsPage() {
                     </div>
                   )}
                   
-                  <div className="space-y-2">
+                  <div className="space-y-2 relative">
                     <Label htmlFor="new-password" className="text-sm font-medium text-gray-700">
                       {hasPassword ? '新しいパスワード（最低6文字）' : (oauthProviders.length > 0 ? '追加するパスワード（最低6文字）' : 'パスワード（最低6文字）')}
                     </Label>
                     <Input
                       id="new-password"
-                      type="password"
+                      type={showNewPassword ? "text" : "password"}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="h-12 mobile-input-fix"
+                      className="h-12 mobile-input-fix pr-12"
                       placeholder={hasPassword ? '新しいパスワードを入力' : (oauthProviders.length > 0 ? '追加するパスワードを入力' : 'パスワードを入力')}
                       style={{ 
                         fontSize: '16px',
                         transform: 'translateZ(0)',
                       }}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm leading-5 mt-6"
+                    >
+                      {showNewPassword ? (
+                        <EyeOff className="h-5 w-5 text-gray-500" />
+                      ) : (
+                        <Eye className="h-5 w-5 text-gray-500" />
+                      )}
+                    </button>
                   </div>
                   
-                  <div className="space-y-2">
+                  <div className="space-y-2 relative">
                     <Label htmlFor="confirm-new-password" className="text-sm font-medium text-gray-700">
                       パスワード（確認用）
                     </Label>
                     <Input
                       id="confirm-new-password"
-                      type="password"
+                      type={showConfirmNewPassword ? "text" : "password"}
                       value={confirmNewPassword}
                       onChange={(e) => setConfirmNewPassword(e.target.value)}
-                      className="h-12 mobile-input-fix"
+                      className="h-12 mobile-input-fix pr-12"
                       placeholder="パスワードを再入力"
                       style={{ 
                         fontSize: '16px',
                         transform: 'translateZ(0)',
                       }}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm leading-5 mt-6"
+                    >
+                      {showConfirmNewPassword ? (
+                        <EyeOff className="h-5 w-5 text-gray-500" />
+                      ) : (
+                        <Eye className="h-5 w-5 text-gray-500" />
+                      )}
+                    </button>
                   </div>
                   
                   <Button 
