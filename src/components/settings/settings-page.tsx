@@ -110,13 +110,20 @@ export function SettingsPage() {
       // パスワード設定状況とOAuthプロバイダーを確認
       const { data: { user: userDetails } } = await supabase.auth.getUser();
       if (userDetails) {
-        // パスワードが設定されているかチェック
-        setHasPassword(userDetails.app_metadata?.provider === 'email' || userDetails.app_metadata?.providers?.includes('email') || false);
-        
-        // OAuthプロバイダーを取得
+        // パスワードが設定されているかチェック（より正確な判定）
         const providers = userDetails.app_metadata?.providers || [];
-        setOauthProviders(providers);
-        console.log('OAuthプロバイダー:', providers);
+        const hasEmailProvider = providers.includes('email');
+        const isEmailOnlyUser = userDetails.app_metadata?.provider === 'email';
+        
+        // パスワードが設定されているかどうかを判定
+        // emailプロバイダーが含まれている場合、またはemailのみのユーザーの場合はパスワードが設定済み
+        setHasPassword(hasEmailProvider || isEmailOnlyUser);
+        
+        // OAuthプロバイダーを取得（email以外）
+        const oauthProviders = providers.filter((p: string) => p !== 'email');
+        setOauthProviders(oauthProviders);
+        console.log('OAuthプロバイダー:', oauthProviders);
+        console.log('パスワード設定状況:', hasEmailProvider || isEmailOnlyUser);
       }
 
       const { data: profileData } = await supabase
@@ -458,7 +465,8 @@ export function SettingsPage() {
       setNewPassword("");
       setConfirmNewPassword("");
       setShowPasswordSection(false);
-      alert("パスワードが正常に設定されました。今後はメールアドレスとパスワードでログインできます。");
+      setHasPassword(true); // パスワード設定状態を更新
+      alert(hasPassword ? "パスワードが正常にリセットされました。" : "パスワードが正常に設定されました。今後はメールアドレスとパスワードでログインできます。");
     } catch (error: any) {
       setPasswordError(error.message || "パスワードの設定に失敗しました");
     } finally {
@@ -811,8 +819,8 @@ export function SettingsPage() {
                 </div>
               )}
 
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex-1">
                   <h3 className="font-medium text-gray-900">メールアドレスログイン</h3>
                   <p className="text-sm text-gray-600">
                     {user.email} でメールアドレスとパスワードでのログインを{hasPassword ? '使用できます' : '有効にします'}
@@ -824,7 +832,7 @@ export function SettingsPage() {
                 <Button 
                   variant="outline" 
                   onClick={() => setShowPasswordSection(!showPasswordSection)}
-                  className="h-10"
+                  className="h-10 w-full sm:w-auto"
                 >
                   {showPasswordSection ? 'キャンセル' : (hasPassword ? 'パスワードをリセット' : 'パスワードを設定')}
                 </Button>
@@ -840,7 +848,7 @@ export function SettingsPage() {
                   
                   <div className="space-y-2">
                     <Label htmlFor="new-password" className="text-sm font-medium text-gray-700">
-                      新しいパスワード（最低6文字）
+                      {hasPassword ? '新しいパスワード（最低6文字）' : 'パスワード（最低6文字）'}
                     </Label>
                     <Input
                       id="new-password"
@@ -848,6 +856,7 @@ export function SettingsPage() {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       className="h-12 mobile-input-fix"
+                      placeholder={hasPassword ? '新しいパスワードを入力' : 'パスワードを入力'}
                       style={{ 
                         fontSize: '16px',
                         transform: 'translateZ(0)',
@@ -865,6 +874,7 @@ export function SettingsPage() {
                       value={confirmNewPassword}
                       onChange={(e) => setConfirmNewPassword(e.target.value)}
                       className="h-12 mobile-input-fix"
+                      placeholder="パスワードを再入力"
                       style={{ 
                         fontSize: '16px',
                         transform: 'translateZ(0)',
