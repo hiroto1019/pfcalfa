@@ -68,10 +68,13 @@ export async function signUp(data: FormData) {
 
 export async function signInWithGithub() {
   const supabase = createClient();
+  const origin = headers().get('origin'); // オリジンを取得
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'github',
+    // redirectToオプションを再追加します
     options: {
-      redirectTo: `${headers().get('origin')}/auth/callback`,
+      redirectTo: `${origin}/auth/callback`,
     },
   });
 
@@ -85,10 +88,13 @@ export async function signInWithGithub() {
 
 export async function signInWithGoogle() {
   const supabase = createClient();
+  const origin = headers().get('origin'); // オリジンを取得
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
+    // redirectToオプションを再追加します
     options: {
-      redirectTo: `${headers().get('origin')}/auth/callback`,
+      redirectTo: `${origin}/auth/callback`,
     },
   });
 
