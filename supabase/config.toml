@@ -104,9 +104,10 @@ file_size_limit = "50MiB"
 # objects_path = "./images"
 
 [auth]
-site_url = "http://127.0.0.1:3000"
+site_url = "https://pfcalfa.vercel.app"
 additional_redirect_urls = [
-  "http://127.0.0.1:3000"
+  "http://127.0.0.1:3000",
+  "https://pfcalfa.vercel.app"
 ]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
