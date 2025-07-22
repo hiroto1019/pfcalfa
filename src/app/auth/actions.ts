@@ -66,15 +66,17 @@ export async function signUp(data: FormData) {
   redirect('/');
 }
 
+// 本番環境のURLを定数として定義
+const SITE_URL = 'https://pfcalfa.vercel.app/auth/callback';
+
 export async function signInWithGithub() {
   const supabase = createClient();
-  const origin = headers().get('origin'); // オリジンを取得
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'github',
-    // redirectToオプションを再追加します
     options: {
-      redirectTo: `${origin}/auth/callback`,
+      // 動的な値ではなく、ハードコードしたURLを使用
+      redirectTo: SITE_URL,
     },
   });
 
@@ -88,13 +90,12 @@ export async function signInWithGithub() {
 
 export async function signInWithGoogle() {
   const supabase = createClient();
-  const origin = headers().get('origin'); // オリジンを取得
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    // redirectToオプションを再追加します
     options: {
-      redirectTo: `${origin}/auth/callback`,
+      // 動的な値ではなく、ハードコードしたURLを使用
+      redirectTo: SITE_URL,
     },
   });
 
